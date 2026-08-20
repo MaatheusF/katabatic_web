@@ -35,6 +35,10 @@
 
 <script src="/assets/js/theme-toggle.js" defer></script>
 {% block javascripts %}{% endblock %}
+{# lang-toggle.js carrega por ultimo de proposito: da tempo da pagina
+   definir window.KATABATIC_I18N_EN (dentro do bloco javascripts acima)
+   antes dele rodar e aplicar a traducao. #}
+<script src="/assets/js/lang-toggle.js" defer></script>
 
 </body>
 </html>

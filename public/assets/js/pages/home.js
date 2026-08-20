@@ -231,10 +231,11 @@ if (document.readyState === 'loading') {
 
 /* ---------- idioma ----------
    Termos de aviacao NAO sao traduzidos: ICAO, callsign, kt, nm, ft, fpm,
-   ACARS, VATSIM, METAR e unidades permanecem iguais nos dois idiomas. */
-var I18N = {
-  pt: {},
-  en: {
+   ACARS, VATSIM, METAR e unidades permanecem iguais nos dois idiomas.
+   O botao .lang, a persistencia e a aplicacao da traducao (data-i18n)
+   sao genericos agora - ver lang-toggle.js, carregado depois deste
+   script (por ultimo em base.html.twig) e que le este dicionario. */
+window.KATABATIC_I18N_EN = {
     'nav.company': 'The company', 'nav.map': 'Map', 'nav.bases': 'Bases',
     'nav.fleet': 'Fleet', 'nav.ops': 'Operations', 'nav.pilot': 'Pilot area',
     'hero.badge': 'Virtual airline · MSFS 2024 · VATSIM',
@@ -289,28 +290,4 @@ var I18N = {
     'crew.c5': '<strong>A written mission report.</strong> What the sensors miss, you tell us.',
     'foot.contact': 'Contact', 'foot.privacy': 'Privacy',
     'foot.disclaimer': 'Katabatic is a virtual airline, run as a hobby in Microsoft Flight Simulator 2024 and on the VATSIM network. It is not a real airline, sells no tickets and carries no cargo or passengers. Airfields, registrations and routes are used in a simulation context only.'
-  }
 };
-
-(function () {
-  var nodes = document.querySelectorAll('[data-i18n]');
-  nodes.forEach(function (n) { I18N.pt[n.dataset.i18n] = n.innerHTML; });
-
-  function setLang(lang) {
-    var dict = I18N[lang] || I18N.pt;
-    nodes.forEach(function (n) {
-      var v = dict[n.dataset.i18n];
-      if (v) n.innerHTML = v;
-    });
-    document.documentElement.lang = lang === 'en' ? 'en' : 'pt-BR';
-    document.querySelectorAll('.lang button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
-    });
-  }
-
-  document.querySelectorAll('.lang button').forEach(function (b) {
-    b.addEventListener('click', function () { setLang(b.dataset.lang); });
-  });
-
-  if ((navigator.language || '').slice(0, 2) !== 'pt') setLang('en');
-})();

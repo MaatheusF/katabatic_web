@@ -50,7 +50,8 @@ table { border-collapse: collapse; width: 100%; }
 
 .view { display: none; padding: 26px 28px 60px; }
 .view.on { display: block; }
-.wrap { padding: 26px 28px 60px; }
+/* .wrap nao entra aqui: cada tela usa um layout de .wrap diferente
+   (Portal nem usa; Voo usa grid de 2 colunas) - fica em pages/<tela>.css. */
 
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
@@ -58,6 +59,6 @@ table { border-collapse: collapse; width: 100%; }
   .rail-brand, .rail-group, .rail-foot { display: none; }
   .rail a { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
   .rail a.on { border-left: 0; border-bottom-color: var(--accent); }
-  .view, .wrap { padding: 18px 16px 50px; }
+  .view { padding: 18px 16px 50px; }
   .bar { padding: 0 16px; }
 }

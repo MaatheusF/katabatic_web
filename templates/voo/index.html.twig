@@ -1,0 +1,150 @@
+{% extends 'app_base.html.twig' %}
+
+{% block title %}Relatório de voo — Katabatic{% endblock %}
+{% block meta_description %}Relatório de voo Katabatic: telemetria, fases, mapa e debrief.{% endblock %}
+
+{% block map_assets %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+{% endblock %}
+
+{% block page_stylesheets %}
+<link rel="stylesheet" href="/assets/css/pages/voo.css">
+{% endblock %}
+
+{% block bar %}
+<div class="bar">
+  <a class="back" href="{{ path('app_portal') }}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><span data-i18n="rail.logbook">Logbook</span></a>
+  <span class="sep">/</span>
+  <h1 id="h-call">—</h1>
+  <div class="right">
+    <div class="lang" role="group" aria-label="Idioma">
+      <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="icon-btn" id="prevf" aria-label="Voo anterior" title="Voo anterior">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="icon-btn" id="nextf" aria-label="Próximo voo" title="Próximo voo">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <button class="icon-btn" id="theme" aria-label="Tema">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <button class="btn" data-i18n="voo.share">Compartilhar</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div>
+    <div class="hero">
+      <div>
+        <div class="rt">UEEE <i></i> UEEE</div>
+        <p class="meta" id="h-meta"></p>
+        <p class="meta">C185F Skywagon · N104KT · voo local de avaliação</p>
+      </div>
+      <div class="score"><span>Dificuldade</span><b id="score">--</b><em id="score-lbl"></em></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="card-h"><h3>Fases do voo</h3><span class="note" id="ph-note"></span></div>
+      <div class="card-b">
+        <div class="phases" id="phases"></div>
+        <div class="ph-legend">
+          <span><i style="background:#7C8F98"></i>solo</span>
+          <span><i style="background:#2F7D50"></i>subida</span>
+          <span><i style="background:#2C7CA5"></i>cruzeiro</span>
+          <span><i style="background:#B85400"></i>descida</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Trajetória</h3>
+        <div class="layers">
+          <button class="lb on" data-layer="turb">Turbulência</button>
+          <button class="lb" data-layer="wx">Clima</button>
+          <button class="lb" data-layer="alt">Altitude</button>
+        </div>
+        <span class="note" id="map-note"></span></div>
+      <div id="map"></div>
+      <div class="legend-line"><span id="legend" style="display:flex;gap:14px"></span><span style="margin-left:auto" id="map-count"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Debrief</h3><span class="note">passe o cursor · o ponto acompanha no mapa</span></div>
+      <div class="card-b">
+        <div class="readout" id="readout"></div>
+        <div id="charts"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Relatório de missão</h3></div>
+      <div class="card-b report-b">
+        <div class="obs-block">
+          <span class="obs-tag">Resumo automático · gerado da telemetria</span>
+          <div id="obs"></div>
+        </div>
+        <div class="obs-block">
+          <div class="obs-block-head">
+            <span class="obs-tag">Relato do piloto</span>
+            <button class="btn btn-sm" id="report-edit" data-i18n="voo.report.edit">Editar</button>
+          </div>
+          <div class="report-view" id="report-view">
+            <p class="obs" id="report-view-text"></p>
+          </div>
+          <div class="report-edit-wrap" id="report-edit-wrap" style="display:none">
+            <textarea id="pilot-obs" class="report-ta" placeholder="O que o sensor não mede: por que desviou, como foi a decisão em voo, o que valeu registrar sobre essa missão…"></textarea>
+            <div class="report-foot">
+              <span class="report-count" id="report-count">0 caracteres</span>
+              <button class="btn" id="report-cancel" data-i18n="common.cancel">Cancelar</button>
+              <button class="btn btn-primary" id="report-save" data-i18n="voo.report.save">Salvar relato</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-h"><h3>Pouso</h3><span class="note" id="land-note"></span></div>
+      <div class="card-b" id="land"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Composição do índice</h3></div>
+      <div class="card-b" id="parcels"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Registro de eventos</h3><span class="note" id="ev-count"></span></div>
+      <div class="card-b" id="events"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Referências externas</h3></div>
+      <div class="card-b links">
+        <a href="#" target="_blank" rel="noopener"><span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px">Plano de voo · OFP</span></span><span class="ext">↗</span></a>
+        <a href="#" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px">Voo no logbook pessoal</span></span><span class="ext">↗</span></a>
+        <a href="#" target="_blank" rel="noopener"><span class="ic">VS</span><span><b>VATSIM</b><br><span style="font-size:12px">Sessão online · CID {{ pilot.cid }}</span></span><span class="ext">↗</span></a>
+        <a href="#"><span class="ic">↓</span><span><b>Telemetria</b><br><span style="font-size:12px">CSV bruto</span></span><span class="ext">CSV</span></a>
+        <a href="#"><span class="ic">↓</span><span><b>Traço GPX</b><br><span style="font-size:12px">Abrir no Google Earth</span></span><span class="ext">GPX</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_javascripts %}
+<script>
+  window.KATABATIC_FLIGHTS_URL = {{ flightsUrl|json_encode|raw }};
+</script>
+<script src="/assets/js/pages/voo.js" defer></script>
+{% endblock %}

@@ -16,7 +16,8 @@
 .chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
 .chip:hover { border-color: var(--border-strong); }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.filters .right { margin-left: auto; font-size: 13px; color: var(--muted); }
+.filters .right { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+.filters .right .btn { font-size: 12px; padding: 7px 12px; }
 .viewtoggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .vt { width: 32px; height: 32px; display: grid; place-items: center; border: 0; background: var(--surface); color: var(--text-2); cursor: pointer; }
 .vt + .vt { border-left: 1px solid var(--border); }
@@ -38,12 +39,26 @@ th.sortable.active .arw { opacity: 1; color: var(--accent); }
 
 /* ---------- tabelas ---------- */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+/* Limite de altura pro corpo da tabela do Logbook - com muitos voos ela
+   vira scroll interno em vez de esticar a pagina inteira. O cabecalho
+   fica fixo (sticky) enquanto rola. Ver tambem a paginacao (.pager):
+   acima de LB_PAGE_SIZE linhas filtradas (portal.js), a tabela nem
+   chega a preencher isso - o limite e so uma rede de seguranca visual. */
+.table-scroll { max-height: 620px; overflow-y: auto; }
+.table-scroll thead th { position: sticky; top: 0; z-index: 1; }
 thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 11px 18px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
 tbody td { padding: 13px 18px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
-tbody tr { cursor: pointer; }
+tbody tr { cursor: default; }
+tbody tr[data-flight-id] { cursor: pointer; }
+tbody tr[data-flight-id]:focus-visible td { outline: 2px solid var(--accent); outline-offset: -2px; }
 tbody tr:hover td { background: var(--surface-2); }
 td.num, th.num { text-align: right; }
+
+/* ---------- paginacao ---------- */
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 18px; border-top: 1px solid var(--border); }
+.pager-info { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.pager .btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .route { font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
 .route i { width: 22px; height: 1px; background: var(--border-strong); }
@@ -62,6 +77,13 @@ td.num, th.num { text-align: right; }
 .tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
+/* Uma linha do Logbook pode ter varias ocorrencias (ex.: overspeed E
+   quique no mesmo pouso) - empilha as tags em vez de deixar so a ultima
+   sobrescrever a coluna. Em .dense o gap encolhe pra caber nas linhas
+   compactas. */
+.occ-list { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+#lb-table.dense .occ-list { gap: 2px; }
+
 /* ---------- frota ---------- */
 .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }
 .plane { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -75,6 +97,10 @@ td.num, th.num { text-align: right; }
 .plane-rows div { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
 .plane-rows span { color: var(--text-2); }
 .plane-rows b { font-family: var(--font-mono); font-weight: 500; }
+.plane-hist { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--accent); text-align: right; }
+.plane-hist:hover { text-decoration: underline; }
+#fleet-list-body a { color: var(--accent); font-size: 13px; }
+#fleet-list-body a:hover { text-decoration: underline; }
 
 /* ---------- bases ---------- */
 .bases { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }

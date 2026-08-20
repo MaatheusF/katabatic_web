@@ -1,0 +1,13 @@
+{
+  "PAFA": { "name": "Fairbanks Intl.", "city": "Fairbanks, Alasca", "lat": 64.8151, "lon": -147.8560 },
+  "PABT": { "name": "Bettles", "city": "Bettles, Alasca", "lat": 66.9139, "lon": -151.5292 },
+  "PFYU": { "name": "Fort Yukon", "city": "Fort Yukon, Alasca", "lat": 66.5722, "lon": -145.2500 },
+  "PAKP": { "name": "Anaktuvuk Pass", "city": "Anaktuvuk Pass, Alasca", "lat": 68.1339, "lon": -151.7431 },
+  "PASC": { "name": "Deadhorse", "city": "Deadhorse, Alasca", "lat": 70.1946, "lon": -148.4653 },
+  "PAOT": { "name": "Ralph Wien Memorial", "city": "Kotzebue, Alasca", "lat": 66.8847, "lon": -162.6389 },
+  "SCCI": { "name": "Pdte. Carlos Ibáñez del Campo", "city": "Punta Arenas, Chile", "lat": -53.0026, "lon": -70.8546 },
+  "SCNT": { "name": "Teniente Julio Gallardo", "city": "Puerto Natales, Chile", "lat": -51.6706, "lon": -72.5286 },
+  "SCGZ": { "name": "Guardiamarina Zañartu", "city": "Puerto Williams, Chile", "lat": -54.9317, "lon": -67.6262 },
+  "SCFM": { "name": "Porvenir", "city": "Porvenir, Chile", "lat": -53.2569, "lon": -70.3925 },
+  "SCBA": { "name": "Teniente Vidal", "city": "Balmaceda, Chile", "lat": -45.9159, "lon": -71.6897 }
+}

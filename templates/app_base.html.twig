@@ -19,6 +19,35 @@
 {% endblock %}
 
 {% block javascripts %}
+{# Dicionario EN da casca comum (rail + barra + botoes de acao) das
+   telas logadas. Cada tela ainda so tem o essencial traduzido (rail,
+   titulos da barra, CTAs) - conteudo profundo (tabelas, formularios,
+   graficos) continua so em PT por enquanto. Ver lang-toggle.js, que le
+   isto (carrega por ultimo em base.html.twig). #}
+<script>
+  window.KATABATIC_I18N_EN = {
+    'rail.group': 'Operations',
+    'rail.logbook': 'Logbook',
+    'rail.frota': 'Fleet',
+    'rail.bases': 'Bases',
+    'rail.mapaVivo': 'Live map',
+    'mapavivo.live': 'LIVE',
+    'rail.adminGroup': 'Admin',
+    'rail.solicitacoes': 'Applications',
+    'rail.pilotos': 'Pilots',
+    'rail.logout': 'Log out',
+    'nav.newflight': 'New flight',
+    'portal.newaircraft': '+ New aircraft',
+    'novaaeronave.title': 'New aircraft',
+    'novaaeronave.save': 'Save aircraft',
+    'common.cancel': 'Cancel',
+    'novovoo.savedraft': 'Save draft',
+    'novovoo.publish': 'Publish flight',
+    'voo.share': 'Share',
+    'voo.report.edit': 'Edit',
+    'voo.report.save': 'Save report'
+  };
+</script>
 <script src="/assets/js/app-shell.js" defer></script>
 {% block page_javascripts %}{% endblock %}
 {% endblock %}

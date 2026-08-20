@@ -1,0 +1,52 @@
+/* ==========================================================================
+   Katabatic — adesao.css
+   Solicitação de adesão (tela pública, fora da área logada). Depende de
+   base.css (tokens, topbar, botões) carregado antes.
+   ========================================================================== */
+
+.adesao-shell { min-height: calc(100vh - 64px); display: flex; justify-content: center; padding: 48px 24px 64px; }
+.adesao-card { width: 100%; max-width: 560px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px 32px 36px; box-shadow: var(--shadow); }
+.adesao-head { text-align: center; margin-bottom: 26px; }
+.adesao-head svg { width: 30px; height: 30px; color: var(--accent); margin: 0 auto 14px; }
+.adesao-head h1 { font-size: 22px; margin-bottom: 8px; }
+.adesao-head p { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+
+label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+label .opt { text-transform: none; letter-spacing: 0; color: var(--muted); font-family: var(--font-body); }
+input[type=text], input[type=email], select, textarea {
+  width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.mono-input { font-family: var(--font-mono); }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.hint a { color: var(--accent); }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.charcount { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-align: right; margin-top: 6px; }
+
+.agree { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0 20px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.agree input { margin-top: 3px; accent-color: var(--accent); flex: none; }
+.agree a { color: var(--accent); }
+
+.adesao-submit { width: 100%; }
+.adesao-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+.adesao-success-icon { width: 52px; height: 52px; border-radius: 50%; background: color-mix(in srgb, var(--ok) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border)); display: grid; place-items: center; margin: 0 auto 18px; }
+#adesao-success-card { text-align: center; }
+#adesao-success-card h1 { font-size: 22px; margin-bottom: 10px; }
+#adesao-success-card p { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 4px; }
+.adesao-note { text-align: left; margin: 20px 0; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; font-size: 12px; color: var(--text-2); }
+.adesao-note b { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+
+@media (max-width: 640px) {
+  .adesao-card { padding: 26px 20px 30px; }
+  .grid2 { grid-template-columns: 1fr; }
+}

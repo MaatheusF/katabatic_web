@@ -1,0 +1,138 @@
+/* ==========================================================================
+   Katabatic — voo.css
+   Especifico do relatorio de voo. Depende de base.css + app-shell.css
+   carregados antes (rail, bar, botoes, tokens ja vem de la).
+   ========================================================================== */
+
+.bar { z-index: 600; }
+.bar .sep { color: var(--border-strong); }
+.bar h1 { font-size: 18px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; }
+
+/* base.css define um .wrap generico pro site publico (max-width: var(--wrap)
+   + margin:0 auto, pra virar um container centralizado) - aqui a tela e "area
+   logada" e o .main ja fica ao lado do rail, entao o conteudo deve ocupar a
+   largura inteira do .main (so com uma margem pequena), nao ficar boxado e
+   centralizado com sobra dos dois lados. */
+.wrap { max-width: none; margin: 0; padding: 24px 28px 60px; display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+.card:last-child { margin-bottom: 0; }
+.card-h { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 14px; }
+.card-h .note { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.card-b { padding: 18px; }
+
+/* ---------- relatorio de missao ---------- */
+.report-b { padding: 20px; }
+.obs-block-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.obs-block-head .obs-tag { margin: 0; }
+.obs-block-head .btn-sm { margin-left: auto; padding: 5px 12px; font-size: 12px; }
+.report-view { font-size: 14px; color: var(--text-2); line-height: 1.7; white-space: pre-wrap; }
+.report-view.empty p { color: var(--muted); font-style: italic; }
+.report-ta { width: 100%; min-height: 160px; resize: vertical; font-family: var(--font-body); font-size: 14px; line-height: 1.6; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; }
+.report-ta:focus { outline: none; border-color: var(--accent); }
+.report-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.report-count { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-right: auto; }
+
+/* ---------- cabecalho do voo ---------- */
+.hero { display: flex; align-items: flex-start; gap: 24px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.hero .rt { font-family: var(--font-mono); font-size: 26px; display: flex; align-items: center; gap: 12px; }
+.hero .rt i { width: 42px; height: 1px; background: var(--border-strong); }
+.hero .meta { color: var(--text-2); font-size: 14px; margin-top: 6px; }
+.hero .score { margin-left: auto; text-align: right; }
+.hero .score span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.hero .score b { font-family: var(--font-mono); font-size: 46px; line-height: 1; font-weight: 500; }
+.hero .score em { font-style: normal; font-size: 13px; color: var(--text-2); }
+
+/* ---------- indicadores ---------- */
+.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+.kpis div { background: var(--surface); padding: 13px 15px; }
+.kpis b { display: block; font-family: var(--font-mono); font-size: 18px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+.kpis b small { font-size: 11px; color: var(--muted); }
+.kpis span { display: block; font-size: 11px; color: var(--text-2); margin-top: 3px; }
+
+/* ---------- fases do voo ---------- */
+.phases { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 8px; }
+.phases div { display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #fff; overflow: hidden; white-space: nowrap; }
+.ph-legend { display: flex; gap: 14px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); flex-wrap: wrap; }
+.ph-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+
+/* ---------- mapa ---------- */
+#map { height: 320px; background: #0B1216; }
+.leaflet-container { background: #0B1216; font-family: var(--font-body); }
+.leaflet-control-attribution { background: rgba(11,18,22,.8); color: #7F98A5; font-size: 10px; }
+.leaflet-control-attribution a { color: #8FB6C6; }
+.layers { display: flex; gap: 5px; }
+.lb { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text-2); cursor: pointer; }
+.lb.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.legend-line { display: flex; gap: 14px; padding: 10px 18px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+.legend-line i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+
+/* ---------- debrief (leitura + graficos sincronizados) ---------- */
+.readout { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+.readout div { background: var(--surface-2); padding: 8px 5px; text-align: center; }
+.readout span { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.readout b { font-family: var(--font-mono); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.chart { margin-bottom: 6px; }
+.chart-lb { display: flex; align-items: baseline; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+.chart-lb b { color: var(--text-2); font-weight: 400; }
+.chart-lb em { font-style: normal; margin-left: auto; display: flex; gap: 10px; }
+.chart-x { position: relative; height: 16px; font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
+.chart-x span { position: absolute; transform: translateX(-50%); }
+#charts { cursor: crosshair; }
+
+/* ---------- composicao do indice ---------- */
+.parcel { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.parcel .nm { font-size: 13px; color: var(--text-2); width: 112px; flex: none; }
+.parcel .tr { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.parcel .tr i { display: block; height: 100%; }
+.parcel .vl { font-family: var(--font-mono); font-size: 13px; width: 26px; text-align: right; }
+.phint { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin: 0 0 11px 122px; }
+
+/* ---------- eventos ----------
+   #events e o .card-b desse card (id e class no mesmo elemento). Com voos
+   longos/turbulentos a lista de eventos pode ter dezenas de linhas - sem
+   limite ela estica o card muito mais que os vizinhos (Pouso, Composicao
+   do indice) e desalinha a coluna direita inteira. A partir de ~8 eventos
+   visiveis ela vira scroll interno em vez de continuar crescendo. */
+.card-b#events { max-height: 380px; overflow-y: auto; }
+.ev { display: flex; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.ev:last-child { border-bottom: 0; }
+.ev .tm { font-family: var(--font-mono); font-size: 12px; color: var(--muted); width: 44px; flex: none; padding-top: 1px; }
+.ev .dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 8px; flex: none; }
+.ev .tx b { display: block; font-size: 13px; font-weight: 500; }
+.ev .tx span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* ---------- pouso ---------- */
+.land { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.land div { background: var(--surface-2); padding: 11px 13px; }
+.land b { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 500; }
+.land span { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.verdict { margin-bottom: 12px; padding: 11px 13px; border-radius: 7px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: 13px; }
+.verdict b { font-weight: 600; }
+
+/* ---------- referencias externas ---------- */
+.links a { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-2); }
+.links a:last-child { border-bottom: 0; }
+.links a:hover { color: var(--accent); }
+.links a b { font-weight: 500; color: var(--text); }
+.links a .ext { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.links a .ic { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-mono); font-size: 10px; flex: none; }
+
+/* ---------- resumo automatico ---------- */
+.obs { font-size: 14px; color: var(--text-2); line-height: 1.7; }
+.obs b { color: var(--text); font-weight: 600; }
+.obs-block + .obs-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.obs-tag { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 9px; }
+
+@media (max-width: 1080px) {
+  .wrap { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: repeat(4, 1fr); }
+  .readout { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 900px) {
+  .wrap { padding: 16px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .readout { grid-template-columns: repeat(4, 1fr); }
+  .hero .score { margin-left: 0; }
+}

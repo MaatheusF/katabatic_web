@@ -1,0 +1,142 @@
+{% extends 'app_base.html.twig' %}
+
+{% block title %}Nova aeronave — Katabatic{% endblock %}
+{% block meta_description %}Cadastrar uma nova aeronave na frota Katabatic.{% endblock %}
+
+{% block page_stylesheets %}
+<link rel="stylesheet" href="/assets/css/pages/nova-aeronave.css">
+{% endblock %}
+
+{% block bar %}
+<div class="bar">
+  <a class="back" href="{{ path('app_portal') }}?view=frota"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><span data-i18n="rail.frota">Frota</span></a>
+  <span class="sep">/</span>
+  <h1 data-i18n="novaaeronave.title">Nova aeronave</h1>
+  <div class="right">
+    <div class="lang" role="group" aria-label="Idioma">
+      <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="icon-btn" id="theme" aria-label="Tema">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <!-- Identificação -->
+  <div class="card">
+    <div class="card-h"><span class="n">1</span><h3>Identificação</h3></div>
+    <div class="card-b">
+      <div class="field">
+        <label>País de registro</label>
+        <div class="chips" id="pais-chips">
+          <button class="chip on" data-pais="CL" type="button">Chile · CC-</button>
+          <button class="chip" data-pais="US" type="button">EUA · N</button>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Matrícula</label>
+          <div class="reg-row">
+            <span class="reg-prefix" id="reg-prefix">CC-</span>
+            <input type="text" class="mono-input" id="f-reg" placeholder="KBE" maxlength="6" style="text-transform:uppercase">
+          </div>
+          <p class="hint" id="reg-hint">Também é guardada sem hífen (<code id="reg-norm">CCKBE</code>) — é assim que o ACARS envia no <code>ATC ID</code>.</p>
+        </div>
+        <div class="field">
+          <label>Tipo (ICAO)</label>
+          <select id="f-tipo">
+            <option value="">Selecione…</option>
+            <option>DHC-6 Twin Otter 300</option>
+            <option>Cessna 208B Grand Caravan</option>
+            <option>Pilatus PC-6 Porter</option>
+            <option>DHC-2 Beaver</option>
+            <option>Beechcraft King Air 350</option>
+            <option value="__custom">Outro tipo…</option>
+          </select>
+          <input type="text" class="mono-input" id="f-tipo-custom" placeholder="Ex.: Cessna 185F Skywagon" style="display:none;margin-top:8px">
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <label>Base</label>
+        <div class="chips" id="base-chips">
+          <button class="chip on" data-base="PAFA" type="button">PAFA · Fairbanks</button>
+          <button class="chip" data-base="SCCI" type="button">SCCI · Punta Arenas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Limites operacionais -->
+  <div class="card">
+    <div class="card-h"><span class="n">2</span><h3>Limites operacionais</h3><span class="note">usados no índice de dificuldade</span></div>
+    <div class="card-b">
+      <div class="grid3">
+        <div class="field">
+          <label>Limite de fator de carga (G)</label>
+          <input type="number" class="mono-input" id="f-glimit" step="0.1" placeholder="3.8">
+          <p class="hint">Positivo. Usado para marcar excedência (<b>overG</b>) nos voos importados.</p>
+        </div>
+        <div class="field">
+          <label>VS máx. de pouso <span style="text-transform:none;letter-spacing:0">(fpm)</span></label>
+          <input type="number" class="mono-input" id="f-vslimit" placeholder="600">
+        </div>
+        <div class="field">
+          <label>Horas atuais</label>
+          <input type="number" class="mono-input" id="f-hours" placeholder="0" min="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fotos -->
+  <div class="card">
+    <div class="card-h"><span class="n">3</span><h3>Fotos</h3><span class="note">opcional agora, dá pra completar depois</span></div>
+    <div class="card-b">
+      <div class="photo-row">
+        <div class="photo-slot main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>
+          <span>Foto principal</span>
+        </div>
+        <div class="photo-slot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg><span>Adicionar</span></div>
+        <div class="photo-slot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg><span>Adicionar</span></div>
+        <div class="photo-slot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg><span>Adicionar</span></div>
+      </div>
+      <p class="hint" style="margin-top:12px">Prefira capturas do próprio simulador, no pátio, mesmo enquadramento entre aeronaves — é o que dá cara de frota, não de álbum solto.</p>
+    </div>
+  </div>
+
+  <!-- Configuração no simulador -->
+  <div class="sim-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+    <p>Antes do primeiro voo com esta aeronave, configure o <b>ATC ID</b> no simulador exatamente como <code id="sim-tail">CC-KBE</code>. É por esse valor que o ACARS encontra a aeronave na frota — se ficar diferente, o voo chega sem aeronave associada.</p>
+  </div>
+
+  <!-- Observações -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-h"><span class="n">4</span><h3>Observações</h3><span class="note">interno, não aparece no site público</span></div>
+    <div class="card-b">
+      <textarea id="f-obs" rows="3" placeholder="Manutenção pendente, particularidades do addon, histórico…"></textarea>
+    </div>
+  </div>
+
+  <div class="footer-actions">
+    <a class="btn btn-ghost" href="{{ path('app_portal') }}?view=frota" data-i18n="common.cancel">Cancelar</a>
+    <div class="right">
+      <button class="btn btn-primary" id="btn-save" disabled data-i18n="novaaeronave.save">Salvar aeronave</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_javascripts %}
+<script src="/assets/js/pages/nova-aeronave.js" defer></script>
+{% endblock %}

@@ -284,7 +284,7 @@
       </a>
       {% endfor %}
     </div>
-    <div class="more"><a class="btn" href="#" data-i18n="ops.more">Ver o registro completo</a></div>
+    <div class="more"><a class="btn" href="{{ path('app_portal') }}" data-i18n="ops.more">Ver o registro completo</a></div>
   </div>
 </section>
 
@@ -295,7 +295,7 @@
       <h2 class="h2" data-i18n="crew.title">Entrada por avaliação</h2>
       <p style="color:var(--text-2)" data-i18n="crew.lead">A Katabatic não abre vagas em massa. São três voos de avaliação com callsign próprio, julgados pelos mesmos dados que geram os relatórios públicos — ninguém é aprovado no olho, e ninguém é reprovado por opinião.</p>
       <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="#" data-i18n="crew.cta1">Iniciar avaliação</a>
+        <a class="btn btn-primary btn-lg" href="{{ path('app_adesao') }}" data-i18n="crew.cta1">Iniciar avaliação</a>
         <a class="btn btn-lg" href="#" data-i18n="crew.cta2">Manual de operações</a>
       </div>
       <figure class="shot" style="margin-top:36px">

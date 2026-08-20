@@ -63,7 +63,13 @@ class LoginController extends AbstractController
      * "Base de pilotos" mock. Quando o schema do banco existir isso vira
      * PilotRepository::findByCid() + password_verify() contra o hash.
      *
-     * @return array{initials: string, name: string, cid: string}|null
+     * `admin` e um flag mock simples pra restringir a tela de
+     * Solicitações/Pilotos (ver SolicitacoesController) - o unico piloto
+     * mock existente e admin, pra dar pra testar a tela sem precisar
+     * simular dois logins diferentes. Quando o schema do banco existir
+     * isso vira uma coluna/papel de verdade (ver README).
+     *
+     * @return array{initials: string, name: string, cid: string, admin: bool}|null
      */
     private function findMockPilot(string $cid, string $password): ?array
     {
@@ -72,7 +78,7 @@ class LoginController extends AbstractController
         }
 
         $mockPilots = [
-            '1234567' => ['initials' => 'KB', 'name' => 'Comandante', 'cid' => '1234567'],
+            '1234567' => ['initials' => 'KB', 'name' => 'Comandante', 'cid' => '1234567', 'admin' => true],
         ];
 
         return $mockPilots[$cid] ?? null;

@@ -1,0 +1,69 @@
+/* ==========================================================================
+   Katabatic — solicitacoes.css
+   Grid de administração (Solicitações de adesão / Pilotos cadastrados).
+   Depende de base.css + app-shell.css carregados antes - card/chip/tag/
+   summary/filters redefinidos aqui, mesmo padrão autocontido das outras
+   páginas da área logada (ver voo.css/portal.css).
+   ========================================================================== */
+
+.bar { z-index: 600; }
+.bar h1 { font-size: 18px; font-weight: 500; letter-spacing: 0; }
+
+.wrap { max-width: none; margin: 0; padding: 24px 28px 60px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+
+/* ---------- resumo ---------- */
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
+.summary div { background: var(--surface); padding: 16px 18px; }
+.summary b { display: block; font-family: var(--font-mono); font-size: 24px; font-weight: 500; line-height: 1.1; }
+.summary span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+
+/* ---------- filtros ---------- */
+.filters { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+.chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.chip:hover { border-color: var(--border-strong); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lbsearch { font-family: var(--font-body); font-size: 13px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 240px; }
+.lbsearch:focus { outline: none; border-color: var(--accent); }
+.filters .right { margin-left: auto; font-size: 13px; color: var(--muted); }
+
+/* ---------- tabela ---------- */
+.table-scroll { max-height: 560px; overflow-y: auto; }
+.table-scroll thead th { position: sticky; top: 0; z-index: 1; }
+thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 11px 18px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody td { padding: 13px 18px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr.sol-row { cursor: pointer; }
+tbody tr.sol-row:hover td { background: var(--surface-2); }
+tbody tr.detail-row td { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 14px 18px 18px; }
+tbody tr.detail-row:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+.sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+.tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+/* ---------- ações (aprovar/rejeitar) ---------- */
+.row-actions { display: flex; gap: 6px; }
+.btn-approve, .btn-reject { font-family: var(--font-mono); font-size: 11px; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.btn-approve:hover { border-color: var(--ok); color: var(--ok); }
+.btn-reject:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ---------- detalhe expandido (motivação completa) ---------- */
+.detail-grid { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 28px; margin-bottom: 10px; }
+.detail-grid div span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.detail-grid div b { font-size: 13px; font-weight: 500; }
+.detail-motiv { font-size: 13px; color: var(--text-2); line-height: 1.6; max-width: 720px; }
+.detail-motiv span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+
+.hint { font-size: 12px; color: var(--muted); margin-top: 14px; text-align: center; }
+
+@media (max-width: 900px) {
+  .wrap { padding: 16px; }
+  .summary { grid-template-columns: repeat(2, 1fr); }
+  .detail-grid { grid-template-columns: 1fr 1fr; }
+}

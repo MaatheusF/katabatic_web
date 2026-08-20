@@ -6,25 +6,41 @@
     <b>Katabatic</b>
   </div>
 
-  <span class="rail-group">Operação</span>
-  <a data-view="logbook"{% if activeView == 'logbook' %} class="on"{% endif %}>
+  <span class="rail-group" data-i18n="rail.group">Operação</span>
+  <a data-view="logbook" href="{{ path('app_portal') }}"{% if activeView == 'logbook' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4zM4 9h16M9 9v10"/></svg>
-    Logbook
+    <span data-i18n="rail.logbook">Logbook</span>
   </a>
-  <a data-view="frota"{% if activeView == 'frota' %} class="on"{% endif %}>
+  <a data-view="frota" href="{{ path('app_portal') }}?view=frota"{% if activeView == 'frota' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2 9 7 3v2l-9-2-9 2v-2l7-3z"/></svg>
-    Frota
+    <span data-i18n="rail.frota">Frota</span>
   </a>
-  <a data-view="bases"{% if activeView == 'bases' %} class="on"{% endif %}>
+  <a data-view="bases" href="{{ path('app_portal') }}?view=bases"{% if activeView == 'bases' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/></svg>
-    Bases
+    <span data-i18n="rail.bases">Bases</span>
   </a>
+  <a data-view="mapaVivo" href="{{ path('app_mapa_ao_vivo') }}"{% if activeView == 'mapaVivo' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="2"/><path d="M12 5v2M12 17v2M19 12h-2M7 12H5"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
+    <span data-i18n="rail.mapaVivo">Mapa ao vivo</span>
+  </a>
+
+  {% if pilot.admin %}
+  <span class="rail-group" data-i18n="rail.adminGroup">Administração</span>
+  <a data-view="solicitacoes" href="{{ path('app_solicitacoes') }}"{% if activeView == 'solicitacoes' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h16v13H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>
+    <span data-i18n="rail.solicitacoes">Solicitações</span>
+  </a>
+  <a data-view="pilotos" href="{{ path('app_solicitacoes') }}?view=pilotos"{% if activeView == 'pilotos' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/><circle cx="18" cy="8" r="2.4"/><path d="M22 20c0-3-1.6-5.5-4-6.6"/></svg>
+    <span data-i18n="rail.pilotos">Pilotos</span>
+  </a>
+  {% endif %}
 
   <div class="rail-foot">
     <div class="pilot">
       <span class="pilot-badge">{{ pilot.initials }}</span>
       <div><b>{{ pilot.name }}</b><span>CID {{ pilot.cid }}</span></div>
     </div>
-    <a href="{{ path('app_logout') }}" class="rail-logout">Sair</a>
+    <a href="{{ path('app_logout') }}" class="rail-logout" data-i18n="rail.logout">Sair</a>
   </div>
 </nav>
