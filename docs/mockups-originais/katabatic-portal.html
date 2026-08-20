@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Katabatic — Área do piloto</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26L16 6l12 20' fill='none' stroke='%23FF8A1F' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M16 13v11M11.5 19l4.5 5 4.5-5' fill='none' stroke='%23FF8A1F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EDF1F2; --surface: #FFFFFF; --surface-2: #F4F7F8;
+  --border: #D3DDE1; --border-strong: #B7C6CC;
+  --text: #0E181D; --text-2: #4C5F68; --muted: #7C8F98;
+  --accent: #B85400; --ice: #2C7CA5; --danger: #B33B2C; --ok: #2F7D50;
+  --shadow: 0 1px 2px rgba(14,24,29,.05);
+  --rail: #101A1F; --rail-text: #9DB4BF; --rail-active: #1A2830;
+}
+[data-theme="dark"] {
+  --bg: #0A0E11; --surface: #121A1F; --surface-2: #18232A;
+  --border: #24333E; --border-strong: #334754;
+  --text: #DFE8EC; --text-2: #9DB0BA; --muted: #6F838E;
+  --accent: #FF8A1F; --ice: #5AA9D6; --danger: #E4574A; --ok: #4ADE80;
+  --shadow: none;
+  --rail: #0D1418; --rail-text: #8FA6B1; --rail-active: #18242B;
+}
+:root {
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; margin: 0; line-height: 1.15; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+table { border-collapse: collapse; width: 100%; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- estrutura ---------- */
+.app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+.rail { background: var(--rail); display: flex; flex-direction: column; padding: 18px 0; position: sticky; top: 0; height: 100vh; }
+.rail-brand { display: flex; align-items: center; gap: 10px; padding: 0 20px 22px; }
+.rail-brand svg { width: 24px; height: 24px; color: var(--accent); }
+.rail-brand b { font-family: var(--font-display); font-size: 16px; letter-spacing: .05em; text-transform: uppercase; color: #E6EEF2; font-weight: 700; }
+.rail-group { padding: 14px 20px 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #55707C; }
+.rail a { display: flex; align-items: center; gap: 11px; padding: 9px 20px; color: var(--rail-text); font-size: 14px; cursor: pointer; border-left: 2px solid transparent; }
+.rail a:hover { color: #E6EEF2; background: var(--rail-active); }
+.rail a.on { color: #fff; background: var(--rail-active); border-left-color: var(--accent); }
+.rail a svg { width: 17px; height: 17px; flex: none; opacity: .85; }
+.rail-foot { margin-top: auto; padding: 16px 20px 0; border-top: 1px solid #1C2A32; }
+.pilot { display: flex; align-items: center; gap: 10px; }
+.pilot-badge { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; }
+.pilot b { display: block; font-size: 13px; color: #E6EEF2; font-weight: 500; }
+.pilot span { font-family: var(--font-mono); font-size: 11px; color: #55707C; }
+
+.main { min-width: 0; }
+.bar { display: flex; align-items: center; gap: 16px; padding: 0 28px; height: 62px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+.bar h1 { font-size: 19px; margin-right: auto; }
+.icon-btn { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+.icon-btn:hover { color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
+[data-theme="light"] .i-sun { display: none; }
+[data-theme="dark"] .i-moon { display: none; }
+.btn { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-family: var(--font-body); padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.view { display: none; padding: 26px 28px 60px; }
+.view.on { display: block; }
+
+/* ---------- resumo ---------- */
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
+.summary div { background: var(--surface); padding: 16px 18px; }
+.summary b { display: block; font-family: var(--font-mono); font-size: 24px; font-weight: 500; line-height: 1.1; }
+.summary b small { font-size: 13px; color: var(--muted); }
+.summary span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+
+/* ---------- filtros ---------- */
+.filters { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+.chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.chip:hover { border-color: var(--border-strong); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filters .right { margin-left: auto; font-size: 13px; color: var(--muted); }
+.viewtoggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.vt { width: 32px; height: 32px; display: grid; place-items: center; border: 0; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.vt + .vt { border-left: 1px solid var(--border); }
+.vt.on { background: var(--accent); color: #fff; }
+.vt:hover:not(.on) { background: var(--surface-2); }
+.lbsel { font-family: var(--font-mono); font-size: 12px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.lbsearch { font-family: var(--font-body); font-size: 13px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: 220px; }
+.lbsearch:focus, .lbsel:focus { outline: none; border-color: var(--accent); }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+th.sortable .arw { display: inline-block; font-size: 9px; margin-left: 3px; opacity: .4; }
+th.sortable.active .arw { opacity: 1; color: var(--accent); }
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+#lb-table.dense thead th { padding: 7px 18px; }
+#lb-table.dense tbody td { padding: 5px 18px; font-size: 13px; }
+#lb-table.dense .sub { display: none; }
+#lb-table.dense .diff .bar-t { width: 40px; }
+#lb-table.dense .diff b { font-size: 14px; }
+
+/* ---------- tabelas ---------- */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 11px 18px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody td { padding: 13px 18px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; }
+
+.route { font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
+.route i { width: 22px; height: 1px; background: var(--border-strong); }
+.sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.diff { display: inline-flex; align-items: center; gap: 9px; justify-content: flex-end; }
+.diff .bar-t { width: 46px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.diff .bar-t i { display: block; height: 100%; }
+.diff b { font-family: var(--font-mono); font-size: 15px; font-weight: 500; width: 24px; text-align: right; }
+.lo i { background: var(--ice); } .lo b { color: var(--ice); }
+.mid i { background: var(--accent); } .mid b { color: var(--accent); }
+.hi i { background: var(--danger); } .hi b { color: var(--danger); }
+
+.tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+/* ---------- frota ---------- */
+.fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }
+.plane { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.plane-shot { aspect-ratio: 16/10; background: #0B1216; display: grid; place-items: center; border-bottom: 1px solid var(--border); }
+.plane-shot span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #55707C; }
+.plane-body { padding: 14px 16px; }
+.plane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.plane-head b { font-family: var(--font-mono); font-size: 16px; }
+.plane-type { font-size: 13px; color: var(--text-2); margin-top: 1px; }
+.plane-rows { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.plane-rows div { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.plane-rows span { color: var(--text-2); }
+.plane-rows b { font-family: var(--font-mono); font-weight: 500; }
+
+/* ---------- bases ---------- */
+.bases { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.base { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.base-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.base-head b { font-family: var(--font-mono); font-size: 20px; }
+.base-head span { font-size: 13px; color: var(--text-2); }
+.base-head .tag { margin-left: auto; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.metrics div span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.metrics div b { font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
+.metrics div b.warn { color: var(--accent); }
+.stn-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 9px; display: block; }
+.stns { display: flex; flex-direction: column; gap: 6px; }
+.stn { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 0; }
+.stn b { font-family: var(--font-mono); width: 52px; }
+.stn span { color: var(--text-2); }
+.stn .dist { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.stn .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 8px; align-items: center; }
+  .rail-brand, .rail-group, .rail-foot { display: none; }
+  .rail a { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .rail a.on { border-left: 0; border-bottom-color: var(--accent); }
+  .summary, .metrics { grid-template-columns: repeat(2, 1fr); }
+  .bases { grid-template-columns: 1fr; }
+  .view { padding: 18px 16px 50px; }
+  .bar { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <nav class="rail">
+    <div class="rail-brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round">
+        <path d="M4 26L16 6l12 20"/><path d="M16 13v11M11.5 19l4.5 5 4.5-5" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <b>Katabatic</b>
+    </div>
+
+    <span class="rail-group">Operação</span>
+    <a class="on" data-view="logbook">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4zM4 9h16M9 9v10"/></svg>
+      Logbook
+    </a>
+    <a data-view="frota">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2 9 7 3v2l-9-2-9 2v-2l7-3z"/></svg>
+      Frota
+    </a>
+    <a data-view="bases">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/></svg>
+      Bases
+    </a>
+
+    <div class="rail-foot">
+      <div class="pilot">
+        <span class="pilot-badge">KB</span>
+        <div><b>Comandante</b><span>CID 1234567</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="bar">
+      <h1 id="title">Logbook</h1>
+      <button class="icon-btn" id="theme" aria-label="Alternar tema">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="btn btn-primary">Novo voo</button>
+    </div>
+
+    <!-- ================= LOGBOOK ================= -->
+    <section class="view on" id="v-logbook">
+      <div class="summary">
+        <div><b class="mono">18,4<small> h</small></b><span>Horas registradas</span></div>
+        <div><b class="mono" id="sum-count">23</b><span>Voos concluídos</span></div>
+        <div><b class="mono">57</b><span>Dificuldade média</span></div>
+        <div><b class="mono">100<small>%</small></b><span>Na rede VATSIM</span></div>
+      </div>
+
+      <div class="filters">
+        <button class="chip on" data-tipo="Todos">Todos</button>
+        <button class="chip" data-tipo="Carga">Carga</button>
+        <button class="chip" data-tipo="Pessoal">Pessoal</button>
+        <button class="chip" data-tipo="Pesquisa">Pesquisa</button>
+        <button class="chip" data-tipo="Reposicionamento">Reposicionamento</button>
+        <select id="periodo" class="lbsel">
+          <option value="0">Todo o período</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+        </select>
+        <input id="busca" class="lbsearch" type="text" placeholder="Buscar callsign, rota ou ICAO…">
+        <div class="viewtoggle">
+          <button class="vt on" id="vt-normal" title="Linhas normais">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <button class="vt" id="vt-dense" title="Linhas compactas">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 9.5h16M4 14h16M4 18.5h16"/></svg>
+          </button>
+        </div>
+        <span class="right" id="filter-count">6 voos</span>
+      </div>
+
+      <div class="card">
+        <table id="lb-table">
+          <thead>
+            <tr>
+              <th data-sort="data" class="sortable">Data <i class="arw">▾</i></th>
+              <th>Voo</th><th>Rota</th><th>Aeronave</th>
+              <th class="num" data-sort="tempo" class="sortable">Tempo</th>
+              <th>Condição</th><th>Ocorrência</th>
+              <th class="num sortable" data-sort="dificuldade">Dificuldade <i class="arw"></i></th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+        <div class="empty" id="lb-empty" style="display:none">Nenhum voo encontrado com esses filtros.</div>
+      </div>
+    </section>
+
+    <!-- ================= FROTA ================= -->
+    <section class="view" id="v-frota">
+      <div class="summary">
+        <div><b class="mono">6</b><span>Aeronaves</span></div>
+        <div><b class="mono">1 266<small> h</small></b><span>Horas totais</span></div>
+        <div><b class="mono">2</b><span>Em voo agora</span></div>
+        <div><b class="mono">1</b><span>Fora de base</span></div>
+      </div>
+
+      <div class="filters">
+        <button class="chip on" data-base="Todas">Todas</button>
+        <button class="chip" data-base="PAFA">PAFA</button>
+        <button class="chip" data-base="SCCI">SCCI</button>
+        <div class="viewtoggle">
+          <button class="vt on" id="vt-grid" title="Visualização em grade">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+          </button>
+          <button class="vt" id="vt-list" title="Visualização em lista">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+        <span class="right">Registro CC no sul · N no norte</span>
+      </div>
+
+      <div class="fleet-grid" id="fleet-grid"></div>
+      <div class="card" id="fleet-list" style="display:none">
+        <table>
+          <thead><tr><th>Matrícula</th><th>Tipo</th><th>Status</th><th>Base</th><th>Posição</th><th class="num">Horas</th><th>Último voo</th></tr></thead>
+          <tbody id="fleet-list-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= BASES ================= -->
+    <section class="view" id="v-bases">
+      <div class="bases">
+
+        <article class="base">
+          <div class="base-head"><b>PAFA</b><span>Fairbanks, Alasca</span><span class="tag">KBT Norte</span></div>
+          <p style="color:var(--text-2); font-size:14px">Interior e Ártico. Suprimento de campos sem estrada e pernas de pesquisa acima do Círculo Polar.</p>
+          <div class="metrics">
+            <div><span>Vento</span><b>210/09</b></div>
+            <div><span>Temp</span><b>11 °C</b></div>
+            <div><span>Visib.</span><b class="warn">4 800 m</b></div>
+            <div><span>Teto</span><b>2 100 ft</b></div>
+          </div>
+          <span class="stn-label">Estações avançadas · 5</span>
+          <div class="stns">
+            <div class="stn"><span class="dot" style="background:var(--ok)"></span><b>PABT</b><span>Bettles</span><span class="dist">168 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--accent)"></span><b>PFYU</b><span>Fort Yukon</span><span class="dist">122 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--ice)"></span><b>PAKP</b><span>Anaktuvuk Pass</span><span class="dist">228 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--danger)"></span><b>PASC</b><span>Deadhorse</span><span class="dist">373 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--ok)"></span><b>PAOT</b><span>Kotzebue</span><span class="dist">380 nm</span></div>
+          </div>
+        </article>
+
+        <article class="base">
+          <div class="base-head"><b>SCCI</b><span>Punta Arenas, Chile</span><span class="tag">KBT Sul</span></div>
+          <p style="color:var(--text-2); font-size:14px">Magalhães e Patagônia. Apoio a estações de pesquisa, travessia de fiordes e transporte técnico.</p>
+          <div class="metrics">
+            <div><span>Vento</span><b class="warn">280/41G56</b></div>
+            <div><span>Temp</span><b>3 °C</b></div>
+            <div><span>Visib.</span><b>9 999 m</b></div>
+            <div><span>Teto</span><b>2 400 ft</b></div>
+          </div>
+          <span class="stn-label">Estações avançadas · 4</span>
+          <div class="stns">
+            <div class="stn"><span class="dot" style="background:var(--accent)"></span><b>SCNT</b><span>Puerto Natales</span><span class="dist">130 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--danger)"></span><b>SCGZ</b><span>Puerto Williams</span><span class="dist">150 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--ok)"></span><b>SCFM</b><span>Porvenir</span><span class="dist">22 nm</span></div>
+            <div class="stn"><span class="dot" style="background:var(--ice)"></span><b>SCBA</b><span>Balmaceda</span><span class="dist">432 nm</span></div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.setAttribute('data-theme', 'dark');
+  document.getElementById('theme').addEventListener('click', function () {
+    root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  var titles = { logbook: 'Logbook', frota: 'Frota', bases: 'Bases' };
+  document.querySelectorAll('.rail a[data-view]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      document.querySelectorAll('.rail a[data-view]').forEach(function (a) { a.classList.remove('on'); });
+      link.classList.add('on');
+      document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('on'); });
+      document.getElementById('v-' + link.dataset.view).classList.add('on');
+      document.getElementById('title').textContent = titles[link.dataset.view];
+      window.scrollTo(0, 0);
+    });
+  });
+
+  document.querySelectorAll('.filters').forEach(function (group) {
+    group.querySelectorAll('.chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        group.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('on'); });
+        chip.classList.add('on');
+      });
+    });
+  });
+})();
+
+var LB = [
+  {data:'2026-08-19',hora:'03:34Z',callsign:'KBT118',tipo:'Carga',origem:'PAFA',destino:'PABT',rota:'Fairbanks → Bettles',aeronave:'N208KB',modelo:'C208',tempo:'0:52',tempoMin:52,cond:'Neve · -20 °C',condTag:'bad',ocor:'Overspeed',ocorTag:'warn',dif:81},
+  {data:'2026-08-19',hora:'03:28Z',callsign:'KBT412',tipo:'Pesquisa',origem:'SCCI',destino:'SCNT',rota:'Punta Arenas → Puerto Natales',aeronave:'CC-KBA',modelo:'DHC6',tempo:'1:04',tempoMin:64,cond:'Chuva · em nuvem',condTag:'warn',ocor:null,dif:74},
+  {data:'2026-08-19',hora:'03:22Z',callsign:'KBT207',tipo:'Pessoal',origem:'PAFA',destino:'PASC',rota:'Fairbanks → Deadhorse',aeronave:'N67KB',modelo:'BE20',tempo:'1:48',tempoMin:108,cond:'Claro · seco',condTag:'ok',ocor:'Quique',ocorTag:'warn',dif:29},
+  {data:'2026-08-17',hora:'21:10Z',callsign:'KBT903',tipo:'Reposicionamento',origem:'SCCI',destino:'SCBA',rota:'Punta Arenas → Balmaceda',aeronave:'CC-KBD',modelo:'PC6',tempo:'2:37',tempoMin:157,cond:'Vento 41G56',condTag:'warn',ocor:null,dif:66},
+  {data:'2026-08-15',hora:'14:02Z',callsign:'KBT118',tipo:'Carga',origem:'PAFA',destino:'PFYU',rota:'Fairbanks → Fort Yukon',aeronave:'N412KB',modelo:'DHC2',tempo:'1:11',tempoMin:71,cond:'Gelo leve',condTag:'warn',ocor:'Pouso duro',ocorTag:'bad',dif:58},
+  {data:'2026-08-14',hora:'09:47Z',callsign:'KBT412',tipo:'Pesquisa',origem:'SCCI',destino:'SCGZ',rota:'Punta Arenas → Puerto Williams',aeronave:'CC-KBA',modelo:'DHC6',tempo:'1:22',tempoMin:82,cond:'Turbulência severa',condTag:'bad',ocor:null,dif:88}
+];
+
+var lbState = { tipo:'Todos', periodo:30, busca:'', sortKey:'data', sortDir:'desc' };
+
+function diffClass(v){ return v>=70?'hi':(v>=45?'mid':'lo'); }
+
+function lbRow(f){
+  var dd = f.data.slice(8,10)+'/'+f.data.slice(5,7);
+  return '<tr onclick="location.href=\'katabatic-voo.html\'">' +
+    '<td class="mono">'+dd+'<span class="sub">'+f.hora+'</span></td>' +
+    '<td class="mono">'+f.callsign+'<span class="sub">'+f.tipo+'</span></td>' +
+    '<td><div class="route">'+f.origem+' <i></i> '+f.destino+'</div><span class="sub">'+f.rota+'</span></td>' +
+    '<td class="mono">'+f.aeronave+'<span class="sub">'+f.modelo+'</span></td>' +
+    '<td class="num mono">'+f.tempo+'</td>' +
+    '<td><span class="tag tag-'+f.condTag+'">'+f.cond+'</span></td>' +
+    '<td>'+(f.ocor?'<span class="tag tag-'+f.ocorTag+'">'+f.ocor+'</span>':'<span class="tag">—</span>')+'</td>' +
+    '<td class="num"><span class="diff '+diffClass(f.dif)+'"><span class="bar-t"><i style="width:'+f.dif+'%"></i></span><b>'+f.dif+'</b></span></td>' +
+  '</tr>';
+}
+
+function lbRender(){
+  var now = new Date('2026-08-19T12:00:00Z');
+  var rows = LB.filter(function(f){
+    if(lbState.tipo!=='Todos' && f.tipo!==lbState.tipo) return false;
+    if(lbState.periodo>0){
+      var days = (now - new Date(f.data+'T00:00:00Z')) / 86400000;
+      if(days > lbState.periodo) return false;
+    }
+    if(lbState.busca){
+      var q = lbState.busca.toLowerCase();
+      var hay = (f.callsign+' '+f.origem+' '+f.destino+' '+f.rota).toLowerCase();
+      if(hay.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
+
+  rows.sort(function(a,b){
+    var av, bv;
+    if(lbState.sortKey==='data'){ av=a.data+a.hora; bv=b.data+b.hora; }
+    else if(lbState.sortKey==='tempo'){ av=a.tempoMin; bv=b.tempoMin; }
+    else { av=a.dif; bv=b.dif; }
+    if(av<bv) return lbState.sortDir==='asc'?-1:1;
+    if(av>bv) return lbState.sortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  document.getElementById('lb-body').innerHTML = rows.map(lbRow).join('');
+  document.getElementById('lb-empty').style.display = rows.length ? 'none' : 'block';
+  document.getElementById('filter-count').textContent = rows.length + (rows.length===1?' voo':' voos');
+  document.getElementById('sum-count').textContent = rows.length;
+
+  document.querySelectorAll('th.sortable').forEach(function(th){
+    th.classList.toggle('active', th.dataset.sort===lbState.sortKey);
+    var arw = th.querySelector('.arw');
+    if(arw) arw.textContent = th.dataset.sort===lbState.sortKey ? (lbState.sortDir==='asc'?'▴':'▾') : '▾';
+  });
+}
+
+document.querySelectorAll('.filters .chip[data-tipo]').forEach(function(chip){
+  chip.addEventListener('click', function(){
+    document.querySelectorAll('.filters .chip[data-tipo]').forEach(function(c){c.classList.remove('on')});
+    chip.classList.add('on');
+    lbState.tipo = chip.dataset.tipo;
+    lbRender();
+  });
+});
+document.getElementById('periodo').addEventListener('change', function(e){
+  lbState.periodo = +e.target.value; lbRender();
+});
+document.getElementById('busca').addEventListener('input', function(e){
+  lbState.busca = e.target.value.trim(); lbRender();
+});
+document.querySelectorAll('th.sortable').forEach(function(th){
+  th.addEventListener('click', function(){
+    if(lbState.sortKey===th.dataset.sort){
+      lbState.sortDir = lbState.sortDir==='asc'?'desc':'asc';
+    } else {
+      lbState.sortKey = th.dataset.sort;
+      lbState.sortDir = th.dataset.sort==='data' ? 'desc' : 'desc';
+    }
+    lbRender();
+  });
+});
+
+lbRender();
+
+document.getElementById('vt-normal').addEventListener('click', function(){
+  this.classList.add('on'); document.getElementById('vt-dense').classList.remove('on');
+  document.getElementById('lb-table').classList.remove('dense');
+});
+document.getElementById('vt-dense').addEventListener('click', function(){
+  this.classList.add('on'); document.getElementById('vt-normal').classList.remove('on');
+  document.getElementById('lb-table').classList.add('dense');
+});
+
+/* ---------- Frota: dados + grid/lista ---------- */
+var FLEET = [
+  {reg:'CC-KBA',tipo:'DHC-6 Twin Otter 300',status:'Em voo',statusTag:'warn',base:'SCCI',pos:'SCNT',horas:318,ultimo:'19/08'},
+  {reg:'CC-KBC',tipo:'Cessna 208B Grand Caravan',status:'Disponível',statusTag:'ok',base:'SCCI',pos:'SCCI',horas:204,ultimo:'16/08'},
+  {reg:'CC-KBD',tipo:'Pilatus PC-6 Porter',status:'Fora de base',statusTag:'bad',base:'SCCI',pos:'SCBA',horas:96,ultimo:'17/08'},
+  {reg:'N208KB',tipo:'Cessna 208B Grand Caravan',status:'Em voo',statusTag:'warn',base:'PAFA',pos:'PABT',horas:412,ultimo:'19/08'},
+  {reg:'N412KB',tipo:'DHC-2 Beaver',status:'Disponível',statusTag:'ok',base:'PAFA',pos:'PAFA',horas:147,ultimo:'15/08'},
+  {reg:'N67KB',tipo:'Beechcraft King Air 350',status:'Disponível',statusTag:'ok',base:'PAFA',pos:'PAFA',horas:89,ultimo:'19/08'}
+];
+var fleetBase = 'Todas';
+
+function fleetGridCard(p){
+  return '<article class="plane">' +
+    '<div class="plane-shot"><span>Foto · 16:10</span></div>' +
+    '<div class="plane-body">' +
+      '<div class="plane-head"><b>'+p.reg+'</b><span class="tag tag-'+p.statusTag+'">'+p.status+'</span></div>' +
+      '<div class="plane-type">'+p.tipo+'</div>' +
+      '<div class="plane-rows">' +
+        '<div><span>Base</span><b>'+p.base+'</b></div>' +
+        '<div><span>Posição atual</span><b>'+p.pos+'</b></div>' +
+        '<div><span>Horas</span><b>'+p.horas+'</b></div>' +
+        '<div><span>Último voo</span><b>'+p.ultimo+'</b></div>' +
+      '</div>' +
+    '</div>' +
+  '</article>';
+}
+function fleetListRow(p){
+  return '<tr><td class="mono">'+p.reg+'</td><td>'+p.tipo+'</td>' +
+    '<td><span class="tag tag-'+p.statusTag+'">'+p.status+'</span></td>' +
+    '<td class="mono">'+p.base+'</td><td class="mono">'+p.pos+'</td>' +
+    '<td class="num mono">'+p.horas+'</td><td class="mono">'+p.ultimo+'</td></tr>';
+}
+function fleetRender(){
+  var rows = FLEET.filter(function(p){ return fleetBase==='Todas' || p.base===fleetBase; });
+  document.getElementById('fleet-grid').innerHTML = rows.map(fleetGridCard).join('');
+  document.getElementById('fleet-list-body').innerHTML = rows.map(fleetListRow).join('');
+}
+document.querySelectorAll('.filters .chip[data-base]').forEach(function(chip){
+  chip.addEventListener('click', function(){
+    document.querySelectorAll('.filters .chip[data-base]').forEach(function(c){c.classList.remove('on')});
+    chip.classList.add('on');
+    fleetBase = chip.dataset.base;
+    fleetRender();
+  });
+});
+document.getElementById('vt-grid').addEventListener('click', function(){
+  this.classList.add('on'); document.getElementById('vt-list').classList.remove('on');
+  document.getElementById('fleet-grid').style.display='';
+  document.getElementById('fleet-list').style.display='none';
+});
+document.getElementById('vt-list').addEventListener('click', function(){
+  this.classList.add('on'); document.getElementById('vt-grid').classList.remove('on');
+  document.getElementById('fleet-list').style.display='';
+  document.getElementById('fleet-grid').style.display='none';
+});
+fleetRender();
+
+</script>
+</body>
+</html>

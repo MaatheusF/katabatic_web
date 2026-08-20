@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>{% block title %}Katabatic — Companhia aérea virtual de operação extrema{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}Companhia aérea virtual de carga e pesquisa em área extrema. Alasca e Patagônia, no MSFS 2024 e na rede VATSIM.{% endblock %}">
+
+{% block og %}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Katabatic">
+<meta property="og:title" content="Katabatic — operação aérea onde a carga não chega de outro jeito">
+<meta property="og:description" content="Carga e pesquisa meteorológica entre o interior do Alasca e a Patagônia austral. Companhia aérea virtual no MSFS 2024 e na VATSIM.">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+<meta name="theme-color" content="#0B1216">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26L16 6l12 20' fill='none' stroke='%23FF8A1F' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M16 13v11M11.5 19l4.5 5 4.5-5' fill='none' stroke='%23FF8A1F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+{% block map_assets %}{% endblock %}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="/assets/css/base.css">
+{% block stylesheets %}{% endblock %}
+</head>
+<body>
+
+{% block body %}{% endblock %}
+
+<script src="/assets/js/theme-toggle.js" defer></script>
+{% block javascripts %}{% endblock %}
+
+</body>
+</html>

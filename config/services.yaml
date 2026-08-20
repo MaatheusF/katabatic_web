@@ -1,0 +1,21 @@
+# Este arquivo eh o entrypoint para configurar seus proprios servicos.
+# Arquivos em config/{packages}/ configuram os bundles em si.
+
+parameters:
+
+services:
+    # configuracao padrao para servicos deste diretorio
+    _defaults:
+        autowire: true      # injeta automaticamente as dependencias no construtor.
+        autoconfigure: true # registra automaticamente sua classe como servico correspondente a interfaces que ela implementa (tags, etc.)
+
+    # torna as classes em src/ disponiveis como servicos
+    # esta cria uma definicao para cada classe, exceto as marcadas abaixo
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # adicione mais definicoes de servico se necessario, ou sobrescreva as ja feitas acima

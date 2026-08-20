@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Katabatic — Companhia aérea virtual de operação extrema</title>
+<meta name="description" content="Companhia aérea virtual de carga e pesquisa em área extrema. Alasca e Patagônia, no MSFS 2024 e na rede VATSIM.">
+
+<!-- Compartilhamento: é assim que o link aparece quando alguém cola no Discord.
+     Produza a imagem em 1200x630 a partir da captura do hero. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Katabatic">
+<meta property="og:title" content="Katabatic — operação aérea onde a carga não chega de outro jeito">
+<meta property="og:description" content="Carga e pesquisa meteorológica entre o interior do Alasca e a Patagônia austral. Companhia aérea virtual no MSFS 2024 e na VATSIM.">
+<meta property="og:image" content="https://katabatic.example/assets/og-katabatic.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://katabatic.example/">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B1216">
+
+<!-- Em produção, cada idioma deve ter sua própria URL (/pt e /en) e estas tags:
+     <link rel="alternate" hreflang="pt-BR" href="https://katabatic.example/pt">
+     <link rel="alternate" hreflang="en" href="https://katabatic.example/en"> -->
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26L16 6l12 20' fill='none' stroke='%23FF8A1F' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M16 13v11M11.5 19l4.5 5 4.5-5' fill='none' stroke='%23FF8A1F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EDF1F2; --surface: #FFFFFF; --surface-2: #F4F7F8;
+  --border: #D3DDE1; --border-strong: #B7C6CC;
+  --text: #0E181D; --text-2: #4C5F68; --muted: #7C8F98;
+  --accent: #B85400; --ice: #2C7CA5; --danger: #B33B2C;
+  --shadow: 0 1px 2px rgba(14,24,29,.06), 0 10px 30px rgba(14,24,29,.06);
+}
+[data-theme="dark"] {
+  --bg: #0A0E11; --surface: #121A1F; --surface-2: #18232A;
+  --border: #24333E; --border-strong: #334754;
+  --text: #DFE8EC; --text-2: #9DB0BA; --muted: #6F838E;
+  --accent: #FF8A1F; --ice: #5AA9D6; --danger: #E4574A;
+  --shadow: none;
+}
+:root {
+  --shot-bg: #0B1216; --shot-line: #1E3038; --shot-ink: #5F7885; --map-ink: #C9D9E0;
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --wrap: 1140px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; margin: 0; line-height: 1.12; }
+p { margin: 0; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 14px 0 18px; }
+
+/* ---------- topbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 90%, transparent); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
+.topbar-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
+.brand-text { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark { font-family: var(--font-display); font-size: 18px; letter-spacing: .05em; text-transform: uppercase; }
+.brand-code { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: .1em; }
+.topnav { display: flex; gap: 20px; }
+.topnav a { font-size: 14px; color: var(--text-2); text-decoration: none; }
+.topnav a:hover { color: var(--text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); text-decoration: none; cursor: pointer; font-family: var(--font-body); transition: border-color .15s ease; }
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-lg { padding: 12px 22px; font-size: 15px; }
+.btn-ghost { background: transparent; border-color: rgba(255,255,255,.45); color: #fff; }
+.btn-ghost:hover { border-color: #fff; }
+.tools { display: flex; align-items: center; gap: 8px; }
+.lang { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.lang button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 10px; border: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.theme-toggle { width: 36px; height: 36px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+.theme-toggle:hover { color: var(--text); }
+.theme-toggle svg { width: 17px; height: 17px; }
+[data-theme="light"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: none; }
+
+/* ---------- slots de foto ---------- */
+.shot { margin: 0; }
+.shot-frame { position: relative; background: var(--shot-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: grid; place-items: center; }
+.shot-frame::after { content: attr(data-hint); font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--shot-ink); text-align: center; padding: 0 24px; max-width: 34ch; position: relative; z-index: 2; line-height: 1.9; }
+.shot-frame > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.r-wide { aspect-ratio: 16/9; } .r-tall { aspect-ratio: 4/5; } .r-square { aspect-ratio: 1/1; }
+.shot figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+
+/* ---------- hero ---------- */
+.hero { position: relative; background: var(--shot-bg); border-bottom: 1px solid var(--border); }
+.hero-media { position: absolute; inset: 0; }
+.hero-media svg { width: 100%; height: 100%; }
+.hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,18,22,.5) 0%, rgba(11,18,22,.78) 55%, rgba(11,18,22,.94) 100%); }
+.hero-inner { position: relative; padding: 104px 0 72px; color: #E8F0F3; }
+.badge { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; border: 1px solid rgba(255,255,255,.28); border-radius: 100px; padding: 6px 14px; color: #B9CBD4; }
+.hero h1 { font-size: clamp(44px, 7vw, 84px); letter-spacing: -.03em; margin: 24px 0 20px; color: #fff; }
+.hero-lead { font-size: 18px; color: #B9CBD4; max-width: 52ch; }
+.hero-cta { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+.hero-shot-note { position: absolute; right: 24px; bottom: 18px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #4E6672; }
+
+/* ---------- quadro de bases ---------- */
+.board { background: var(--surface); border-bottom: 1px solid var(--border); }
+.board-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
+.board-cell { padding: 20px 24px; border-right: 1px solid var(--border); }
+.board-cell:last-child { border-right: 0; }
+.board-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.board-icao { font-family: var(--font-mono); font-size: 17px; }
+.board-name { font-size: 13px; color: var(--text-2); }
+.board-time { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.board-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.board-metrics div span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.board-metrics div b { font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
+.board-metrics div b.warn { color: var(--accent); }
+
+/* ---------- mapa ---------- */
+.map-wrap { background: var(--shot-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.map-bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--shot-line); flex-wrap: wrap; }
+.map-tabs { display: flex; gap: 6px; }
+.map-tabs button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 7px 13px; border-radius: 5px; border: 1px solid var(--shot-line); background: transparent; color: #7F98A5; cursor: pointer; }
+.map-tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.map-live { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8FB6C6; }
+.map-live i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+.map-canvas { width: 100%; aspect-ratio: 21/9; min-height: 340px; background: #0B1216; }
+.map-canvas .leaflet-container { background: #0B1216; font-family: var(--font-body); }
+.map-canvas .leaflet-control-attribution { background: rgba(11,18,22,.82); color: #7F98A5; font-size: 10px; }
+.map-canvas .leaflet-control-attribution a { color: #8FB6C6; }
+.map-canvas .leaflet-popup-content-wrapper, .map-canvas .leaflet-popup-tip { background: #121A1F; color: #DFE8EC; border-radius: 8px; box-shadow: none; border: 1px solid #24333E; }
+.map-canvas .leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.5; }
+.map-canvas .leaflet-popup-content b { font-family: var(--font-mono); font-weight: 500; }
+.map-canvas .leaflet-popup-content span { color: #8FB6C6; font-family: var(--font-mono); font-size: 12px; }
+.map-canvas .leaflet-control-zoom a { background: #121A1F; color: #C9D9E0; border-color: #24333E; }
+.map-canvas .leaflet-control-zoom a:hover { background: #18232A; }
+.map-wrap { position: relative; }
+.legend {
+  position: absolute; right: 14px; bottom: 58px; z-index: 500;
+  background: rgba(11,18,22,.9); border: 1px solid #24333E; border-radius: 10px;
+  padding: 12px 14px; min-width: 168px; backdrop-filter: blur(4px);
+}
+.legend h4 { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #5F7885; font-weight: 400; margin: 0 0 8px; }
+.legend h4 + h4 { margin-top: 14px; }
+.legend ul { list-style: none; margin: 0; padding: 0; }
+.legend li { display: flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 11px; color: #A9BEC8; padding: 2px 0; }
+.legend i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+@media (max-width: 700px) { .legend { display: none; } }
+.mk-base, .mk-stn { border-radius: 50%; box-sizing: border-box; }
+.mk-base { width: 14px; height: 14px; background: #FF8A1F; box-shadow: 0 0 0 5px rgba(255,138,31,.22); }
+.mk-stn { width: 9px; height: 9px; background: #5AA9D6; box-shadow: 0 0 0 3px rgba(90,169,214,.2); }
+.mk-ac svg { width: 22px; height: 22px; color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); }
+.map-foot { display: flex; gap: 22px; padding: 11px 16px; border-top: 1px solid var(--shot-line); font-family: var(--font-mono); font-size: 11px; color: #5F7885; flex-wrap: wrap; }
+.map-foot b { color: #8FB6C6; font-weight: 400; }
+.map-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
+
+/* ---------- seções ---------- */
+.section { padding: 84px 0; }
+.section-alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.head { max-width: 62ch; margin-bottom: 40px; }
+.head p { color: var(--text-2); }
+
+/* ---------- empresa ---------- */
+.about { display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: start; }
+.about-body p + p { margin-top: 18px; }
+.about-body > p { color: var(--text-2); font-size: 17px; }
+.about-body strong { color: var(--text); font-weight: 600; }
+.note { margin-top: 28px; padding: 18px 20px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; }
+.note b { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.note p { font-size: 14px; color: var(--text-2); }
+.figures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 28px; }
+.figure { background: var(--bg); padding: 18px 20px; }
+.figure b { display: block; font-family: var(--font-mono); font-size: 26px; font-weight: 500; line-height: 1; }
+.figure span { display: block; margin-top: 6px; font-size: 13px; color: var(--text-2); }
+
+/* ---------- bases ---------- */
+.base { display: grid; grid-template-columns: 1fr 1fr; gap: 52px; align-items: center; }
+.base + .base { margin-top: 76px; }
+.base-rev .base-text { order: 2; }
+.base-tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--accent); }
+.base h3 { font-size: 27px; margin: 12px 0 14px; }
+.base p { color: var(--text-2); }
+.base-list { list-style: none; margin: 24px 0 0; padding: 0; border-top: 1px solid var(--border); }
+.base-list li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.base-list span { color: var(--text-2); }
+.base-list b { font-family: var(--font-mono); font-weight: 500; }
+.stations { margin-top: 22px; }
+.stations-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); }
+.section-alt .chip { background: var(--bg); }
+.chip em { font-style: normal; color: var(--muted); }
+
+/* ---------- frota ---------- */
+.fleet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.plane { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.section-alt .plane { background: var(--surface-2); }
+.plane .shot-frame { border: 0; border-radius: 0; border-bottom: 1px solid var(--border); }
+.plane-body { padding: 16px 18px; }
+.plane-reg { font-family: var(--font-mono); font-size: 16px; }
+.plane-type { font-size: 14px; color: var(--text-2); margin-top: 2px; }
+.plane-foot { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+
+/* ---------- voos ---------- */
+.flights { display: flex; flex-direction: column; gap: 10px; }
+.flight { display: grid; grid-template-columns: 104px 1fr 160px 118px; align-items: center; gap: 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; text-decoration: none; transition: border-color .15s ease; }
+.section-alt .flight { background: var(--surface-2); }
+.flight:hover { border-color: var(--border-strong); }
+.flight-call { font-family: var(--font-mono); font-size: 15px; }
+.flight-route { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 15px; }
+.flight-route i { height: 1px; background: var(--border-strong); width: 40px; }
+.flight-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.flight-meta { font-size: 13px; color: var(--text-2); }
+.flight-diff { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.diff-bar { width: 58px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.diff-bar i { display: block; height: 100%; }
+.diff-val { font-family: var(--font-mono); font-size: 17px; width: 26px; text-align: right; }
+.lvl-low i { background: var(--ice); } .lvl-low .diff-val { color: var(--ice); }
+.lvl-mid i { background: var(--accent); } .lvl-mid .diff-val { color: var(--accent); }
+.lvl-high i { background: var(--danger); } .lvl-high .diff-val { color: var(--danger); }
+.more { margin-top: 24px; }
+
+/* ---------- tripulação ---------- */
+.crew { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
+.criteria { list-style: none; margin: 0; padding: 0; }
+.criteria li { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.criteria li:last-child { border-bottom: 0; }
+.criteria b { font-family: var(--font-mono); font-size: 12px; color: var(--accent); padding-top: 4px; }
+.criteria span { font-size: 15px; color: var(--text-2); }
+.criteria strong { color: var(--text); font-weight: 600; }
+
+/* ---------- rodapé ---------- */
+.foot { padding: 44px 0 56px; border-top: 1px solid var(--border); }
+.foot-top { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; margin-bottom: 28px; }
+.foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.foot-links a { font-size: 14px; color: var(--text-2); text-decoration: none; }
+.foot-links a:hover { color: var(--text); }
+.disclaimer { font-size: 13px; color: var(--muted); max-width: 78ch; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }
+@media (max-width: 900px) {
+  .about, .base, .crew { grid-template-columns: 1fr; gap: 36px; }
+  .base-rev .base-text { order: 0; }
+  .fleet { grid-template-columns: repeat(2, 1fr); }
+  .topnav { display: none; }
+  .flight { grid-template-columns: 1fr auto; }
+  .flight-meta { display: none; }
+  .board-grid { grid-template-columns: 1fr; }
+  .board-cell { border-right: 0; border-bottom: 1px solid var(--border); }
+  .map-svg { aspect-ratio: 4/3; }
+}
+@media (max-width: 560px) {
+  .hero-inner { padding: 72px 0 52px; }
+  .section { padding: 56px 0; }
+  .fleet { grid-template-columns: 1fr; }
+  .board-metrics { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .brand-code { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 26L16 6l12 20"/>
+        <path d="M16 13v11M11.5 19l4.5 5 4.5-5" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-text"><span class="brand-mark">Katabatic</span><span class="brand-code">KBT</span></span>
+    </a>
+    <nav class="topnav">
+      <a href="#empresa" data-i18n="nav.company">A empresa</a>
+      <a href="#mapa" data-i18n="nav.map">Mapa</a>
+      <a href="#bases" data-i18n="nav.bases">Bases</a>
+      <a href="#frota" data-i18n="nav.fleet">Frota</a>
+      <a href="#voos" data-i18n="nav.ops">Operações</a>
+    </nav>
+    <div class="tools">
+      <div class="lang" role="group" aria-label="Idioma">
+        <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button class="theme-toggle" id="theme" aria-label="Alternar tema">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn" href="#" data-i18n="nav.pilot">Área do piloto</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-media" aria-hidden="true">
+    <svg viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice">
+      <rect width="1440" height="620" fill="#0B1216"/>
+      <g fill="none" stroke="#1E3038" stroke-width="1.2">
+        <path d="M-40 300 C 180 250, 340 340, 560 300 S 980 220, 1200 286 S 1400 320, 1480 300"/>
+        <path d="M-40 350 C 170 300, 350 392, 570 350 S 980 268, 1210 336 S 1400 370, 1480 350"/>
+        <path d="M-40 404 C 190 356, 330 446, 580 404 S 980 322, 1200 390 S 1400 424, 1480 404"/>
+        <path d="M-40 462 C 200 414, 340 504, 590 462 S 990 380, 1210 448 S 1400 482, 1480 462"/>
+        <path d="M-40 524 C 210 476, 350 566, 600 524 S 1000 442, 1220 510 S 1400 544, 1480 524"/>
+      </g>
+      <path d="M-40 300 C 180 250, 340 340, 560 300 S 980 220, 1200 286 S 1400 320, 1480 300 L1480 620 L-40 620 Z" fill="#0D171C"/>
+    </svg>
+  </div>
+  <div class="hero-scrim"></div>
+  <div class="wrap hero-inner">
+    <span class="badge" data-i18n="hero.badge">Companhia aérea virtual · MSFS 2024 · VATSIM</span>
+    <h1>Katabatic</h1>
+    <p class="hero-lead" data-i18n="hero.lead">Operamos carga e passageiros entre pistas de cascalho, gelo e vento — do interior do Alasca à Patagônia austral. E voamos para dentro das tempestades que todo mundo desvia.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="#empresa" data-i18n="hero.cta1">Conheça a operação</a>
+      <a class="btn btn-ghost btn-lg" href="#tripulacao" data-i18n="hero.cta2">Voar conosco</a>
+    </div>
+  </div>
+  <span class="hero-shot-note" data-i18n="hero.shot">Trocar por captura do simulador — 2560×1100</span>
+</section>
+
+<div class="board">
+  <div class="wrap board-grid">
+    <div class="board-cell">
+      <div class="board-top"><span class="board-icao">PAFA</span><span class="board-name" data-i18n="board.pafa">Fairbanks, Alasca</span><span class="board-time">04:12 AKDT</span></div>
+      <div class="board-metrics">
+        <div><span data-i18n="board.wind">Vento</span><b>210/09</b></div>
+        <div><span data-i18n="board.temp">Temp</span><b>11 °C</b></div>
+        <div><span data-i18n="board.vis">Visib.</span><b class="warn">4 800 m FU</b></div>
+        <div><span data-i18n="board.ceil">Teto</span><b>2 100 ft</b></div>
+      </div>
+    </div>
+    <div class="board-cell">
+      <div class="board-top"><span class="board-icao">SCCI</span><span class="board-name" data-i18n="board.scci">Punta Arenas, Chile</span><span class="board-time">09:12 CLT</span></div>
+      <div class="board-metrics">
+        <div><span data-i18n="board.wind">Vento</span><b class="warn">280/41G56</b></div>
+        <div><span data-i18n="board.temp">Temp</span><b>3 °C</b></div>
+        <div><span data-i18n="board.vis">Visib.</span><b>9 999 m</b></div>
+        <div><span data-i18n="board.ceil">Teto</span><b>2 400 ft</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="section" id="mapa">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow" data-i18n="map.eyebrow">Rede</p>
+      <h2 class="h2" data-i18n="map.title">Onde estamos agora</h2>
+      <p data-i18n="map.lead">Duas malhas independentes, a 13 000 km uma da outra. As aeronaves aparecem aqui enquanto o ACARS transmite.</p>
+    </div>
+
+    <div class="map-wrap">
+      <div class="map-bar">
+        <div class="map-tabs">
+          <button type="button" data-pane="north" aria-pressed="true">KBT Norte</button>
+          <button type="button" data-pane="south" aria-pressed="false">KBT Sul</button>
+          <button type="button" id="radar-btn" aria-pressed="false" data-i18n="map.radar">Radar</button>
+          <button type="button" id="owm-btn" aria-pressed="false" data-i18n="map.model">Modelo</button>
+        </div>
+        <span class="map-live"><i></i><span data-i18n="map.live">2 em voo</span></span>
+      </div>
+
+      <div class="map-canvas" id="map"></div>
+
+      <div class="legend" aria-hidden="true">
+        <h4 data-i18n="lg.net">Malha</h4>
+        <ul>
+          <li><i style="background:#FF8A1F"></i><span data-i18n="lg.base">Base</span></li>
+          <li><i style="background:#8FA3AD"></i><span data-i18n="lg.stn">Estação avançada</span></li>
+        </ul>
+        <h4 data-i18n="lg.wx">Condição no destino</h4>
+        <ul>
+          <li><i style="background:#8FA3AD"></i><span data-i18n="lg.calm">Calmo</span></li>
+          <li><i style="background:#FF8A1F"></i><span data-i18n="lg.gust">Rajada</span></li>
+          <li><i style="background:#5AA9D6"></i><span data-i18n="lg.ice">Gelo</span></li>
+          <li><i style="background:#A78BFA"></i><span data-i18n="lg.fog">Neblina</span></li>
+          <li><i style="background:#E4574A"></i><span data-i18n="lg.storm">Tempestade</span></li>
+        </ul>
+      </div>
+
+      <div class="map-foot">
+        <span><b>KBT118</b> PAFA &rarr; PABT · 42 min</span>
+        <span><b>KBT412</b> SCCI &rarr; SCNT · 18 min</span>
+        <span id="radar-stamp"></span>
+      </div>
+    </div>
+    <p class="map-note" data-i18n="map.note">Mapa base OpenStreetMap via CARTO. Radar (RainViewer) depende de estações em solo — funciona bem no Alasca, quase não existe na Patagônia. Modelo (OpenWeather) cobre o globo inteiro, inclusive onde não há radar. O histórico detalhado por voo vem de um pipeline próprio.</p>
+  </div>
+</section>
+
+<section class="section section-alt" id="empresa">
+  <div class="wrap about">
+    <div class="about-body">
+      <p class="eyebrow" data-i18n="about.eyebrow">A empresa</p>
+      <h2 class="h2" data-i18n="about.title">Fundada para ir onde a linha aérea não vai</h2>
+      <p data-i18n="about.p1">A Katabatic nasceu em 2026 de uma ideia simples: <strong>quase toda companhia virtual voa entre capitais.</strong> Nós fazemos o contrário — pista curta, cascalho, neve compactada, vento de encosta e teto baixo.</p>
+      <p data-i18n="about.p2">Operamos duas frentes em hemisférios opostos. Quando o inverno aperta no Alasca, a temporada dura começa na Patagônia, e a frota se reposiciona. A empresa nunca sai da estação difícil.</p>
+      <p data-i18n="about.p3">Além do transporte, mantemos uma linha de <strong>voos de pesquisa meteorológica</strong>: pernas planejadas para atravessar sistemas convectivos com instrumentação registrando o que a aeronave sofreu — turbulência, gelo, rajada e visibilidade, segundo a segundo.</p>
+      <div class="note">
+        <b data-i18n="about.noteTitle">Para quem está chegando agora</b>
+        <p data-i18n="about.noteBody">A Katabatic é uma companhia aérea virtual. Não transportamos carga ou pessoas de verdade: todos os voos acontecem no Microsoft Flight Simulator 2024, com controle de tráfego aéreo feito por pessoas na rede VATSIM. As rotas, o clima e as aeronaves são reais — a operação é simulada.</p>
+      </div>
+      <div class="figures">
+        <div class="figure"><b class="num">23</b><span data-i18n="fig.flights">Voos nos últimos 90 dias</span></div>
+        <div class="figure"><b class="num">100%</b><span data-i18n="fig.vatsim">Operados na rede VATSIM</span></div>
+        <div class="figure"><b class="num">6</b><span data-i18n="fig.fleet">Aeronaves na frota</span></div>
+        <div class="figure"><b class="num">2</b><span data-i18n="fig.bases">Bases operacionais</span></div>
+      </div>
+    </div>
+    <figure class="shot">
+      <div class="shot-frame r-tall" data-hint="Cabine em cruzeiro, tempo fechado · 4:5">
+        <svg viewBox="0 0 400 500" preserveAspectRatio="none" aria-hidden="true">
+          <g fill="none" stroke="#1E3038" stroke-width="1">
+            <path d="M-10 340 C 90 310, 170 366, 260 336 S 380 300, 420 330"/>
+            <path d="M-10 386 C 100 356, 180 412, 268 382 S 380 346, 420 376"/>
+            <path d="M-10 432 C 110 402, 190 458, 276 428 S 380 392, 420 422"/>
+          </g>
+        </svg>
+      </div>
+      <figcaption data-i18n="cap.cockpit">Sua captura aqui · KBT412 sobre o campo de gelo</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="bases">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow" data-i18n="bases.eyebrow">Bases</p>
+      <h2 class="h2" data-i18n="bases.title">Duas pontas do continente</h2>
+      <p data-i18n="bases.lead">Cada base tem sua frota registrada localmente, seu tipo de missão e sua estação difícil. Entre elas, 13 000 km e um voo de reposicionamento por temporada.</p>
+    </div>
+
+    <article class="base">
+      <div class="base-text">
+        <span class="base-tag" data-i18n="bases.north.tag">KBT Norte · matrícula N</span>
+        <h3 data-i18n="bases.north.title">Fairbanks — interior e Ártico</h3>
+        <p data-i18n="bases.north.body">Porta de entrada do Ártico. Daqui saem os voos de suprimento para campos sem estrada e as pernas de pesquisa acima do Círculo Polar. O interior soma o que a costa não tem: passes de montanha, aproximação em vale e frio que degrada desempenho antes de qualquer outra coisa.</p>
+        <ul class="base-list">
+          <li><span data-i18n="bases.field">Aeródromo</span><b>PAFA</b></li>
+          <li><span data-i18n="bases.dest">Destinos regulares</span><b>11</b></li>
+          <li><span data-i18n="bases.leg">Perna média</span><b>147 nm</b></li>
+          <li><span data-i18n="bases.based">Aeronaves baseadas</span><b>3</b></li>
+        </ul>
+        <div class="stations">
+          <span class="stations-label" data-i18n="bases.stations">Estações avançadas</span>
+          <div class="chips">
+            <span class="chip">PABT <em>Bettles</em></span>
+            <span class="chip">PFYU <em>Fort Yukon</em></span>
+            <span class="chip">PAKP <em>Anaktuvuk Pass</em></span>
+            <span class="chip">PASC <em>Deadhorse</em></span>
+            <span class="chip">PAOT <em>Kotzebue</em></span>
+          </div>
+        </div>
+      </div>
+      <figure class="shot">
+        <div class="shot-frame r-wide" data-hint="Caravan em pista de cascalho no interior do Alasca · 16:9">
+          <svg viewBox="0 0 640 360" preserveAspectRatio="none" aria-hidden="true">
+            <g fill="none" stroke="#1E3038" stroke-width="1">
+              <path d="M-10 210 C 120 180, 220 236, 340 206 S 560 170, 660 200"/>
+              <path d="M-10 256 C 130 226, 230 282, 348 252 S 560 216, 660 246"/>
+              <path d="M-10 306 C 140 276, 240 332, 356 302 S 560 266, 660 296"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption data-i18n="cap.north">Sua captura aqui · N208KB em Bettles</figcaption>
+      </figure>
+    </article>
+
+    <article class="base base-rev">
+      <figure class="shot">
+        <div class="shot-frame r-wide" data-hint="Twin Otter sobre fiorde patagônico · 16:9">
+          <svg viewBox="0 0 640 360" preserveAspectRatio="none" aria-hidden="true">
+            <g fill="none" stroke="#1E3038" stroke-width="1">
+              <path d="M-10 150 C 120 120, 220 176, 340 146 S 560 110, 660 140"/>
+              <path d="M-10 202 C 130 172, 230 228, 348 198 S 560 162, 660 192"/>
+              <path d="M-10 260 C 140 230, 240 286, 356 256 S 560 220, 660 250"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption data-i18n="cap.south">Sua captura aqui · CC-KBA em final para SCNT</figcaption>
+      </figure>
+      <div class="base-text">
+        <span class="base-tag" data-i18n="bases.south.tag">KBT Sul · matrícula CC</span>
+        <h3 data-i18n="bases.south.title">Punta Arenas — Magalhães e Patagônia</h3>
+        <p data-i18n="bases.south.body">Apoio a estações de pesquisa, travessia de fiordes e transporte de pessoal técnico. É aqui que o vento catabático que dá nome à empresa aparece de verdade: rajadas descendo da cordilheira que mudam a aproximação nos últimos 500 pés.</p>
+        <ul class="base-list">
+          <li><span data-i18n="bases.field">Aeródromo</span><b>SCCI</b></li>
+          <li><span data-i18n="bases.dest">Destinos regulares</span><b>9</b></li>
+          <li><span data-i18n="bases.leg">Perna média</span><b>134 nm</b></li>
+          <li><span data-i18n="bases.based">Aeronaves baseadas</span><b>3</b></li>
+        </ul>
+        <div class="stations">
+          <span class="stations-label" data-i18n="bases.stations">Estações avançadas</span>
+          <div class="chips">
+            <span class="chip">SCNT <em>Puerto Natales</em></span>
+            <span class="chip">SCGZ <em>Puerto Williams</em></span>
+            <span class="chip">SCFM <em>Porvenir</em></span>
+            <span class="chip">SCBA <em>Balmaceda</em></span>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section section-alt" id="frota">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow" data-i18n="fleet.eyebrow">Frota</p>
+      <h2 class="h2" data-i18n="fleet.title">Seis aeronaves, duas bandeiras</h2>
+      <p data-i18n="fleet.lead">Registro chileno no sul, norte-americano no norte. Tudo turboélice, tudo capaz de sair de pista curta e não pavimentada.</p>
+    </div>
+    <div class="fleet">
+      <article class="plane"><div class="shot-frame r-square" data-hint="CC-KBA · 1:1"></div><div class="plane-body"><div class="plane-reg">CC-KBA</div><div class="plane-type">DHC-6 Twin Otter 300</div><div class="plane-foot"><span>SCCI</span><span>318 h</span></div></div></article>
+      <article class="plane"><div class="shot-frame r-square" data-hint="CC-KBC · 1:1"></div><div class="plane-body"><div class="plane-reg">CC-KBC</div><div class="plane-type">Cessna 208B Grand Caravan</div><div class="plane-foot"><span>SCCI</span><span>204 h</span></div></div></article>
+      <article class="plane"><div class="shot-frame r-square" data-hint="CC-KBD · 1:1"></div><div class="plane-body"><div class="plane-reg">CC-KBD</div><div class="plane-type">Pilatus PC-6 Porter</div><div class="plane-foot"><span>SCCI</span><span>96 h</span></div></div></article>
+      <article class="plane"><div class="shot-frame r-square" data-hint="N208KB · 1:1"></div><div class="plane-body"><div class="plane-reg">N208KB</div><div class="plane-type">Cessna 208B Grand Caravan</div><div class="plane-foot"><span>PAFA</span><span>412 h</span></div></div></article>
+      <article class="plane"><div class="shot-frame r-square" data-hint="N412KB · 1:1"></div><div class="plane-body"><div class="plane-reg">N412KB</div><div class="plane-type">DHC-2 Beaver</div><div class="plane-foot"><span>PAFA</span><span>147 h</span></div></div></article>
+      <article class="plane"><div class="shot-frame r-square" data-hint="N67KB · 1:1"></div><div class="plane-body"><div class="plane-reg">N67KB</div><div class="plane-type">Beechcraft King Air 350</div><div class="plane-foot"><span>PAFA</span><span>89 h</span></div></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="voos">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow" data-i18n="ops.eyebrow">Operações recentes</p>
+      <h2 class="h2" data-i18n="ops.title">Todo voo vira relatório</h2>
+      <p data-i18n="ops.lead">Posição, atitude, forças e condições registradas a cada segundo pelo nosso ACARS. O índice de dificuldade à direita sai da telemetria — não da opinião de quem voou.</p>
+    </div>
+    <div class="flights">
+      <a class="flight" href="#">
+        <div><div class="flight-call">KBT412</div><div class="flight-sub" data-i18n="op.research">Pesquisa</div></div>
+        <div><div class="flight-route">SCCI <i></i> SCNT</div><div class="flight-sub">Punta Arenas → Puerto Natales</div></div>
+        <div class="flight-meta">CC-KBA · Twin Otter<br>17/08 · 1 h 04</div>
+        <div class="flight-diff lvl-high"><div class="diff-bar"><i style="width:78%"></i></div><div class="diff-val">78</div></div>
+      </a>
+      <a class="flight" href="#">
+        <div><div class="flight-call">KBT118</div><div class="flight-sub" data-i18n="op.cargo">Carga</div></div>
+        <div><div class="flight-route">PAFA <i></i> PABT</div><div class="flight-sub">Fairbanks → Bettles</div></div>
+        <div class="flight-meta">N208KB · Caravan<br>15/08 · 2 h 11</div>
+        <div class="flight-diff lvl-mid"><div class="diff-bar"><i style="width:54%"></i></div><div class="diff-val">54</div></div>
+      </a>
+      <a class="flight" href="#">
+        <div><div class="flight-call">KBT207</div><div class="flight-sub" data-i18n="op.crew">Pessoal</div></div>
+        <div><div class="flight-route">PAFA <i></i> PASC</div><div class="flight-sub">Fairbanks → Deadhorse</div></div>
+        <div class="flight-meta">N67KB · King Air<br>14/08 · 1 h 48</div>
+        <div class="flight-diff lvl-low"><div class="diff-bar"><i style="width:31%"></i></div><div class="diff-val">31</div></div>
+      </a>
+      <a class="flight" href="#">
+        <div><div class="flight-call">KBT903</div><div class="flight-sub" data-i18n="op.ferry">Reposicionamento</div></div>
+        <div><div class="flight-route">SCCI <i></i> SCBA</div><div class="flight-sub">Punta Arenas → Balmaceda</div></div>
+        <div class="flight-meta">CC-KBD · PC-6<br>12/08 · 2 h 37</div>
+        <div class="flight-diff lvl-mid"><div class="diff-bar"><i style="width:66%"></i></div><div class="diff-val">66</div></div>
+      </a>
+    </div>
+    <div class="more"><a class="btn" href="#" data-i18n="ops.more">Ver o registro completo</a></div>
+  </div>
+</section>
+
+<section class="section section-alt" id="tripulacao">
+  <div class="wrap crew">
+    <div>
+      <p class="eyebrow" data-i18n="crew.eyebrow">Tripulação</p>
+      <h2 class="h2" data-i18n="crew.title">Entrada por avaliação</h2>
+      <p style="color:var(--text-2)" data-i18n="crew.lead">A Katabatic não abre vagas em massa. São três voos de avaliação com callsign próprio, julgados pelos mesmos dados que geram os relatórios públicos — ninguém é aprovado no olho, e ninguém é reprovado por opinião.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#" data-i18n="crew.cta1">Iniciar avaliação</a>
+        <a class="btn btn-lg" href="#" data-i18n="crew.cta2">Manual de operações</a>
+      </div>
+      <figure class="shot" style="margin-top:36px">
+        <div class="shot-frame r-wide" data-hint="Formação de dois KBT ao pôr do sol · 16:9"></div>
+        <figcaption data-i18n="cap.crew">Sua captura aqui · voo em grupo mensal</figcaption>
+      </figure>
+    </div>
+    <ul class="criteria">
+      <li><b>01</b><span data-i18n="crew.c1"><strong>Conta VATSIM ativa.</strong> A avaliação e todos os voos acontecem na rede.</span></li>
+      <li><b>02</b><span data-i18n="crew.c2"><strong>Três pernas com o ACARS.</strong> Uma em cada base e uma à sua escolha.</span></li>
+      <li><b>03</b><span data-i18n="crew.c3"><strong>Sem slew e sem aceleração de tempo.</strong> Detectados automaticamente; invalidam o voo.</span></li>
+      <li><b>04</b><span data-i18n="crew.c4"><strong>Pouso dentro de -400 fpm</strong> e sem exceder o limite de G da aeronave.</span></li>
+      <li><b>05</b><span data-i18n="crew.c5"><strong>Relatório de missão escrito.</strong> O que o sensor não mede, você conta.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-top">
+      <a class="brand" href="#">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 26L16 6l12 20"/>
+          <path d="M16 13v11M11.5 19l4.5 5 4.5-5" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-text"><span class="brand-mark">Katabatic</span><span class="brand-code">KBT</span></span>
+      </a>
+      <nav class="foot-links">
+        <a href="#empresa" data-i18n="nav.company">A empresa</a>
+        <a href="#frota" data-i18n="nav.fleet">Frota</a>
+        <a href="#voos" data-i18n="nav.ops">Operações</a>
+        <a href="#" data-i18n="foot.contact">Contato</a>
+        <a href="#" data-i18n="foot.privacy">Privacidade</a>
+      </nav>
+    </div>
+    <p class="disclaimer" data-i18n="foot.disclaimer">Katabatic é uma companhia aérea virtual, operada como hobby no Microsoft Flight Simulator 2024 e na rede VATSIM. Não é uma empresa aérea real, não vende passagens e não transporta carga ou passageiros. Aeródromos, matrículas e rotas são usados apenas em contexto de simulação.</p>
+  </div>
+</footer>
+
+<script>
+/* ---------- tema ---------- */
+(function () {
+  var root = document.documentElement;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) root.setAttribute('data-theme', 'dark');
+  document.getElementById('theme').addEventListener('click', function () {
+    root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+
+/* ---------- mapa ----------
+   Base: OpenStreetMap servido pela CARTO (light_all / dark_all), sem chave de API.
+   Radar: RainViewer, API pública, também sem chave.
+   Confira as coordenadas no simulador antes de considerar definitivas. */
+var NET = {
+  north: {
+    center: [66.2, -150.5], zoom: 5,
+    base: { icao: 'PAFA', name: 'Fairbanks', ll: [64.8151, -147.8564] },
+    stations: [
+      { icao: 'PABT', name: 'Bettles', ll: [66.9139, -151.5290], wx: 'calm', diff: 34 },
+      { icao: 'PFYU', name: 'Fort Yukon', ll: [66.5715, -145.2503], wx: 'gust', diff: 58 },
+      { icao: 'PAKP', name: 'Anaktuvuk Pass', ll: [68.1336, -151.7430], wx: 'ice', diff: 71 },
+      { icao: 'PASC', name: 'Deadhorse', ll: [70.1947, -148.4652], wx: 'storm', diff: 82 },
+      { icao: 'PAOT', name: 'Kotzebue', ll: [66.8847, -162.5985], wx: 'fog', diff: 63 }
+    ],
+    flight: { call: 'KBT118', reg: 'N208KB', ll: [65.90, -149.65], hdg: 340, info: 'FL095 · 148 kt' }
+  },
+  south: {
+    center: [-51.5, -70.5], zoom: 5,
+    base: { icao: 'SCCI', name: 'Punta Arenas', ll: [-53.0026, -70.8546] },
+    stations: [
+      { icao: 'SCNT', name: 'Puerto Natales', ll: [-51.6715, -72.5283], wx: 'gust', diff: 78 },
+      { icao: 'SCGZ', name: 'Puerto Williams', ll: [-54.9311, -67.6262], wx: 'storm', diff: 85 },
+      { icao: 'SCFM', name: 'Porvenir', ll: [-53.2537, -70.3193], wx: 'calm', diff: 29 },
+      { icao: 'SCBA', name: 'Balmaceda', ll: [-45.9161, -71.6895], wx: 'fog', diff: 52 }
+    ],
+    flight: { call: 'KBT412', reg: 'CC-KBA', ll: [-52.34, -71.70], hdg: 331, info: 'FL085 · 132 kt' }
+  }
+};
+
+function initMap() {
+  if (!window.L) {
+    document.getElementById('map').innerHTML =
+      '<p style="color:#5F7885;font-family:var(--font-mono);font-size:12px;text-align:center;padding-top:140px">' +
+      'Mapa indisponível — sem conexão com o CDN do Leaflet.</p>';
+    return;
+  }
+
+  var TILES = {
+    light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+  };
+  var ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+  var map = L.map('map', {
+    zoomControl: true, scrollWheelZoom: false, attributionControl: true,
+    minZoom: 3, maxZoom: 15   /* definido no mapa: nenhuma camada pode ampliar isso */
+  }).setView(NET.north.center, NET.north.zoom);
+
+  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+
+  var base = L.tileLayer(TILES[currentTheme()], { attribution: ATTR, maxZoom: 15, detectRetina: true }).addTo(map);
+  var overlay = L.layerGroup().addTo(map);
+  var radar = null;
+
+  var WX = { calm: '#8FA3AD', gust: '#FF8A1F', ice: '#5AA9D6', fog: '#A78BFA', storm: '#E4574A' };
+  var WX_LABEL = { calm: 'CALMO', gust: 'RAJADA', ice: 'GELO', fog: 'NEBLINA', storm: 'TEMPESTADE' };
+
+  function dot(cls, size, color) {
+    var style = color ? ' style="background:' + color + ';box-shadow:0 0 0 3px ' + color + '33"' : '';
+    return L.divIcon({ className: '', html: '<span class="' + cls + '"' + style + '></span>', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+  }
+
+  /* Rota em circulo maximo. Em latitude alta a linha reta do Mercator
+     erra feio a trajetoria real, entao vale interpolar de verdade. */
+  function greatCircle(a, b, n) {
+    var R = Math.PI / 180, D = 180 / Math.PI;
+    var la1 = a[0] * R, lo1 = a[1] * R, la2 = b[0] * R, lo2 = b[1] * R;
+    var d = 2 * Math.asin(Math.sqrt(
+      Math.pow(Math.sin((la1 - la2) / 2), 2) +
+      Math.cos(la1) * Math.cos(la2) * Math.pow(Math.sin((lo1 - lo2) / 2), 2)
+    ));
+    if (!d) return [a, b];
+    var pts = [];
+    for (var i = 0; i <= n; i++) {
+      var f = i / n;
+      var A = Math.sin((1 - f) * d) / Math.sin(d);
+      var B = Math.sin(f * d) / Math.sin(d);
+      var x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2);
+      var y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2);
+      var z = A * Math.sin(la1) + B * Math.sin(la2);
+      pts.push([Math.atan2(z, Math.sqrt(x * x + y * y)) * D, Math.atan2(y, x) * D]);
+    }
+    return pts;
+  }
+  function plane(hdg) {
+    return L.divIcon({
+      className: 'mk-ac',
+      html: '<svg viewBox="0 0 24 24" style="transform:rotate(' + hdg + 'deg)"><path d="M12 2l7 18-7-4-7 4z" fill="currentColor"/></svg>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+  }
+
+  function draw(key) {
+    var net = NET[key];
+    overlay.clearLayers();
+
+    L.marker(net.base.ll, { icon: dot('mk-base', 14) })
+      .bindPopup('<b>' + net.base.icao + '</b> ' + net.base.name + '<br><span>BASE</span>')
+      .addTo(overlay);
+
+    net.stations.forEach(function (st) {
+      var color = WX[st.wx] || WX.calm;
+      L.polyline(greatCircle(net.base.ll, st.ll, 48), {
+        color: color, weight: 1.4, opacity: .55
+      }).addTo(overlay);
+      L.marker(st.ll, { icon: dot('mk-stn', 10, color) })
+        .bindPopup('<b>' + st.icao + '</b> ' + st.name +
+          '<br><span>' + WX_LABEL[st.wx] + ' &middot; dificuldade prevista ' + st.diff + '</span>')
+        .addTo(overlay);
+    });
+
+    L.polyline([net.base.ll, net.flight.ll], { color: '#FF8A1F', weight: 1.5, opacity: .8, dashArray: '5 6' }).addTo(overlay);
+    L.marker(net.flight.ll, { icon: plane(net.flight.hdg) })
+      .bindPopup('<b>' + net.flight.call + '</b> ' + net.flight.reg + '<br><span>' + net.flight.info + '</span>')
+      .addTo(overlay);
+
+    map.flyTo(net.center, net.zoom, { duration: .8 });
+  }
+
+  draw('north');
+
+  document.querySelectorAll('.map-tabs button[data-pane]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.map-tabs button[data-pane]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+      draw(btn.dataset.pane);
+    });
+  });
+
+  /* tema: troca o tile sem recriar o mapa */
+  new MutationObserver(function () {
+    base.setUrl(TILES[currentTheme()]);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  /* radar de precipitacao */
+  var radarBtn = document.getElementById('radar-btn');
+  var stamp = document.getElementById('radar-stamp');
+  var RADAR_MAX_ZOOM = 8;
+  var radarTime = '';
+
+  function syncRadar() {
+    if (!radar) return;
+    var tooClose = map.getZoom() > RADAR_MAX_ZOOM;
+    if (tooClose && map.hasLayer(radar)) {
+      map.removeLayer(radar);
+      stamp.textContent = 'radar oculto acima do zoom ' + RADAR_MAX_ZOOM;
+    } else if (!tooClose && !map.hasLayer(radar)) {
+      map.addLayer(radar);
+      stamp.textContent = radarTime;
+    }
+  }
+  map.on('zoomend', syncRadar);
+
+  radarBtn.addEventListener('click', function () {
+    if (radar) {
+      if (map.hasLayer(radar)) map.removeLayer(radar);
+      radar = null; radarTime = '';
+      radarBtn.setAttribute('aria-pressed', 'false');
+      stamp.textContent = '';
+      return;
+    }
+    if (owm) { toggleOff(owm, owmBtn); owm = null; }
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var frames = (data.radar && data.radar.past) || [];
+        if (!frames.length) throw new Error('sem quadros');
+        var last = frames[frames.length - 1];
+        radar = L.tileLayer(data.host + last.path + '/256/{z}/{x}/{y}/4/1_1.png', {
+          opacity: .65, maxZoom: 15, maxNativeZoom: 7, zIndex: 350,
+          attribution: '<a href="https://www.rainviewer.com/">RainViewer</a>'
+        }).addTo(map);
+        radarBtn.setAttribute('aria-pressed', 'true');
+        radarTime = 'radar ' + new Date(last.time * 1000).toISOString().slice(11, 16) + 'Z';
+        stamp.textContent = radarTime;
+        syncRadar();
+      })
+      .catch(function () { stamp.textContent = 'radar indisponivel'; });
+  });
+
+  /* camada de modelo (OpenWeather Weather Maps 1.0)
+     https://tile.openweathermap.org/map/{layer}/{z}/{x}/{y}.png?appid={chave}
+     Zoom nativo 0-12; gratuito; exige atribuicao visivel ("Weather data (c) OpenWeather").
+     A chave e pedida uma vez por sessao — trocar por campo de configuracao real depois. */
+  var owmBtn = document.getElementById('owm-btn');
+  var owm = null;
+  var OWM_KEY = '';
+
+  function toggleOff(layer, btn) {
+    if (layer && map.hasLayer(layer)) map.removeLayer(layer);
+    btn.setAttribute('aria-pressed', 'false');
+  }
+
+  owmBtn.addEventListener('click', function () {
+    if (owm) {
+      toggleOff(owm, owmBtn);
+      owm = null;
+      stamp.textContent = '';
+      return;
+    }
+    if (!OWM_KEY) {
+      OWM_KEY = (window.prompt('Chave da API OpenWeather (grátis em openweathermap.org/appid):') || '').trim();
+      if (!OWM_KEY) return;
+    }
+    // radar e modelo sao as duas leituras de precipitacao; ligar as duas ao mesmo tempo so confunde
+    if (radar) { toggleOff(radar, radarBtn); radar = null; }
+
+    owm = L.tileLayer(
+      'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=' + OWM_KEY,
+      { opacity: .6, maxZoom: 15, maxNativeZoom: 12, zIndex: 350, attribution: 'Weather data &copy; <a href="https://openweathermap.org">OpenWeather</a>' }
+    ).addTo(map);
+    owmBtn.setAttribute('aria-pressed', 'true');
+    stamp.textContent = 'modelo · atualiza a cada 3h';
+  });
+
+  /* o container usa aspect-ratio; garante que o Leaflet leia a altura final */
+  setTimeout(function () { map.invalidateSize(); }, 0);
+  window.addEventListener('resize', function () { map.invalidateSize(); });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initMap);
+} else {
+  initMap();
+}
+
+/* ---------- idioma ----------
+   Termos de aviação NÃO são traduzidos: ICAO, callsign, kt, nm, ft, fpm,
+   ACARS, VATSIM, METAR e unidades permanecem iguais nos dois idiomas. */
+var I18N = {
+  pt: {},
+  en: {
+    'nav.company': 'The company', 'nav.map': 'Map', 'nav.bases': 'Bases',
+    'nav.fleet': 'Fleet', 'nav.ops': 'Operations', 'nav.pilot': 'Pilot area',
+    'hero.badge': 'Virtual airline · MSFS 2024 · VATSIM',
+    'hero.lead': 'We fly cargo and people between gravel, ice and wind — from the Alaskan interior to southern Patagonia. And we fly into the storms everyone else deviates around.',
+    'hero.cta1': 'See the operation', 'hero.cta2': 'Fly with us',
+    'hero.shot': 'Replace with a sim capture — 2560×1100',
+    'board.pafa': 'Fairbanks, Alaska', 'board.scci': 'Punta Arenas, Chile',
+    'board.wind': 'Wind', 'board.temp': 'Temp', 'board.vis': 'Visib.', 'board.ceil': 'Ceiling',
+    'map.eyebrow': 'Network', 'map.title': 'Where we are right now',
+    'map.lead': 'Two independent networks, 13,000 km apart. Aircraft appear here while the ACARS is transmitting.',
+    'map.live': '2 airborne', 'map.radar': 'Radar', 'map.model': 'Model',
+    'lg.net': 'Network', 'lg.base': 'Base', 'lg.stn': 'Forward station',
+    'lg.wx': 'Conditions at destination', 'lg.calm': 'Calm', 'lg.gust': 'Gusts',
+    'lg.ice': 'Icing', 'lg.fog': 'Fog', 'lg.storm': 'Storm',
+    'map.note': 'Base map from OpenStreetMap via CARTO. Radar (RainViewer) depends on ground stations \u2014 works well in Alaska, barely exists in Patagonia. Model (OpenWeather) covers the whole globe, including where radar does not reach. Detailed per-flight history comes from our own pipeline.',
+    'about.eyebrow': 'The company',
+    'about.title': 'Founded to reach what the airlines skip',
+    'about.p1': 'Katabatic started in 2026 from a simple observation: <strong>almost every virtual airline flies between capital cities.</strong> We do the opposite — short strips, gravel, packed snow, downslope wind and low ceilings.',
+    'about.p2': 'We run two operations in opposite hemispheres. When winter bites in Alaska, the hard season starts in Patagonia, and the fleet repositions. The company never leaves the difficult season.',
+    'about.p3': 'Alongside transport we keep a line of <strong>weather research flights</strong>: legs planned to cross convective systems with instrumentation recording what the aircraft went through — turbulence, icing, gusts and visibility, second by second.',
+    'about.noteTitle': 'New here?',
+    'about.noteBody': 'Katabatic is a virtual airline. We do not move real cargo or people: every flight happens in Microsoft Flight Simulator 2024, with air traffic control provided by real people on the VATSIM network. The routes, the weather and the aircraft are real — the operation is simulated.',
+    'fig.flights': 'Flights in the last 90 days', 'fig.vatsim': 'Flown on the VATSIM network',
+    'fig.fleet': 'Aircraft in the fleet', 'fig.bases': 'Operating bases',
+    'cap.cockpit': 'Your capture here · KBT412 over the icefield',
+    'bases.eyebrow': 'Bases', 'bases.title': 'Two ends of the continent',
+    'bases.lead': 'Each base has its own locally registered fleet, its mission profile and its hard season. Between them, 13,000 km and one repositioning flight per season.',
+    'bases.north.tag': 'KBT North · N-registered',
+    'bases.north.title': 'Fairbanks — interior and Arctic',
+    'bases.north.body': 'The gateway to the Arctic. Supply runs to camps with no road access leave from here, along with the research legs above the Circle. The interior adds what the coast lacks: mountain passes, valley approaches and cold that degrades performance before anything else does.',
+    'bases.stations': 'Forward stations',
+    'bases.south.tag': 'KBT South · CC-registered',
+    'bases.south.title': 'Punta Arenas — Magallanes and Patagonia',
+    'bases.south.body': 'Support for research stations, fjord crossings and technical crew transport. This is where the katabatic wind behind our name really shows up: gusts rolling down the range that rewrite the approach in the last 500 feet.',
+    'bases.field': 'Airfield', 'bases.dest': 'Regular destinations', 'bases.leg': 'Average leg', 'bases.based': 'Based aircraft',
+    'cap.north': 'Your capture here · N208KB at Bettles',
+    'cap.south': 'Your capture here · CC-KBA on final for SCNT',
+    'fleet.eyebrow': 'Fleet', 'fleet.title': 'Six aircraft, two flags',
+    'fleet.lead': 'Chilean registry in the south, US registry in the north. All turboprop, all able to work short unpaved strips.',
+    'ops.eyebrow': 'Recent operations', 'ops.title': 'Every flight becomes a report',
+    'ops.lead': 'Position, attitude, forces and conditions recorded every second by our ACARS. The difficulty index on the right comes from telemetry — not from the pilot\u2019s opinion.',
+    'ops.more': 'See the full record',
+    'op.research': 'Research', 'op.cargo': 'Cargo', 'op.crew': 'Crew transport', 'op.ferry': 'Repositioning',
+    'crew.eyebrow': 'Crew', 'crew.title': 'Entry by assessment',
+    'crew.lead': 'Katabatic does not recruit in bulk. Three assessment flights under your own callsign, judged by the same data that produces the public reports — nobody is approved by eye, and nobody is rejected by opinion.',
+    'crew.cta1': 'Start assessment', 'crew.cta2': 'Operations manual',
+    'cap.crew': 'Your capture here · monthly group flight',
+    'crew.c1': '<strong>Active VATSIM account.</strong> The assessment and every flight happen on the network.',
+    'crew.c2': '<strong>Three legs with the ACARS.</strong> One at each base and one of your choosing.',
+    'crew.c3': '<strong>No slew, no time acceleration.</strong> Detected automatically; invalidates the flight.',
+    'crew.c4': '<strong>Touchdown within -400 fpm</strong> and no exceedance of the aircraft G limit.',
+    'crew.c5': '<strong>A written mission report.</strong> What the sensors miss, you tell us.',
+    'foot.contact': 'Contact', 'foot.privacy': 'Privacy',
+    'foot.disclaimer': 'Katabatic is a virtual airline, run as a hobby in Microsoft Flight Simulator 2024 and on the VATSIM network. It is not a real airline, sells no tickets and carries no cargo or passengers. Airfields, registrations and routes are used in a simulation context only.'
+  }
+};
+
+(function () {
+  var nodes = document.querySelectorAll('[data-i18n]');
+  nodes.forEach(function (n) { I18N.pt[n.dataset.i18n] = n.innerHTML; });
+
+  function setLang(lang) {
+    var dict = I18N[lang] || I18N.pt;
+    nodes.forEach(function (n) {
+      var v = dict[n.dataset.i18n];
+      if (v) n.innerHTML = v;
+    });
+    document.documentElement.lang = lang === 'en' ? 'en' : 'pt-BR';
+    document.querySelectorAll('.lang button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
+    });
+  }
+
+  document.querySelectorAll('.lang button').forEach(function (b) {
+    b.addEventListener('click', function () { setLang(b.dataset.lang); });
+  });
+
+  if ((navigator.language || '').slice(0, 2) !== 'pt') setLang('en');
+})();
+</script>
+
+</body>
+</html>

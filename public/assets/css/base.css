@@ -1,0 +1,100 @@
+/* ==========================================================================
+   Katabatic — base.css
+   Tokens de design e componentes compartilhados por TODAS as telas
+   (topbar, botoes, moldura de foto, tipografia base, tema claro/escuro).
+   Cada tela adiciona seu proprio CSS em pages/<tela>.css por cima disto.
+   ========================================================================== */
+
+:root {
+  --bg: #EDF1F2; --surface: #FFFFFF; --surface-2: #F4F7F8;
+  --border: #D3DDE1; --border-strong: #B7C6CC;
+  --text: #0E181D; --text-2: #4C5F68; --muted: #7C8F98;
+  --accent: #B85400; --ice: #2C7CA5; --danger: #B33B2C; --ok: #2F7D50;
+  --shadow: 0 1px 2px rgba(14,24,29,.06), 0 10px 30px rgba(14,24,29,.06);
+}
+[data-theme="dark"] {
+  --bg: #0A0E11; --surface: #121A1F; --surface-2: #18232A;
+  --border: #24333E; --border-strong: #334754;
+  --text: #DFE8EC; --text-2: #9DB0BA; --muted: #6F838E;
+  --accent: #FF8A1F; --ice: #5AA9D6; --danger: #E4574A; --ok: #4ADE80;
+  --shadow: none;
+}
+:root {
+  --shot-bg: #0B1216; --shot-line: #1E3038; --shot-ink: #5F7885; --map-ink: #C9D9E0;
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --wrap: 1140px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; margin: 0; line-height: 1.12; }
+p { margin: 0; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 14px 0 18px; }
+
+/* ---------- topbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 90%, transparent); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
+.topbar-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); flex: none; }
+.brand-text { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark { font-family: var(--font-display); font-size: 18px; letter-spacing: .05em; text-transform: uppercase; }
+.brand-code { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: .1em; }
+.topnav { display: flex; gap: 20px; }
+.topnav a { font-size: 14px; color: var(--text-2); text-decoration: none; }
+.topnav a:hover { color: var(--text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); text-decoration: none; cursor: pointer; font-family: var(--font-body); transition: border-color .15s ease; }
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-lg { padding: 12px 22px; font-size: 15px; }
+.btn-ghost { background: transparent; border-color: rgba(255,255,255,.45); color: #fff; }
+.btn-ghost:hover { border-color: #fff; }
+.tools { display: flex; align-items: center; gap: 8px; }
+.lang { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.lang button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 10px; border: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.theme-toggle { width: 36px; height: 36px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+.theme-toggle:hover { color: var(--text); }
+.theme-toggle svg { width: 17px; height: 17px; }
+[data-theme="light"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: none; }
+
+/* ---------- slots de foto ---------- */
+.shot { margin: 0; }
+.shot-frame { position: relative; background: var(--shot-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: grid; place-items: center; }
+.shot-frame::after { content: attr(data-hint); font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--shot-ink); text-align: center; padding: 0 24px; max-width: 34ch; position: relative; z-index: 2; line-height: 1.9; }
+.shot-frame > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.r-wide { aspect-ratio: 16/9; } .r-tall { aspect-ratio: 4/5; } .r-square { aspect-ratio: 1/1; }
+.shot figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+
+/* ---------- secoes genericas ---------- */
+.section { padding: 84px 0; }
+.section-alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.head { max-width: 62ch; margin-bottom: 40px; }
+.head p { color: var(--text-2); }
+
+/* ---------- rodape ---------- */
+.foot { padding: 44px 0 56px; border-top: 1px solid var(--border); }
+.foot-top { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; margin-bottom: 28px; }
+.foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.foot-links a { font-size: 14px; color: var(--text-2); text-decoration: none; }
+.foot-links a:hover { color: var(--text); }
+.disclaimer { font-size: 13px; color: var(--muted); max-width: 78ch; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }
+@media (max-width: 900px) {
+  .topnav { display: none; }
+}
+@media (max-width: 560px) {
+  .section { padding: 56px 0; }
+  .brand-code { display: none; }
+}
