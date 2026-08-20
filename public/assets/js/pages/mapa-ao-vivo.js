@@ -31,7 +31,7 @@
   var FLYING = [];
   var WEATHER = {};          // icao -> {temp, wind, gust, code, precip}
   var AIRPORT_MARKERS = {};  // icao -> {dot: L.CircleMarker, badge: L.Marker|null}
-  var RADAR = { frames: [], idx: -1, layer: null, timer: null, host: '', ok: null };
+  var RADAR = { frames: [], idx: -1, layer: null, timer: null, host: '', ok: null, playing: false };
   var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
   var RADAR_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 
@@ -247,14 +247,19 @@
     else RADAR.layer = L.tileLayer(url, { opacity: .5, zIndex: 450, attribution: 'Radar &copy; <a href="https://www.rainviewer.com/">RainViewer</a>' }).addTo(MAP);
   }
 
+  // Por padrão o radar fica parado no frame mais recente (RADAR.playing =
+  // false) - só volta a avançar de frame em frame (últimos ~80 min,
+  // observados a cada ~10 min) quando o piloto aperta o botão "Animar".
+  // Antes este loop avançava sozinho a cada 700ms mesmo parado, o que
+  // dava a impressão de o clima inteiro "atualizando a cada segundo".
   function startRadarLoop() {
     clearInterval(RADAR.timer);
     RADAR.timer = setInterval(function () {
       var toggle = document.getElementById('mv-radar-toggle');
-      if (!toggle || !toggle.checked || !RADAR.frames.length) return;
+      if (!RADAR.playing || !toggle || !toggle.checked || !RADAR.frames.length) return;
       RADAR.idx = (RADAR.idx + 1) % RADAR.frames.length;
       showRadarFrame();
-    }, 700);
+    }, 900);
   }
 
   function loadRadar() {
@@ -282,20 +287,45 @@
   function setRadarToggleAvailability() {
     var toggle = document.getElementById('mv-radar-toggle');
     var label = document.getElementById('mv-radar-label');
+    var play = document.getElementById('mv-radar-play');
     if (!toggle) return;
     if (RADAR.ok === false) {
       toggle.checked = false;
       toggle.disabled = true;
       if (label) label.textContent = 'Radar indisponível';
+      if (play) play.disabled = true;
     }
   }
 
   function wireRadarToggle() {
     var toggle = document.getElementById('mv-radar-toggle');
+    var play = document.getElementById('mv-radar-play');
     if (!toggle) return;
     toggle.addEventListener('change', function () {
-      if (toggle.checked) { if (RADAR.frames.length) showRadarFrame(); }
-      else if (RADAR.layer) { MAP.removeLayer(RADAR.layer); RADAR.layer = null; }
+      if (toggle.checked) {
+        if (RADAR.frames.length) showRadarFrame();
+      } else if (RADAR.layer) {
+        MAP.removeLayer(RADAR.layer);
+        RADAR.layer = null;
+      }
+      if (play) play.disabled = !toggle.checked;
+    });
+  }
+
+  // Botão "Animar" é opcional - o radar abre parado no frame mais
+  // recente; apertar aqui passa a repetir os últimos ~80 min em loop até
+  // pausar de novo (volta pro frame atual ao pausar).
+  function wireRadarPlay() {
+    var btn = document.getElementById('mv-radar-play');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      RADAR.playing = !RADAR.playing;
+      btn.textContent = RADAR.playing ? '⏸ Pausar' : '▶ Animar';
+      btn.setAttribute('aria-pressed', String(RADAR.playing));
+      if (!RADAR.playing && RADAR.frames.length) {
+        RADAR.idx = RADAR.frames.length - 1;
+        showRadarFrame();
+      }
     });
   }
 
@@ -413,6 +443,7 @@
     // Open-Meteo a cada 12 min (condição muda devagar) e RainViewer a
     // cada 10 min (frequência de publicação de novos frames de radar).
     wireRadarToggle();
+    wireRadarPlay();
     loadWeather();
     loadRadar();
     setInterval(loadWeather, 12 * 60 * 1000);

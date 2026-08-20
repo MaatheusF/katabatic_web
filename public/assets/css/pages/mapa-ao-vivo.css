@@ -52,9 +52,14 @@
 
 /* ---------- clima (radar + condição por aeroporto) ---------- */
 .mv-wx-panel { padding: 0 14px 14px; }
+.mv-wx-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mv-wx-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .mv-wx-toggle input { accent-color: var(--accent); }
 .mv-wx-toggle input:disabled + span { color: var(--muted); text-decoration: line-through; }
+.mv-wx-play { font-family: var(--font-mono); font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
+.mv-wx-play:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
+.mv-wx-play[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mv-wx-play:disabled { opacity: .5; cursor: default; }
 .mv-wx-updated { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
 
 .tag-ok, .tag-warn, .tag-bad, .tag-ice { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: #fff; padding: 1px 6px; border-radius: 3px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.35); pointer-events: none; }

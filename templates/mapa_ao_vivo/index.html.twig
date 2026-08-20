@@ -51,12 +51,15 @@
     <p class="mv-note">Posição em voo é uma simulação: repete em loop a telemetria de uma gravação real de cada aeronave (~5-6 min) sobre a rota planejada, já que ainda não existe um feed ao vivo via ACARS. Altitude/velocidade mostradas vêm dessa gravação real.</p>
 
     <div class="mv-wx-panel">
-      <label class="mv-wx-toggle">
-        <input type="checkbox" id="mv-radar-toggle" checked>
-        <span id="mv-radar-label">Radar de precipitação</span>
-      </label>
+      <div class="mv-wx-row">
+        <label class="mv-wx-toggle">
+          <input type="checkbox" id="mv-radar-toggle" checked>
+          <span id="mv-radar-label">Radar de precipitação</span>
+        </label>
+        <button type="button" class="mv-wx-play" id="mv-radar-play" aria-pressed="false">▶ Animar</button>
+      </div>
       <span class="mv-wx-updated mono" id="mv-wx-updated"></span>
-      <p class="mv-note">Clima é dado real (não mock): condição por aeroporto via Open-Meteo, radar de precipitação via RainViewer — ambas gratuitas, sem chave. Cobertura de radar pode ser fraca em regiões remotas como o interior do Alasca e a Patagônia.</p>
+      <p class="mv-note">Clima é dado real (não mock): condição por aeroporto via Open-Meteo, radar de precipitação via RainViewer — ambas gratuitas, sem chave. O radar abre parado no frame mais recente; "Animar" repete os últimos ~80 minutos observados. Cobertura de radar pode ser fraca em regiões remotas como o interior do Alasca e a Patagônia.</p>
     </div>
   </div>
 

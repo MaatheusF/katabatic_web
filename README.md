@@ -246,9 +246,10 @@ API externa:
   minutos.
 - **RainViewer** (`api.rainviewer.com`) dá o radar de precipitação em
   imagem, sobreposto ao mapa como uma camada (liga/desliga pelo
-  interruptor "Radar de precipitação" no painel) — anima sozinho pelos
-  últimos ~80 minutos de frames observados (a cada ~10 min de
-  intervalo real) e busca uma lista nova de frames a cada 10 minutos.
+  interruptor "Radar de precipitação" no painel). Abre parado no frame
+  mais recente — o botão "▶ Animar" ao lado é que faz percorrer em
+  loop os últimos ~80 minutos de frames observados (a cada ~10 min de
+  intervalo real); a lista de frames é atualizada a cada 10 minutos.
 
 Como os aeroportos da rede ficam em regiões remotas (interior do
 Alasca, Patagônia), a cobertura de radar de precipitação pode ser
