@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Entrar — Katabatic{% endblock %}
+{% block meta_description %}Acesso da tripulação Katabatic.{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="/assets/css/pages/login.css">
+{% endblock %}
+
+{% block body %}
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="{{ path('app_home') }}">
+      {% include 'partials/_brand.html.twig' %}
+    </a>
+    <div class="tools">
+      <button class="theme-toggle" id="theme" aria-label="Alternar tema">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-head">
+      {% include 'partials/_brand_icon.html.twig' %}
+      <h1>Entrar</h1>
+      <p>Acesso da tripulação Katabatic</p>
+    </div>
+
+    {% if error %}
+    <div class="login-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ path('app_login_submit') }}">
+      <div class="login-field">
+        <label for="cid">CID VATSIM</label>
+        <input type="text" id="cid" name="cid" inputmode="numeric" placeholder="1234567" value="{{ cid|default('') }}" required autofocus>
+      </div>
+      <div class="login-field">
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary login-submit">Entrar</button>
+    </form>
+
+    <div class="login-alt">ou</div>
+    <button type="button" class="btn login-vatsim" disabled title="Em breve">Entrar com VATSIM Connect</button>
+
+    <div class="login-hint">
+      <b style="display:block;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px">Ambiente de desenvolvimento</b>
+      Login ainda é mock — sem verificação real. Use o CID <code>1234567</code> com qualquer senha para entrar.
+    </div>
+
+    <a class="login-back" href="{{ path('app_home') }}">‹ Voltar para a home</a>
+  </div>
+</div>
+
+{% endblock %}

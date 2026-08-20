@@ -66,10 +66,14 @@ katabatic_web/
 ## Progresso (mockup → tela real)
 
 - [x] `katabatic-home.html` → `/` (Home institucional)
-- [ ] `katabatic-portal.html` → área logada (Logbook, Frota, Bases)
+- [x] `katabatic-portal.html` → `/portal` (Logbook, Frota, Bases)
 - [ ] `katabatic-voo.html` → relatório de voo
 - [ ] `katabatic-novo-voo.html` → registro de voo
 - [ ] `katabatic-nova-aeronave.html` → cadastro de aeronave
+- [x] Login (`/login`) → não existia mockup próprio; tela nova para o
+  fluxo Home → Login → Portal. Autenticação mock via sessão (CID
+  `1234567`, qualquer senha) — troca por Security real quando o schema
+  do banco existir.
 
 ## Próximos passos (da fase de mockup)
 

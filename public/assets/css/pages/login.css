@@ -1,0 +1,31 @@
+/* ==========================================================================
+   Katabatic — login.css
+   Tela de entrada da area do piloto. Depende de base.css (tokens, topbar,
+   botoes, moldura de foto) carregado antes.
+   ========================================================================== */
+
+.login-shell { min-height: calc(100vh - 64px); display: grid; place-items: center; padding: 48px 24px; }
+.login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow); }
+.login-head { text-align: center; margin-bottom: 24px; }
+.login-head svg { width: 30px; height: 30px; color: var(--accent); margin: 0 auto 14px; }
+.login-head h1 { font-size: 22px; margin-bottom: 6px; }
+.login-head p { font-size: 14px; color: var(--text-2); }
+
+.login-field { margin-bottom: 16px; }
+.login-field label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-bottom: 7px; }
+.login-field input { width: 100%; font-family: var(--font-body); font-size: 14px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.login-field input:focus { outline: none; border-color: var(--accent); }
+
+.login-error { margin-bottom: 16px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
+
+.login-submit { width: 100%; margin-top: 4px; }
+
+.login-alt { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: var(--muted); font-size: 12px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; }
+.login-alt::before, .login-alt::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.login-vatsim { width: 100%; opacity: .55; cursor: not-allowed; }
+
+.login-hint { margin-top: 20px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 8px 8px 0; font-size: 12px; color: var(--text-2); }
+.login-hint code { font-family: var(--font-mono); background: var(--bg); padding: 1px 5px; border-radius: 3px; }
+
+.login-back { display: block; text-align: center; margin-top: 22px; font-size: 13px; color: var(--text-2); }
+.login-back:hover { color: var(--text); }

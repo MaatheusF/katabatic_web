@@ -1,0 +1,30 @@
+{# Rail lateral compartilhado pelas telas da area logada.
+   `activeView` marca qual item do menu fica destacado (logbook|frota|bases). #}
+<nav class="rail">
+  <div class="rail-brand">
+    {% include 'partials/_brand_icon.html.twig' %}
+    <b>Katabatic</b>
+  </div>
+
+  <span class="rail-group">Operação</span>
+  <a data-view="logbook"{% if activeView == 'logbook' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4zM4 9h16M9 9v10"/></svg>
+    Logbook
+  </a>
+  <a data-view="frota"{% if activeView == 'frota' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2 9 7 3v2l-9-2-9 2v-2l7-3z"/></svg>
+    Frota
+  </a>
+  <a data-view="bases"{% if activeView == 'bases' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/></svg>
+    Bases
+  </a>
+
+  <div class="rail-foot">
+    <div class="pilot">
+      <span class="pilot-badge">{{ pilot.initials }}</span>
+      <div><b>{{ pilot.name }}</b><span>CID {{ pilot.cid }}</span></div>
+    </div>
+    <a href="{{ path('app_logout') }}" class="rail-logout">Sair</a>
+  </div>
+</nav>

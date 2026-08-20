@@ -1,0 +1,24 @@
+{# Base das telas da area logada (Portal, Voo, Novo voo, Nova aeronave):
+   rail lateral + barra superior, por cima do layout comum de base.html.twig. #}
+{% extends 'base.html.twig' %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="/assets/css/app-shell.css">
+{% block page_stylesheets %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+<div class="app">
+  {% include 'partials/_rail.html.twig' %}
+
+  <div class="main">
+    {% block bar %}{% endblock %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script src="/assets/js/app-shell.js" defer></script>
+{% block page_javascripts %}{% endblock %}
+{% endblock %}

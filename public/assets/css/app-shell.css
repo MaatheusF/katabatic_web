@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Katabatic — app-shell.css
+   Casca compartilhada pelas telas da area logada (Portal, Voo, Novo voo,
+   Nova aeronave): rail lateral + barra superior. Carrega depois de
+   base.css (usa os mesmos tokens, so ajusta corpo/links pro contexto de
+   "app" em vez de "site").
+   ========================================================================== */
+
+body { font-size: 15px; line-height: 1.6; }
+a { text-decoration: none; }
+table { border-collapse: collapse; width: 100%; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- estrutura ---------- */
+.app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+.rail { background: var(--rail); display: flex; flex-direction: column; padding: 18px 0; position: sticky; top: 0; height: 100vh; }
+.rail-brand { display: flex; align-items: center; gap: 10px; padding: 0 20px 22px; }
+.rail-brand svg { width: 24px; height: 24px; color: var(--accent); }
+.rail-brand b { font-family: var(--font-display); font-size: 16px; letter-spacing: .05em; text-transform: uppercase; color: #E6EEF2; font-weight: 700; }
+.rail-group { padding: 14px 20px 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #55707C; }
+.rail a { display: flex; align-items: center; gap: 11px; padding: 9px 20px; color: var(--rail-text); font-size: 14px; cursor: pointer; border-left: 2px solid transparent; }
+.rail a:hover { color: #E6EEF2; background: var(--rail-active); }
+.rail a.on { color: #fff; background: var(--rail-active); border-left-color: var(--accent); }
+.rail a svg { width: 17px; height: 17px; flex: none; opacity: .85; }
+.rail-foot { margin-top: auto; padding: 16px 20px 0; border-top: 1px solid #1C2A32; }
+.pilot { display: flex; align-items: center; gap: 10px; }
+.pilot-badge { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; }
+.pilot b { display: block; font-size: 13px; color: #E6EEF2; font-weight: 500; }
+.pilot span { font-family: var(--font-mono); font-size: 11px; color: #55707C; }
+.rail-logout { display: inline-block; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #55707C; }
+.rail-logout:hover { color: #E6EEF2; }
+
+.main { min-width: 0; }
+.bar { display: flex; align-items: center; gap: 16px; padding: 0 28px; height: 62px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+.bar h1 { font-size: 19px; margin-right: auto; }
+.bar .back { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-2); }
+.bar .back svg { width: 15px; height: 15px; }
+.bar .back:hover { color: var(--text); }
+.bar .sep { color: var(--muted); }
+.bar .right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.icon-btn { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+.icon-btn:hover { color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
+[data-theme="light"] .i-sun { display: none; }
+[data-theme="dark"] .i-moon { display: none; }
+.btn { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-family: var(--font-body); padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.view { display: none; padding: 26px 28px 60px; }
+.view.on { display: block; }
+.wrap { padding: 26px 28px 60px; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 8px; align-items: center; }
+  .rail-brand, .rail-group, .rail-foot { display: none; }
+  .rail a { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .rail a.on { border-left: 0; border-bottom-color: var(--accent); }
+  .view, .wrap { padding: 18px 16px 50px; }
+  .bar { padding: 0 16px; }
+}
