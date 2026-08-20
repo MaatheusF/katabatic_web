@@ -50,8 +50,22 @@
 
 .mv-note { margin: 4px 14px 14px; font-size: 11px; line-height: 1.5; color: var(--muted); border-top: 1px solid var(--border); padding-top: 10px; }
 
+/* ---------- clima (radar + condição por aeroporto) ---------- */
+.mv-wx-panel { padding: 0 14px 14px; }
+.mv-wx-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.mv-wx-toggle input { accent-color: var(--accent); }
+.mv-wx-toggle input:disabled + span { color: var(--muted); text-decoration: line-through; }
+.mv-wx-updated { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
+
+.tag-ok, .tag-warn, .tag-bad, .tag-ice { font-family: var(--font-mono); font-size: 10px; font-weight: 500; color: #fff; padding: 1px 6px; border-radius: 3px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,.35); pointer-events: none; }
+.tag-ok { background: color-mix(in srgb, var(--ok) 85%, black 0%); }
+.tag-warn { background: color-mix(in srgb, var(--accent) 85%, black 0%); }
+.tag-bad { background: color-mix(in srgb, var(--danger) 85%, black 0%); }
+.tag-ice { background: color-mix(in srgb, var(--ice) 85%, black 0%); }
+.mv-wx-badge { display: inline-block; }
+
 /* ---------- legenda inferior ---------- */
-.mv-legend { position: absolute; left: 16px; bottom: 16px; z-index: 550; display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-2); box-shadow: var(--shadow); }
+.mv-legend { position: absolute; left: 16px; bottom: 16px; z-index: 550; display: flex; gap: 14px; flex-wrap: wrap; max-width: calc(100% - 32px); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-2); box-shadow: var(--shadow); }
 .mv-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .mv-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
 

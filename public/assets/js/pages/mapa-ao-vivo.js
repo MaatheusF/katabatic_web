@@ -6,6 +6,19 @@
    feed ao vivo via ACARS ainda - ver comentário no MapaAoVivoController).
    Aeronaves paradas ficam fixas na base/estação atual. Coordenadas dos
    aeroportos vêm de airports.json (mesmo padrão de aeronave.js/voo.js).
+
+   Clima em tempo real (novo): duas APIs públicas, gratuitas e sem chave,
+   chamadas direto do navegador (mesmo padrão de fetch já usado aqui) -
+   Open-Meteo pra condição atual por aeroporto (temperatura/vento/
+   precipitação/código de tempo) e RainViewer pro radar de precipitação
+   em imagem sobreposta ao mapa. Essa é telemetria de verdade (ao
+   contrário da posição das aeronaves em voo, que é simulada) - mas como
+   os aeroportos da rede ficam em regiões remotas (interior do Alasca,
+   Patagônia), a cobertura de radar pode ser fraca ou inexistente
+   dependendo do lugar; a condição por aeroporto (Open-Meteo) funciona em
+   qualquer coordenada do globo. As duas chamadas falham em silêncio
+   (try/catch + log) se a API estiver fora do ar ou inacessível - o resto
+   do mapa continua funcionando normalmente sem clima.
    ========================================================================== */
 (function () {
   'use strict';
@@ -16,6 +29,11 @@
   var FLIGHTS_BY_ID = {};
   var MAP = null, MLAYER = null;
   var FLYING = [];
+  var WEATHER = {};          // icao -> {temp, wind, gust, code, precip}
+  var AIRPORT_MARKERS = {};  // icao -> {dot: L.CircleMarker, badge: L.Marker|null}
+  var RADAR = { frames: [], idx: -1, layer: null, timer: null, host: '', ok: null };
+  var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+  var RADAR_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 
   /* ---------- geometria (mesmo helper de aeronave.js, com t contínuo) ---------- */
   function curveCtrl(a, b, bend) {
@@ -127,15 +145,157 @@
 
     Object.keys(AIRPORTS).forEach(function (icao) {
       var ap = AIRPORTS[icao];
-      L.circleMarker([ap.lat, ap.lon], { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 })
-        .addTo(MLAYER)
-        .bindPopup('<div class="mv-popup"><b>' + icao + '</b>' + ap.name + '<span class="sub">' + ap.city + '</span></div>');
+      var dot = L.circleMarker([ap.lat, ap.lon], { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 }).addTo(MLAYER);
+      dot.on('click', function () { dot.bindPopup(airportPopup(icao)).openPopup(); });
+      AIRPORT_MARKERS[icao] = { dot: dot, badge: null };
       if (active[icao]) {
         L.marker([ap.lat, ap.lon], {
           icon: L.divIcon({ className: '', html: '<span class="mv-airport-label">' + icao + '</span>', iconSize: null, iconAnchor: [-8, 6] }),
           interactive: false
         }).addTo(MLAYER);
       }
+    });
+  }
+
+  /* ---------- clima por aeroporto (Open-Meteo, gratuito, sem chave) ---------- */
+  function weatherCodeInfo(code) {
+    // Códigos WMO usados pela Open-Meteo (weather_code) - agrupados nas
+    // categorias que interessam pra essa tela: claro/nublado, névoa,
+    // chuva, neve, tempestade. `tag` reaproveita as cores já usadas em
+    // tags/dots no resto do app (ok/ice/warn/bad).
+    if (code === 0 || code === 1) return { label: 'Claro', tag: 'ok' };
+    if (code === 2 || code === 3) return { label: 'Nublado', tag: '' };
+    if (code === 45 || code === 48) return { label: 'Névoa', tag: 'ice' };
+    if (code >= 51 && code <= 57) return { label: 'Garoa', tag: 'warn' };
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: 'Chuva', tag: 'warn' };
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: 'Neve', tag: 'ice' };
+    if (code >= 95) return { label: 'Tempestade', tag: 'bad' };
+    return { label: '—', tag: '' };
+  }
+  function weatherTagColor(tag) {
+    return tag === 'ok' ? 'var(--ok)' : tag === 'ice' ? 'var(--ice)' : tag === 'warn' ? 'var(--accent)' : tag === 'bad' ? 'var(--danger)' : '#2C7CA5';
+  }
+
+  function airportPopup(icao) {
+    var ap = AIRPORTS[icao];
+    var html = '<div class="mv-popup"><b>' + icao + '</b>' + ap.name + '<span class="sub">' + ap.city + '</span>';
+    var w = WEATHER[icao];
+    if (w) {
+      var info = weatherCodeInfo(w.code);
+      html += '<div class="kv"><span>Condição</span><b>' + info.label + '</b><span>Temperatura</span><b>' + Math.round(w.temp) + ' °C</b>' +
+        '<span>Vento</span><b>' + Math.round(w.wind) + ' kt</b><span>Rajada</span><b>' + (w.gust !== null && w.gust !== undefined ? Math.round(w.gust) + ' kt' : '—') + '</b></div>' +
+        '<span class="sub">Clima em tempo real · Open-Meteo</span>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function applyWeatherToMap() {
+    Object.keys(AIRPORT_MARKERS).forEach(function (icao) {
+      var w = WEATHER[icao];
+      var m = AIRPORT_MARKERS[icao];
+      if (!w || !m) return;
+      var info = weatherCodeInfo(w.code);
+      m.dot.setStyle({ fillColor: weatherTagColor(info.tag) });
+
+      // Badge só aparece quando há algo acontecendo (chuva/neve/tempestade/
+      // névoa) - céu claro/nublado não precisa de selo, o dot colorido já
+      // basta, e evita poluir o mapa com 11 badges o tempo todo.
+      if (m.badge) { MLAYER.removeLayer(m.badge); m.badge = null; }
+      if (info.tag === 'warn' || info.tag === 'bad' || info.tag === 'ice') {
+        var ap = AIRPORTS[icao];
+        m.badge = L.marker([ap.lat, ap.lon], {
+          icon: L.divIcon({ className: '', html: '<span class="mv-wx-badge tag-' + info.tag + '">' + info.label + '</span>', iconSize: null, iconAnchor: [-8, -10] }),
+          interactive: false, zIndexOffset: 100
+        }).addTo(MLAYER);
+      }
+    });
+    var el = document.getElementById('mv-wx-updated');
+    if (el) el.textContent = 'Clima atualizado ' + new Date().toISOString().slice(11, 16) + 'Z';
+  }
+
+  function loadWeather() {
+    var icaos = Object.keys(AIRPORTS);
+    if (!icaos.length) return;
+    var lats = icaos.map(function (i) { return AIRPORTS[i].lat; }).join(',');
+    var lons = icaos.map(function (i) { return AIRPORTS[i].lon; }).join(',');
+    var url = WEATHER_URL + '?latitude=' + lats + '&longitude=' + lons +
+      '&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=UTC';
+    fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      var list = Array.isArray(data) ? data : [data];
+      icaos.forEach(function (icao, i) {
+        var cur = list[i] && list[i].current;
+        if (!cur) return;
+        WEATHER[icao] = { temp: cur.temperature_2m, wind: cur.wind_speed_10m, gust: cur.wind_gusts_10m, code: cur.weather_code };
+      });
+      applyWeatherToMap();
+    }).catch(function (err) {
+      console.warn('Katabatic: clima por aeroporto indisponível (Open-Meteo).', err);
+    });
+  }
+
+  /* ---------- radar de precipitação (RainViewer, gratuito, sem chave) ---------- */
+  function radarTileUrl(frame) { return RADAR.host + frame.path + '/256/{z}/{x}/{y}/2/1_1.png'; }
+
+  function showRadarFrame() {
+    if (!MAP || RADAR.idx < 0 || !RADAR.frames.length) return;
+    var url = radarTileUrl(RADAR.frames[RADAR.idx]);
+    if (RADAR.layer) RADAR.layer.setUrl(url);
+    else RADAR.layer = L.tileLayer(url, { opacity: .5, zIndex: 450, attribution: 'Radar &copy; <a href="https://www.rainviewer.com/">RainViewer</a>' }).addTo(MAP);
+  }
+
+  function startRadarLoop() {
+    clearInterval(RADAR.timer);
+    RADAR.timer = setInterval(function () {
+      var toggle = document.getElementById('mv-radar-toggle');
+      if (!toggle || !toggle.checked || !RADAR.frames.length) return;
+      RADAR.idx = (RADAR.idx + 1) % RADAR.frames.length;
+      showRadarFrame();
+    }, 700);
+  }
+
+  function loadRadar() {
+    fetch(RADAR_URL).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      RADAR.host = data.host;
+      RADAR.frames = (data.radar && data.radar.past) ? data.radar.past.slice(-8) : [];
+      RADAR.ok = RADAR.frames.length > 0;
+      if (RADAR.ok) {
+        RADAR.idx = RADAR.frames.length - 1;
+        var toggle = document.getElementById('mv-radar-toggle');
+        if (toggle && toggle.checked) showRadarFrame();
+        startRadarLoop();
+      }
+      setRadarToggleAvailability();
+    }).catch(function (err) {
+      console.warn('Katabatic: radar de precipitação indisponível (RainViewer).', err);
+      RADAR.ok = false;
+      setRadarToggleAvailability();
+    });
+  }
+
+  function setRadarToggleAvailability() {
+    var toggle = document.getElementById('mv-radar-toggle');
+    var label = document.getElementById('mv-radar-label');
+    if (!toggle) return;
+    if (RADAR.ok === false) {
+      toggle.checked = false;
+      toggle.disabled = true;
+      if (label) label.textContent = 'Radar indisponível';
+    }
+  }
+
+  function wireRadarToggle() {
+    var toggle = document.getElementById('mv-radar-toggle');
+    if (!toggle) return;
+    toggle.addEventListener('change', function () {
+      if (toggle.checked) { if (RADAR.frames.length) showRadarFrame(); }
+      else if (RADAR.layer) { MAP.removeLayer(RADAR.layer); RADAR.layer = null; }
     });
   }
 
@@ -248,6 +408,15 @@
     setTimeout(function () { MAP.invalidateSize(); }, 0);
     tick();
     setInterval(tick, 1000);
+
+    // Clima em tempo real: primeira carga já na abertura da tela, depois
+    // Open-Meteo a cada 12 min (condição muda devagar) e RainViewer a
+    // cada 10 min (frequência de publicação de novos frames de radar).
+    wireRadarToggle();
+    loadWeather();
+    loadRadar();
+    setInterval(loadWeather, 12 * 60 * 1000);
+    setInterval(loadRadar, 10 * 60 * 1000);
   }
 
   /* ---------- carregamento de dados ---------- */

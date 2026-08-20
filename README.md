@@ -229,6 +229,39 @@ correspondente e abre o popup dela — mesmo comportamento clicando
 direto no marcador. Aeroportos da rede sem tráfego no momento aparecem
 como pontos discretos, sem rótulo, só pra dar contexto geográfico.
 
+**Clima em tempo real.** Ao contrário da posição das aeronaves (que é
+simulada), o clima nesta tela é dado real, consumido direto do
+navegador em duas APIs públicas gratuitas e sem chave — nenhuma delas
+passa pelo backend Symfony, que continua sem nenhuma dependência de
+API externa:
+
+- **Open-Meteo** (`api.open-meteo.com`) dá a condição atual dos 11
+  aeroportos da rede numa única chamada (coordenadas dos 11 em lote) —
+  temperatura, vento, rajada e o código de tempo (WMO), que
+  `mapa-ao-vivo.js` traduz em Claro/Nublado/Névoa/Garoa/Chuva/Neve/
+  Tempestade. O ponto de cada aeroporto no mapa muda de cor conforme a
+  condição, e aeroportos com algo além de céu claro/nublado (chuva,
+  neve, névoa, tempestade) ganham um selo de texto — céu limpo não
+  precisa de selo, só o ponto colorido já basta. Atualiza a cada 12
+  minutos.
+- **RainViewer** (`api.rainviewer.com`) dá o radar de precipitação em
+  imagem, sobreposto ao mapa como uma camada (liga/desliga pelo
+  interruptor "Radar de precipitação" no painel) — anima sozinho pelos
+  últimos ~80 minutos de frames observados (a cada ~10 min de
+  intervalo real) e busca uma lista nova de frames a cada 10 minutos.
+
+Como os aeroportos da rede ficam em regiões remotas (interior do
+Alasca, Patagônia), a cobertura de radar de precipitação pode ser
+fraca ou inexistente dependendo do lugar — isso é uma limitação real
+da cobertura de radar meteorológico nessas regiões, não um bug; a
+condição por aeroporto (Open-Meteo) não depende de radar e funciona em
+qualquer coordenada do globo. Se alguma das duas APIs estiver fora do
+ar, sem rede ou bloqueada por CORS, a chamada falha em silêncio
+(`console.warn`) e o resto da tela continua funcionando normalmente —
+o radar mostra "Radar indisponível" e desliga o interruptor sozinho; o
+clima por aeroporto simplesmente não aparece, sem quebrar o mapa nem
+os marcadores de aeronave.
+
 ## Administração (adesão, solicitações e pilotos)
 
 **Solicitação de adesão (`/adesao`)** é uma tela pública, sem sessão —
