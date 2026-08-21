@@ -24,3 +24,9 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Uploads do usuário (fotos de perfil etc.) - gerados em runtime pelo
+# PerfilController, não fazem parte do repositório. O .gitkeep mantém
+# a pasta versionada mesmo vazia.
+/public/uploads/*
+!/public/uploads/.gitkeep

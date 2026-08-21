@@ -13,6 +13,17 @@
   var AIRPORTS = {};
   var state = { periodo: 30, tipo: 'Todos', de: '', ate: '', labels: true };
 
+  // Traducao de texto construido em JS (nao capturado pelo data-i18n do
+  // lang-toggle.js, que so le innerHTML no load) - ver comentario no topo
+  // do arquivo de template sobre a arquitetura de popups/paineis de mapa.
+  function tr(key, ptFallback) {
+    var en = window.KATABATIC_I18N_EN || {};
+    return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+  }
+
+  function legNoun(n) { return tr('aeronave.leg.noun', 'perna') + (n === 1 ? '' : 's'); }
+  function visitNoun(n) { return tr('aeronave.airport.visit.noun', 'pouso/decolagem') + (n === 1 ? '' : 's'); }
+
   function pad2(n) { return String(n).padStart(2, '0'); }
   function ddmmyyyy(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); }
 
@@ -54,9 +65,9 @@
     // - abrir o relatorio de voo de verdade e uma acao a parte, so no nome
     // do voo (callsign), que vira um link proprio dentro da celula.
     var callsignHtml = f.flightId
-      ? '<a class="leg-callsign-link" href="/voo?id=' + encodeURIComponent(f.flightId) + '" title="Abrir relatório de voo real">' + f.callsign + '</a>'
+      ? '<a class="leg-callsign-link" href="/voo?id=' + encodeURIComponent(f.flightId) + '" title="' + tr('aeronave.leg.report.title', 'Abrir relatório de voo real') + '">' + f.callsign + '</a>'
       : f.callsign;
-    return '<tr data-leg-idx="' + idx + '" tabindex="0" title="Destacar esta perna no mapa">' +
+    return '<tr data-leg-idx="' + idx + '" tabindex="0" title="' + tr('aeronave.leg.highlight.title', 'Destacar esta perna no mapa') + '">' +
       '<td class="mono">' + ddmmyyyy(f.data) + '</td>' +
       '<td class="mono">' + callsignHtml + '<span class="sub">' + f.tipo + '</span></td>' +
       '<td class="route-cell">' + f.origem + ' → ' + f.destino + '<span class="sub">' + f.hora + '</span></td>' +
@@ -68,7 +79,7 @@
     var body = document.getElementById('ac-legs-body');
     body.innerHTML = legs.map(legRow).join('');
     document.getElementById('ac-legs-empty').style.display = legs.length ? 'none' : 'block';
-    document.getElementById('ac-legs-count').textContent = legs.length + (legs.length === 1 ? ' perna' : ' pernas');
+    document.getElementById('ac-legs-count').textContent = legs.length + ' ' + legNoun(legs.length);
   }
 
   /* ---------- mapa ---------- */
@@ -99,7 +110,7 @@
 
     var known = legs.filter(function (f) { return AIRPORTS[f.origem] && AIRPORTS[f.destino]; });
     if (!known.length) {
-      document.getElementById('ac-map-count').textContent = 'Sem pernas com aeroporto reconhecido nesse período.';
+      document.getElementById('ac-map-count').textContent = tr('aeronave.map.noknownlegs', 'Sem pernas com aeroporto reconhecido nesse período.');
       return;
     }
 
@@ -160,7 +171,7 @@
         radius: 5 + Math.min(6, visits),
         color: '#fff', weight: 2, fillColor: '#2C7CA5', fillOpacity: .95
       }).addTo(MLAYER).bindPopup(
-        '<div class="ac-popup"><b>' + icao + '</b>' + ap.name + '<span class="sub">' + ap.city + ' · ' + visits + ' pouso/decolagem' + (visits === 1 ? '' : 's') + '</span></div>'
+        '<div class="ac-popup"><b>' + icao + '</b>' + ap.name + '<span class="sub">' + ap.city + ' · ' + visits + ' ' + visitNoun(visits) + '</span></div>'
       );
       L.marker([ap.lat, ap.lon], {
         icon: L.divIcon({ className: '', html: '<span class="airport-label">' + icao + '</span>', iconSize: null, iconAnchor: [-8, 6] }),
@@ -169,29 +180,34 @@
     });
 
     if (bounds.length) MAP.fitBounds(L.latLngBounds(bounds).pad(0.18));
-    document.getElementById('ac-map-count').textContent = known.length + ' perna' + (known.length === 1 ? '' : 's') + ' · ' + Object.keys(airportVisits).length + ' aeroportos';
+    document.getElementById('ac-map-count').textContent = known.length + ' ' + legNoun(known.length) + ' · ' + Object.keys(airportVisits).length + ' ' + tr('aeronave.airports.noun', 'aeroportos');
   }
 
   function legPopup(f) {
     var html = '<div class="ac-popup"><b>' + f.callsign + ' · ' + ddmmyyyy(f.data) + '</b>' +
       f.origem + ' → ' + f.destino + '<span class="sub">' + f.hora + ' · ' + f.tempo + ' · ' + f.tipo + '</span>';
-    if (f.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(f.flightId) + '">Ver relatório real ↗</a>';
+    if (f.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(f.flightId) + '">' + tr('aeronave.leg.viewreport', 'Ver relatório real ↗') + '</a>';
     html += '</div>';
     return html;
   }
 
   function highlightLegRow(f) {
-    document.querySelectorAll('#ac-legs-body tr.hl').forEach(function (tr) { tr.classList.remove('hl'); });
+    // Parametro chamado `rowEl`, nao `tr` - apesar de "tr" ser o nome
+    // natural pra uma <tr> aqui, colidiria com o helper de traducao
+    // (function tr(), topo do arquivo) se algum dia este callback
+    // precisar chamar tr('chave', 'fallback') - ver o bug identico ja
+    // corrigido em voo.js (TypeError: tr is not a function).
+    document.querySelectorAll('#ac-legs-body tr.hl').forEach(function (rowEl) { rowEl.classList.remove('hl'); });
     var idx = LEGS.indexOf(f);
     var row = document.querySelector('#ac-legs-body tr[data-leg-idx="' + idx + '"]');
     if (row) { row.classList.add('hl'); row.scrollIntoView({ block: 'nearest' }); }
   }
 
   function initMap() {
-    if (!window.L) { document.getElementById('ac-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--fm);font-size:12px">Mapa indisponível</p>'; return; }
+    if (!window.L) { document.getElementById('ac-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--fm);font-size:12px">' + tr('aeronave.map.unavailable', 'Mapa indisponível') + '</p>'; return; }
     var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
-    MAP = L.map('ac-map', { scrollWheelZoom: false, minZoom: 2, maxZoom: 13 });
+    MAP = L.map('ac-map', { scrollWheelZoom: true, minZoom: 2, maxZoom: 13 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 13, detectRetina: true }).addTo(MAP);
     new MutationObserver(function () { base.setUrl(TL[th()]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     MLAYER = L.layerGroup().addTo(MAP);
@@ -234,9 +250,11 @@
     // Clicar no nome do voo (link) abre o relatorio real - deixa a
     // navegacao nativa do <a> acontecer, sem tambem focar o mapa.
     if (e.target.closest('a.leg-callsign-link')) return;
-    var tr = e.target.closest('tr[data-leg-idx]');
-    if (!tr) return;
-    var f = LEGS[+tr.dataset.legIdx];
+    // `rowEl`, nao `tr` - ver o comentario em highlightLegRow() acima
+    // sobre por que esse nome fica reservado pro helper de traducao.
+    var rowEl = e.target.closest('tr[data-leg-idx]');
+    if (!rowEl) return;
+    var f = LEGS[+rowEl.dataset.legIdx];
     if (f && AIRPORTS[f.origem] && AIRPORTS[f.destino] && MAP) {
       highlightLegRow(f);
       MAP.fitBounds(L.latLngBounds([[AIRPORTS[f.origem].lat, AIRPORTS[f.origem].lon], [AIRPORTS[f.destino].lat, AIRPORTS[f.destino].lon]]).pad(0.4));
@@ -245,10 +263,10 @@
   document.getElementById('ac-legs-body').addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     if (e.target.closest('a.leg-callsign-link')) return; // Enter no link ja navega nativamente
-    var tr = e.target.closest('tr[data-leg-idx]');
-    if (!tr) return;
+    var rowEl = e.target.closest('tr[data-leg-idx]');
+    if (!rowEl) return;
     e.preventDefault();
-    tr.click();
+    rowEl.click();
   });
 
   var airportsUrl = window.KATABATIC_AIRPORTS_URL || '/assets/data/airports.json';
@@ -262,4 +280,11 @@
       console.error('Katabatic: falha ao carregar coordenadas dos aeroportos.', err);
       render();
     });
+
+  // Popups do mapa, lista de pernas e legendas de contagem sao todos
+  // reconstruidos por render() - reusa-la aqui garante que o idioma novo
+  // seja aplicado em tudo isso de uma vez, sem duplicar logica.
+  document.addEventListener('katabatic:langchange', function () {
+    render();
+  });
 })();

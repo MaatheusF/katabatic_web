@@ -35,6 +35,24 @@
   var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
   var RADAR_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 
+  // Traducao de texto construido em JS (nao capturado pelo data-i18n do
+  // lang-toggle.js, que so le innerHTML no load) - ver comentario no topo
+  // do arquivo de template sobre a arquitetura de popups/paineis de mapa.
+  function tr(key, ptFallback) {
+    var en = window.KATABATIC_I18N_EN || {};
+    return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+  }
+
+  // Mesmo vocabulario de status usado no Portal (Fleet) e em Aeronave -
+  // reaproveita as MESMAS chaves common.status.* pra ficar identico em
+  // toda tela onde esse status aparece.
+  function statusLabel(pt) {
+    if (pt === 'Em voo') return tr('common.status.inflight', pt);
+    if (pt === 'Disponível') return tr('common.status.available', pt);
+    if (pt === 'Fora de base') return tr('common.status.awayfrombase', pt);
+    return pt;
+  }
+
   /* ---------- geometria (mesmo helper de aeronave.js, com t contínuo) ---------- */
   function curveCtrl(a, b, bend) {
     var midLat = (a[0] + b[0]) / 2, midLon = (a[1] + b[1]) / 2;
@@ -87,16 +105,16 @@
   function flyingPopup(fa) {
     var html = '<div class="mv-popup"><b>' + fa.data.callsign + ' · ' + fa.data.reg + '</b>' +
       fa.data.origem + ' → ' + fa.data.destino + '<span class="sub">' + fa.data.tipo + ' · ' + fa.data.modelo + '</span>' +
-      '<div class="kv"><span>Altitude</span><b>' + fmtAlt(fa.lastAlt) + '</b><span>Vel. indicada</span><b>' + fmtKt(fa.lastIas) + '</b></div>';
-    if (fa.data.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(fa.data.flightId) + '">Ver relatório real ↗</a>';
+      '<div class="kv"><span>Altitude</span><b>' + fmtAlt(fa.lastAlt) + '</b><span>' + tr('mapavivo.kv.indicated', 'Vel. indicada') + '</span><b>' + fmtKt(fa.lastIas) + '</b></div>';
+    if (fa.data.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(fa.data.flightId) + '">' + tr('mapavivo.viewreport', 'Ver relatório real ↗') + '</a>';
     html += '</div>';
     return html;
   }
   function parkedPopup(pa) {
     return '<div class="mv-popup"><b>' + pa.reg + '</b>' + pa.modelo +
-      '<span class="sub">Base ' + pa.base + ' · em ' + pa.pos + '</span>' +
-      '<div class="kv"><span>Status</span><b>' + pa.status + '</b></div>' +
-      '<br><a href="/aeronave/' + encodeURIComponent(pa.reg) + '">Ver histórico ↗</a></div>';
+      '<span class="sub">Base ' + pa.base + ' · ' + tr('mapavivo.popup.at', 'em') + ' ' + pa.pos + '</span>' +
+      '<div class="kv"><span>Status</span><b>' + statusLabel(pa.status) + '</b></div>' +
+      '<br><a href="/aeronave/' + encodeURIComponent(pa.reg) + '">' + tr('mapavivo.popup.viewhistory', 'Ver histórico ↗') + '</a></div>';
   }
 
   /* ---------- construção dos marcadores ---------- */
@@ -163,13 +181,13 @@
     // categorias que interessam pra essa tela: claro/nublado, névoa,
     // chuva, neve, tempestade. `tag` reaproveita as cores já usadas em
     // tags/dots no resto do app (ok/ice/warn/bad).
-    if (code === 0 || code === 1) return { label: 'Claro', tag: 'ok' };
-    if (code === 2 || code === 3) return { label: 'Nublado', tag: '' };
-    if (code === 45 || code === 48) return { label: 'Névoa', tag: 'ice' };
-    if (code >= 51 && code <= 57) return { label: 'Garoa', tag: 'warn' };
-    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: 'Chuva', tag: 'warn' };
-    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: 'Neve', tag: 'ice' };
-    if (code >= 95) return { label: 'Tempestade', tag: 'bad' };
+    if (code === 0 || code === 1) return { label: tr('mapavivo.wx.clear', 'Claro'), tag: 'ok' };
+    if (code === 2 || code === 3) return { label: tr('mapavivo.wx.cloudy', 'Nublado'), tag: '' };
+    if (code === 45 || code === 48) return { label: tr('mapavivo.wx.fog', 'Névoa'), tag: 'ice' };
+    if (code >= 51 && code <= 57) return { label: tr('mapavivo.wx.drizzle', 'Garoa'), tag: 'warn' };
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: tr('mapavivo.wx.rain', 'Chuva'), tag: 'warn' };
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: tr('mapavivo.wx.snow', 'Neve'), tag: 'ice' };
+    if (code >= 95) return { label: tr('mapavivo.wx.storm', 'Tempestade'), tag: 'bad' };
     return { label: '—', tag: '' };
   }
   function weatherTagColor(tag) {
@@ -182,9 +200,9 @@
     var w = WEATHER[icao];
     if (w) {
       var info = weatherCodeInfo(w.code);
-      html += '<div class="kv"><span>Condição</span><b>' + info.label + '</b><span>Temperatura</span><b>' + Math.round(w.temp) + ' °C</b>' +
-        '<span>Vento</span><b>' + Math.round(w.wind) + ' kt</b><span>Rajada</span><b>' + (w.gust !== null && w.gust !== undefined ? Math.round(w.gust) + ' kt' : '—') + '</b></div>' +
-        '<span class="sub">Clima em tempo real · Open-Meteo</span>';
+      html += '<div class="kv"><span>' + tr('mapavivo.wx.condition', 'Condição') + '</span><b>' + info.label + '</b><span>' + tr('mapavivo.wx.temperature', 'Temperatura') + '</span><b>' + Math.round(w.temp) + ' °C</b>' +
+        '<span>' + tr('mapavivo.wx.wind', 'Vento') + '</span><b>' + Math.round(w.wind) + ' kt</b><span>' + tr('mapavivo.wx.gust', 'Rajada') + '</span><b>' + (w.gust !== null && w.gust !== undefined ? Math.round(w.gust) + ' kt' : '—') + '</b></div>' +
+        '<span class="sub">' + tr('mapavivo.wx.caption', 'Clima em tempo real · Open-Meteo') + '</span>';
     }
     html += '</div>';
     return html;
@@ -211,7 +229,7 @@
       }
     });
     var el = document.getElementById('mv-wx-updated');
-    if (el) el.textContent = 'Clima atualizado ' + new Date().toISOString().slice(11, 16) + 'Z';
+    if (el) el.textContent = tr('mapavivo.wx.updated', 'Clima atualizado') + ' ' + new Date().toISOString().slice(11, 16) + 'Z';
   }
 
   function loadWeather() {
@@ -292,7 +310,7 @@
     if (RADAR.ok === false) {
       toggle.checked = false;
       toggle.disabled = true;
-      if (label) label.textContent = 'Radar indisponível';
+      if (label) label.textContent = tr('mapavivo.radar.unavailable', 'Radar indisponível');
       if (play) play.disabled = true;
     }
   }
@@ -315,13 +333,24 @@
   // Botão "Animar" é opcional - o radar abre parado no frame mais
   // recente; apertar aqui passa a repetir os últimos ~80 min em loop até
   // pausar de novo (volta pro frame atual ao pausar).
+  // Fatorado do click handler pra tambem poder ser re-chamado no
+  // langchange (o texto do botao muda entre Animar/Pausar E entre
+  // PT/EN, e data-i18n sozinho so sabe voltar pro estado PT/EN
+  // "parado" original - o estado dinamico de reproducao precisa
+  // ser reaplicado por cima depois da troca de idioma).
+  function updateRadarPlayLabel() {
+    var btn = document.getElementById('mv-radar-play');
+    if (!btn) return;
+    btn.textContent = RADAR.playing ? tr('mapavivo.radar.pause', '⏸ Pausar') : tr('mapavivo.radar.play', '▶ Animar');
+    btn.setAttribute('aria-pressed', String(RADAR.playing));
+  }
+
   function wireRadarPlay() {
     var btn = document.getElementById('mv-radar-play');
     if (!btn) return;
     btn.addEventListener('click', function () {
       RADAR.playing = !RADAR.playing;
-      btn.textContent = RADAR.playing ? '⏸ Pausar' : '▶ Animar';
-      btn.setAttribute('aria-pressed', String(RADAR.playing));
+      updateRadarPlayLabel();
       if (!RADAR.playing && RADAR.frames.length) {
         RADAR.idx = RADAR.frames.length - 1;
         showRadarFrame();
@@ -345,17 +374,17 @@
     return '<div class="mv-row" data-focus="parked-' + pa.reg + '">' +
       '<i class="dot dot-ground ' + dotCls + '"></i>' +
       '<div class="mv-row-body"><div class="mv-row-title">' + pa.reg + '</div>' +
-      '<div class="mv-row-sub">' + pa.status + ' · ' + pa.pos + '</div></div>' +
+      '<div class="mv-row-sub">' + statusLabel(pa.status) + ' · ' + pa.pos + '</div></div>' +
       '<div class="mv-row-metric">' + pa.base + '</div>' +
       '</div>';
   }
 
   function renderPanel() {
-    document.getElementById('mv-flying-list').innerHTML = FLYING.map(flyingRow).join('') || '<p class="mv-note">Nenhuma aeronave em voo agora.</p>';
+    document.getElementById('mv-flying-list').innerHTML = FLYING.map(flyingRow).join('') || '<p class="mv-note">' + tr('mapavivo.flying.empty', 'Nenhuma aeronave em voo agora.') + '</p>';
     document.getElementById('mv-parked-list').innerHTML = PARKED.map(parkedRow).join('');
     document.getElementById('mv-count-flying').textContent = FLYING.length;
     document.getElementById('mv-count-parked').textContent = PARKED.length;
-    document.getElementById('mv-fleet-count').textContent = (FLYING.length + PARKED.length) + ' aeronaves';
+    document.getElementById('mv-fleet-count').textContent = (FLYING.length + PARKED.length) + ' ' + tr('mapavivo.fleet.noun', 'aeronaves');
 
     document.getElementById('mv-flying-list').querySelectorAll('.mv-row').forEach(function (row, i) {
       row.addEventListener('click', function () {
@@ -417,10 +446,10 @@
 
   /* ---------- mapa ---------- */
   function initMap() {
-    if (!window.L) { document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">Mapa indisponível</p>'; return; }
+    if (!window.L) { document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">' + tr('mapavivo.map.unavailable', 'Mapa indisponível') + '</p>'; return; }
     var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
-    MAP = L.map('mv-map', { scrollWheelZoom: false, minZoom: 2, maxZoom: 12 });
+    MAP = L.map('mv-map', { scrollWheelZoom: true, minZoom: 2, maxZoom: 12 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 12, detectRetina: true }).addTo(MAP);
     new MutationObserver(function () { base.setUrl(TL[th()]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     MLAYER = L.layerGroup().addTo(MAP);
@@ -463,11 +492,46 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMap); else initMap();
   }).catch(function (err) {
     console.error('Katabatic: falha ao carregar dados do mapa ao vivo.', err);
-    document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">Não foi possível carregar os dados do mapa.</p>';
+    document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">' + tr('mapavivo.fetch.error', 'Não foi possível carregar os dados do mapa.') + '</p>';
   });
 
   document.addEventListener('katabatic:langchange', function () {
     var el = document.getElementById('title');
     if (el) el.textContent = document.documentElement.lang === 'en' ? 'Live map' : 'Mapa ao vivo';
+
+    // Painel lateral (lista + contagens + vazio), badges/legenda de clima
+    // e os dois textos dinamicos do radar (label indisponivel, botao
+    // animar/pausar) sao todos reconstruidos fora do data-i18n (ver
+    // cabecalho do arquivo) - reaplica todos aqui pra nao ficarem presos
+    // no idioma em que renderizaram pela ultima vez. As funcoes que
+    // constroem os MARCADORES do mapa (buildFlying/buildParked) nao tem
+    // texto traduzivel (so callsign/matricula), entao nao precisam
+    // rodar de novo - so os popups, que sao reconstruidos aqui embaixo.
+    renderPanel();
+    if (Object.keys(WEATHER).length) applyWeatherToMap();
+    setRadarToggleAvailability();
+    updateRadarPlayLabel();
+
+    // Popups ja abertos ficam com o conteudo antigo ate fechar/reabrir -
+    // as funcoes builder (flyingPopup/parkedPopup/airportPopup) ja sao
+    // language-aware (chamam tr() na hora), entao a proxima abertura sai
+    // certa mesmo sem isso; isso aqui so evita um popup ABERTO agora
+    // ficar preso no idioma antigo até ser fechado.
+    FLYING.forEach(function (fa) {
+      if (fa.marker && fa.marker.isPopupOpen && fa.marker.isPopupOpen()) {
+        fa.marker.setPopupContent(flyingPopup(fa));
+      }
+    });
+    PARKED.forEach(function (pa) {
+      if (pa._marker && pa._marker.isPopupOpen && pa._marker.isPopupOpen()) {
+        pa._marker.setPopupContent(parkedPopup(pa));
+      }
+    });
+    Object.keys(AIRPORT_MARKERS).forEach(function (icao) {
+      var dot = AIRPORT_MARKERS[icao].dot;
+      if (dot && dot.isPopupOpen && dot.isPopupOpen()) {
+        dot.setPopupContent(airportPopup(icao));
+      }
+    });
   });
 })();

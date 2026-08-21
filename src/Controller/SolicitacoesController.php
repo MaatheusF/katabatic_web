@@ -2,31 +2,36 @@
 
 namespace App\Controller;
 
+use App\Entity\MembershipRequest;
+use App\Entity\Pilot;
+use App\Repository\MembershipRequestRepository;
+use App\Repository\PilotRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Grid de administração: solicitações de adesão pendentes/aprovadas/
  * rejeitadas, e a lista de pilotos já cadastrados. Restrito a pilotos
- * com `admin` true na sessão mock (ver LoginController) - o rail só
- * mostra o link pra quem tem o papel, e o controller confere de novo
- * aqui (defesa em profundidade), redirecionando pro Portal quem tentar
- * acessar a URL direto sem ser admin.
+ * com `admin` true na sessão (mesmo shim de transição do resto do
+ * site — ver LoginFormAuthenticator e config/packages/security.yaml).
  *
- * Aprovar/Rejeitar um pedido e mock: solicitacoes.js muda o status só
- * no proprio carregamento da pagina (sem POST), e "aprovar" injeta uma
- * linha nova na tabela de Pilotos so nessa sessao do navegador - nao
- * persiste num reload. Isso tambem significa que o que chega pelo
- * formulario publico (/adesao) nao aparece aqui: os dois lados usam
- * conjuntos mock independentes ate o schema do banco existir (ver
- * AdesaoController e README).
+ * Aprovar/Rejeitar agora é de verdade: `solicitacoes.js` faz um
+ * `fetch` POST pra `aprovar()`/`rejeitar()` abaixo em vez de só mudar
+ * o array em memória da página. Aprovar cria um `Pilot` de verdade
+ * (com senha temporária gerada na hora — ver `aprovar()`) quando ainda
+ * não existe um piloto com aquele CID; rejeitar só marca o pedido.
+ * Antes desta fatia, os dois lados (formulário público em `/adesao` e
+ * este grid) usavam conjuntos mock independentes — ver README.
  */
 class SolicitacoesController extends AbstractController
 {
     #[Route('/solicitacoes', name: 'app_solicitacoes', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, MembershipRequestRepository $requests, PilotRepository $pilots): Response
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
@@ -39,39 +44,150 @@ class SolicitacoesController extends AbstractController
         return $this->render('solicitacoes/index.html.twig', [
             'activeView' => $request->query->get('view', 'solicitacoes'),
             'pilot' => $pilot,
-            'solicitacoes' => $this->solicitacoes(),
-            'pilotos' => $this->pilotos(),
+            'solicitacoes' => array_map(
+                fn (MembershipRequest $r) => $this->requestViewModel($r),
+                $requests->findAllOrderedByRequestDate()
+            ),
+            'pilotos' => array_map(
+                fn (Pilot $p) => $this->pilotViewModel($p),
+                $pilots->findBy([], ['createdAt' => 'ASC'])
+            ),
         ]);
     }
 
+    #[Route('/solicitacoes/{id}/aprovar', name: 'app_solicitacoes_aprovar', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function aprovar(
+        int $id,
+        Request $request,
+        EntityManagerInterface $em,
+        MembershipRequestRepository $requests,
+        PilotRepository $pilots,
+        UserPasswordHasherInterface $hasher,
+    ): JsonResponse {
+        if (null !== $err = $this->ensureAdmin($request)) {
+            return $err;
+        }
+
+        $membershipRequest = $requests->find($id);
+        if (null === $membershipRequest) {
+            return $this->json(['error' => 'Solicitação não encontrada.'], 404);
+        }
+        if ('pendente' !== $membershipRequest->getStatus()) {
+            return $this->json(['error' => 'Essa solicitação já foi decidida.'], 409);
+        }
+
+        // Se já existe um piloto com esse CID (ex.: pedido duplicado que
+        // passou pela validação antes de outro já ter sido aprovado), não
+        // cria um segundo — só liga o pedido ao piloto que já existe, sem
+        // gerar senha nova nem sobrescrever a dele.
+        $existingPilot = $pilots->findOneByCid($membershipRequest->getCid());
+        $tempPassword = null;
+        if (null === $existingPilot) {
+            $tempPassword = bin2hex(random_bytes(4));
+
+            $newPilot = new Pilot(
+                $membershipRequest->getCid(),
+                $membershipRequest->getName(),
+                $membershipRequest->getEmail(),
+            );
+            $newPilot->setBase(
+                'Sem preferência' === $membershipRequest->getBasePref() ? 'PAFA' : $membershipRequest->getBasePref()
+            );
+            $newPilot->setPassword($hasher->hashPassword($newPilot, $tempPassword));
+
+            $em->persist($newPilot);
+            $existingPilot = $newPilot;
+        }
+
+        $membershipRequest->setStatus('aprovado');
+        $membershipRequest->setDecidedAt(new \DateTimeImmutable());
+        $em->flush();
+
+        return $this->json([
+            'solicitacao' => $this->requestViewModel($membershipRequest),
+            'piloto' => $this->pilotViewModel($existingPilot),
+            // null quando o piloto já existia (nada foi gerado) — o front
+            // só mostra o aviso de senha temporária quando isto vem preenchido.
+            'senhaTemporaria' => $tempPassword,
+        ]);
+    }
+
+    #[Route('/solicitacoes/{id}/rejeitar', name: 'app_solicitacoes_rejeitar', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function rejeitar(int $id, Request $request, EntityManagerInterface $em, MembershipRequestRepository $requests): JsonResponse
+    {
+        if (null !== $err = $this->ensureAdmin($request)) {
+            return $err;
+        }
+
+        $membershipRequest = $requests->find($id);
+        if (null === $membershipRequest) {
+            return $this->json(['error' => 'Solicitação não encontrada.'], 404);
+        }
+        if ('pendente' !== $membershipRequest->getStatus()) {
+            return $this->json(['error' => 'Essa solicitação já foi decidida.'], 409);
+        }
+
+        $membershipRequest->setStatus('rejeitado');
+        $membershipRequest->setDecidedAt(new \DateTimeImmutable());
+        $em->flush();
+
+        return $this->json(['solicitacao' => $this->requestViewModel($membershipRequest)]);
+    }
+
     /**
-     * @return list<array<string, mixed>>
+     * Mesmo guard de `index()` (sessão + papel admin), mas devolvendo
+     * JSON em vez de redirecionar — estas duas rotas são chamadas via
+     * `fetch` por `solicitacoes.js`, não navegação de página.
      */
-    private function solicitacoes(): array
+    private function ensureAdmin(Request $request): ?JsonResponse
+    {
+        $pilot = $request->getSession()->get('pilot');
+        if (null === $pilot) {
+            return $this->json(['error' => 'Sessão expirada — faça login de novo.'], 401);
+        }
+        if (empty($pilot['admin'])) {
+            return $this->json(['error' => 'Ação restrita a administradores.'], 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestViewModel(MembershipRequest $r): array
     {
         return [
-            ['id' => 1, 'nome' => 'Renata Alves', 'email' => 'renata.alves@example.com', 'discord' => 'renata.alves', 'cid' => '1044213', 'experiencia' => 'Intermediário', 'basePref' => 'SCCI', 'comoConheceu' => 'Rede VATSIM', 'motivacao' => 'Voo há 3 anos na rede, quero algo mais técnico que rotas de linha aérea comercial.', 'data' => '2026-08-18', 'status' => 'pendente'],
-            ['id' => 2, 'nome' => 'Diego Fernández', 'email' => 'diego.fdz@example.com', 'discord' => null, 'cid' => '1198765', 'experiencia' => 'Experiente', 'basePref' => 'SCCI', 'comoConheceu' => 'Indicação de outro piloto', 'motivacao' => 'Já voei PC-6 e Twin Otter em pista curta no simulador, quero uma avaliação de verdade.', 'data' => '2026-08-17', 'status' => 'pendente'],
-            ['id' => 3, 'nome' => 'Marcus Webb', 'email' => 'marcus.webb@example.com', 'discord' => 'marcuswebb#0', 'cid' => '1076541', 'experiencia' => 'Iniciante', 'basePref' => 'PAFA', 'comoConheceu' => 'Discord', 'motivacao' => 'Sou novo na rede VATSIM mas tenho bastante horas em X-Plane, quero aprender operação de campo.', 'data' => '2026-08-16', 'status' => 'pendente'],
-            ['id' => 4, 'nome' => 'Ingrid Solberg', 'email' => 'ingrid.solberg@example.com', 'discord' => null, 'cid' => '1132908', 'experiencia' => 'Experiente', 'basePref' => 'PAFA', 'comoConheceu' => 'Redes sociais', 'motivacao' => 'Piloto de verdade com PPL, quero replicar bush flying no simulador com dados de telemetria de verdade.', 'data' => '2026-08-14', 'status' => 'aprovado'],
-            ['id' => 5, 'nome' => 'Tomás Herrera', 'email' => 'tomas.herrera@example.com', 'discord' => 'tomasherrera', 'cid' => '1087345', 'experiencia' => 'Intermediário', 'basePref' => 'Sem preferência', 'comoConheceu' => 'Rede VATSIM', 'motivacao' => 'Gosto de voos de pesquisa meteorológica, achei o conceito da Katabatic bem interessante.', 'data' => '2026-08-10', 'status' => 'aprovado'],
-            ['id' => 6, 'nome' => 'Priya Natarajan', 'email' => 'priya.n@example.com', 'discord' => 'priyan', 'cid' => '1054412', 'experiencia' => 'Iniciante', 'basePref' => 'SCCI', 'comoConheceu' => 'Outro', 'motivacao' => 'Ainda aprendendo pousos em pista curta, queria feedback de um grupo mais experiente.', 'data' => '2026-08-05', 'status' => 'rejeitado'],
+            'id' => $r->getId(),
+            'nome' => $r->getName(),
+            'email' => $r->getEmail(),
+            'discord' => $r->getDiscord(),
+            'cid' => $r->getCid(),
+            'experiencia' => $r->getExperience(),
+            'basePref' => $r->getBasePref(),
+            'comoConheceu' => $r->getHeardAbout(),
+            'motivacao' => $r->getMotivation(),
+            'data' => $r->getCreatedAt()->format('Y-m-d'),
+            'status' => $r->getStatus(),
         ];
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return array<string, mixed>
      */
-    private function pilotos(): array
+    private function pilotViewModel(Pilot $p): array
     {
         return [
-            ['nome' => 'Comandante', 'cid' => '1234567', 'base' => 'PAFA', 'papel' => 'admin', 'dataAdesao' => '2026-01-12', 'voos' => 23, 'status' => 'ativo'],
-            ['nome' => 'Elin Kask', 'cid' => '1029384', 'base' => 'PAFA', 'papel' => 'piloto', 'dataAdesao' => '2026-02-03', 'voos' => 18, 'status' => 'ativo'],
-            ['nome' => 'Rafael Mondragón', 'cid' => '1067219', 'base' => 'SCCI', 'papel' => 'piloto', 'dataAdesao' => '2026-02-20', 'voos' => 15, 'status' => 'ativo'],
-            ['nome' => 'Bianca Souza', 'cid' => '1091456', 'base' => 'SCCI', 'papel' => 'piloto', 'dataAdesao' => '2026-03-08', 'voos' => 11, 'status' => 'ativo'],
-            ['nome' => 'Owen Fairweather', 'cid' => '1112873', 'base' => 'PAFA', 'papel' => 'piloto', 'dataAdesao' => '2026-04-14', 'voos' => 9, 'status' => 'ativo'],
-            ['nome' => 'Lucía Paredes', 'cid' => '1145600', 'base' => 'SCCI', 'papel' => 'piloto', 'dataAdesao' => '2026-05-22', 'voos' => 6, 'status' => 'ativo'],
-            ['nome' => 'Henrik Moen', 'cid' => '1078932', 'base' => 'PAFA', 'papel' => 'piloto', 'dataAdesao' => '2026-01-30', 'voos' => 2, 'status' => 'inativo'],
+            'nome' => $p->getName(),
+            'cid' => $p->getCid(),
+            'base' => $p->getBase(),
+            'papel' => $p->isAdmin() ? 'admin' : 'piloto',
+            'dataAdesao' => $p->getCreatedAt()->format('Y-m-d'),
+            // Contagem de voos de verdade depende do schema de telemetria
+            // (Voo ainda não tem tabela própria — ver README, "Próximos
+            // passos") — fica 0 pra todo mundo até esse passo migrar.
+            'voos' => 0,
+            'status' => $p->isActive() ? 'ativo' : 'inativo',
         ];
     }
 }

@@ -2,6 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\Aeronave;
+use App\Repository\AeronaveRepository;
+use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,26 +16,23 @@ use Symfony\Component\Routing\Attribute\Route;
  * atual). Pensada como o "centro de operações" de relance, sem entrar no
  * detalhe de uma perna especifica (isso e o /voo e o /aeronave/{reg}).
  *
- * `liveFlights()` sao as mesmas 2 aeronaves que o Portal ja marca como
- * "Em voo" (ver PortalController::fleet) - CC-KBA e N208KB - com a rota
- * (origem/destino real da rede) e o `flightId` que aponta pra telemetria
- * gravada de verdade em flights.json. Nao existe ainda um feed ao vivo de
- * posicao via ACARS, entao o mapa-ao-vivo.js *repete em loop* a telemetria
- * gravada (track/prof, ~5-6 min por gravacao) pra simular movimento
- * continuo - a posicao no mapa e sempre sintetizada como um ponto ao longo
- * do arco origem→destino (mesma solucao do historico de aeronave), nunca a
- * lat/lon real gravada (que fica geograficamente em outro lugar, ver
- * README). Isso e so pra essa tela ter "vida" como demonstracao; quando o
- * ACARS real existir, a posicao passa a vir de eventos reais e o replay em
- * loop desaparece.
- *
- * `parkedAircraft()` sao as outras 4 aeronaves da frota (mesma mock do
- * Portal), paradas na base ou numa estacao.
+ * **Atualizado (backend real):** a frota (quem está "Em voo" vs. parada,
+ * base, posição) vem de `App\Entity\Aeronave` em vez de dois arrays
+ * mock. Continua sem existir um feed ao vivo de posição via ACARS (ver
+ * README) - pra cada aeronave "Em voo", `liveFlights()` busca o voo com
+ * telemetria mais recente dela (`VooRepository::findMaisRecenteComTelemetriaByAeronaveReg()`)
+ * e `mapa-ao-vivo.js` *repete em loop* essa gravação (~5-6 min) pra
+ * simular movimento contínuo - a posição no mapa é sempre sintetizada
+ * como um ponto ao longo do arco origem→destino, nunca a lat/lon real
+ * gravada (que fica geograficamente em outro lugar, ver README). Isso é
+ * só pra essa tela ter "vida" como demonstração; quando o ACARS real
+ * existir, a posição passa a vir de eventos reais e o replay em loop
+ * desaparece.
  */
 class MapaAoVivoController extends AbstractController
 {
     #[Route('/mapa-ao-vivo', name: 'app_mapa_ao_vivo', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, AeronaveRepository $aeronaves, VooRepository $voos): Response
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
@@ -42,34 +42,60 @@ class MapaAoVivoController extends AbstractController
         return $this->render('mapa_ao_vivo/index.html.twig', [
             'activeView' => 'mapaVivo',
             'pilot' => $pilot,
-            'liveFlights' => $this->liveFlights(),
-            'parkedAircraft' => $this->parkedAircraft(),
+            'liveFlights' => $this->liveFlights($aeronaves, $voos),
+            'parkedAircraft' => $this->parkedAircraft($aeronaves),
             'airportsUrl' => '/assets/data/airports.json',
             'flightsUrl' => '/assets/data/flights.json',
         ]);
     }
 
     /**
+     * Uma entrada por aeronave "Em voo" que tenha telemetria gravada
+     * pra repetir em loop — uma aeronave "Em voo" sem nenhum voo com
+     * telemetria gravada simplesmente não aparece na lista (não existe
+     * gravação nenhuma pra simular movimento dela); ver docblock da
+     * classe.
+     *
      * @return list<array{reg: string, modelo: string, callsign: string, tipo: string, origem: string, destino: string, tempoMin: int, flightId: string}>
      */
-    private function liveFlights(): array
+    private function liveFlights(AeronaveRepository $aeronaves, VooRepository $voos): array
     {
-        return [
-            ['reg' => 'N208KB', 'modelo' => 'C208', 'callsign' => 'KBT118', 'tipo' => 'Carga', 'origem' => 'PAFA', 'destino' => 'PABT', 'tempoMin' => 52, 'flightId' => '20260819_033457_KBT118'],
-            ['reg' => 'CC-KBA', 'modelo' => 'DHC6', 'callsign' => 'KBT412', 'tipo' => 'Pesquisa', 'origem' => 'SCCI', 'destino' => 'SCNT', 'tempoMin' => 64, 'flightId' => '20260819_032837_KBT118'],
-        ];
+        $out = [];
+        foreach ($aeronaves->findAllEmVoo() as $a) {
+            $voo = $voos->findMaisRecenteComTelemetriaByAeronaveReg($a->getReg());
+            if (null === $voo) {
+                continue;
+            }
+            $out[] = [
+                'reg' => $a->getReg(),
+                'modelo' => $a->getTipo(),
+                'callsign' => $voo->getCallsign(),
+                'tipo' => $voo->getTipoOperacao(),
+                'origem' => $voo->getOrigem(),
+                'destino' => $voo->getDestino(),
+                'tempoMin' => $voo->getTempoMin(),
+                'flightId' => $voo->getCodigo(),
+            ];
+        }
+
+        return $out;
     }
 
     /**
      * @return list<array{reg: string, modelo: string, base: string, pos: string, status: string, statusTag: string}>
      */
-    private function parkedAircraft(): array
+    private function parkedAircraft(AeronaveRepository $aeronaves): array
     {
-        return [
-            ['reg' => 'CC-KBC', 'modelo' => 'Cessna 208B Grand Caravan', 'base' => 'SCCI', 'pos' => 'SCCI', 'status' => 'Disponível', 'statusTag' => 'ok'],
-            ['reg' => 'CC-KBD', 'modelo' => 'Pilatus PC-6 Porter', 'base' => 'SCCI', 'pos' => 'SCBA', 'status' => 'Fora de base', 'statusTag' => 'bad'],
-            ['reg' => 'N412KB', 'modelo' => 'DHC-2 Beaver', 'base' => 'PAFA', 'pos' => 'PAFA', 'status' => 'Disponível', 'statusTag' => 'ok'],
-            ['reg' => 'N67KB', 'modelo' => 'Beechcraft King Air 350', 'base' => 'PAFA', 'pos' => 'PAFA', 'status' => 'Disponível', 'statusTag' => 'ok'],
-        ];
+        return array_map(
+            fn (Aeronave $a) => [
+                'reg' => $a->getReg(),
+                'modelo' => $a->getTipo(),
+                'base' => $a->getBase(),
+                'pos' => $a->getPosIcao(),
+                'status' => $a->getStatusEfetivo(),
+                'statusTag' => $a->getStatusTag(),
+            ],
+            $aeronaves->findAllNotEmVoo()
+        );
     }
 }

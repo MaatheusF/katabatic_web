@@ -6,6 +6,8 @@
 
 .bar { z-index: 600; }
 
+.novaaeronave-error { margin-bottom: 18px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
+
 label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
 input[type=text], input[type=number], select, textarea {
   width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);

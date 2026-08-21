@@ -2,6 +2,11 @@
 
 namespace App\Controller;
 
+use App\Entity\Aeronave;
+use App\Entity\Voo;
+use App\Repository\AeronaveRepository;
+use App\Repository\PilotRepository;
+use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,93 +18,148 @@ use Symfony\Component\Routing\Attribute\Route;
  *
  * Autenticacao ainda e mock (ver LoginController): exige so que a sessao
  * tenha um piloto guardado, sem Security component nem User entity de
- * verdade. Logbook e Frota tambem continuam mock. Quando o schema do
- * banco existir isso tudo vira consulta via Repository, filtrada pelo
- * piloto autenticado de verdade (ver README).
+ * verdade nesta tela. **Atualizado (backend real):** Logbook (`Voo`) e
+ * Frota (`Aeronave`) já são backend real - ver "Backend: voos e
+ * telemetria" e "Backend: mapa ao vivo e histórico da frota" no README.
+ * Bases continua mock (não existe schema de estação/METAR ainda).
  */
 class PortalController extends AbstractController
 {
     #[Route('/portal', name: 'app_portal', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves): Response
     {
-        $pilot = $request->getSession()->get('pilot');
-        if (null === $pilot) {
+        $sessionPilot = $request->getSession()->get('pilot');
+        if (null === $sessionPilot) {
             return $this->redirectToRoute('app_login');
         }
 
+        $pilotEntity = $pilots->findOneByCid($sessionPilot['cid']);
+        $logbook = null !== $pilotEntity
+            ? array_map(fn (Voo $v) => $this->logbookViewModel($v), $voos->findAllForPilot($pilotEntity))
+            : [];
+        $fleet = array_map(
+            fn (Aeronave $a) => $this->fleetViewModel($a, $voos),
+            $aeronaves->findAllOrderedByBaseAndReg()
+        );
+
         return $this->render('portal/index.html.twig', [
             'activeView' => 'logbook',
-            'pilot' => $pilot,
-            'logbookSummary' => $this->logbookSummary(),
-            'fleetSummary' => $this->fleetSummary(),
-            'logbook' => $this->logbook(),
-            'fleet' => $this->fleet(),
+            'pilot' => $sessionPilot,
+            'logbookSummary' => $this->logbookSummary($logbook),
+            'fleetSummary' => $this->fleetSummary($fleet),
+            'logbook' => $logbook,
+            'fleet' => $fleet,
             'bases' => $this->bases(),
             'nowIso' => '2026-08-19T12:00:00Z',
         ]);
     }
 
     /**
-     * @return array{hours: string, flights: int, avgDifficulty: int, vatsimPct: int}
+     * Mesmo formato que `portal.js` já esperava do array mock antigo -
+     * ver docblock de `App\Entity\Voo` pra onde cada campo mora.
+     *
+     * @return array<string, mixed>
      */
-    private function logbookSummary(): array
+    private function logbookViewModel(Voo $v): array
     {
-        return ['hours' => '18,4', 'flights' => 23, 'avgDifficulty' => 57, 'vatsimPct' => 100];
-    }
+        $dados = $v->getDados();
+        $h = $v->getTempoMin() / 60;
+        $tempo = sprintf('%d:%02d', (int) floor($h), $v->getTempoMin() % 60);
 
-    /**
-     * @return array{count: int, totalHours: string, inFlight: int, away: int}
-     */
-    private function fleetSummary(): array
-    {
-        return ['count' => 6, 'totalHours' => '1 266', 'inFlight' => 2, 'away' => 1];
-    }
-
-    /**
-     * Um voo por linha, na mesma forma que o JS do mockup consumia -
-     * vira JSON no template e o portal.js filtra/ordena no cliente.
-     *
-     * `flightId` so existe nas 3 linhas de 19/08 cujo horario bate com um
-     * dos voos de teste reais em flights.json (03:22Z/03:28Z/03:34Z) - e
-     * o que permite abrir /voo?id=... com telemetria de verdade ao clicar
-     * na linha. As outras 3 linhas sao mock sem telemetria gravada, entao
-     * ficam sem link (o portal.js so torna clicavel quem tem flightId).
-     * Repare que calssign/aeronave/rota dessas 3 linhas aqui ainda sao
-     * mock e nao batem 100% com o que o relatorio real mostra (ele usa a
-     * aeronave/rota gravadas de verdade) - e o preco de misturar mock com
-     * dado real nesta fase; some quando o Logbook virar tabela de verdade.
-     *
-     * `ocorrencias` e uma lista de {label, tag} - um voo pode ter zero,
-     * uma ou varias ocorrencias (ex.: overspeed E quique no mesmo pouso).
-     * O portal.js renderiza cada uma como uma tag empilhada na coluna
-     * Ocorrencia; lista vazia vira "-".
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function logbook(): array
-    {
         return [
-            ['data' => '2026-08-19', 'hora' => '03:34Z', 'callsign' => 'KBT118', 'tipo' => 'Carga', 'origem' => 'PAFA', 'destino' => 'PABT', 'rota' => 'Fairbanks → Bettles', 'aeronave' => 'N208KB', 'modelo' => 'C208', 'tempo' => '0:52', 'tempoMin' => 52, 'cond' => 'Neve · -20 °C', 'condTag' => 'bad', 'ocorrencias' => [['label' => 'Overspeed', 'tag' => 'warn'], ['label' => 'Quique', 'tag' => 'warn']], 'dif' => 81, 'flightId' => '20260819_033457_KBT118'],
-            ['data' => '2026-08-19', 'hora' => '03:28Z', 'callsign' => 'KBT412', 'tipo' => 'Pesquisa', 'origem' => 'SCCI', 'destino' => 'SCNT', 'rota' => 'Punta Arenas → Puerto Natales', 'aeronave' => 'CC-KBA', 'modelo' => 'DHC6', 'tempo' => '1:04', 'tempoMin' => 64, 'cond' => 'Chuva · em nuvem', 'condTag' => 'warn', 'ocorrencias' => [], 'dif' => 74, 'flightId' => '20260819_032837_KBT118'],
-            ['data' => '2026-08-19', 'hora' => '03:22Z', 'callsign' => 'KBT207', 'tipo' => 'Pessoal', 'origem' => 'PAFA', 'destino' => 'PASC', 'rota' => 'Fairbanks → Deadhorse', 'aeronave' => 'N67KB', 'modelo' => 'BE20', 'tempo' => '1:48', 'tempoMin' => 108, 'cond' => 'Claro · seco', 'condTag' => 'ok', 'ocorrencias' => [['label' => 'Quique', 'tag' => 'warn']], 'dif' => 29, 'flightId' => '20260819_032200_KBT118'],
-            ['data' => '2026-08-17', 'hora' => '21:10Z', 'callsign' => 'KBT903', 'tipo' => 'Reposicionamento', 'origem' => 'SCCI', 'destino' => 'SCBA', 'rota' => 'Punta Arenas → Balmaceda', 'aeronave' => 'CC-KBD', 'modelo' => 'PC6', 'tempo' => '2:37', 'tempoMin' => 157, 'cond' => 'Vento 41G56', 'condTag' => 'warn', 'ocorrencias' => [], 'dif' => 66, 'flightId' => null],
-            ['data' => '2026-08-15', 'hora' => '14:02Z', 'callsign' => 'KBT118', 'tipo' => 'Carga', 'origem' => 'PAFA', 'destino' => 'PFYU', 'rota' => 'Fairbanks → Fort Yukon', 'aeronave' => 'N412KB', 'modelo' => 'DHC2', 'tempo' => '1:11', 'tempoMin' => 71, 'cond' => 'Gelo leve', 'condTag' => 'warn', 'ocorrencias' => [['label' => 'Pouso duro', 'tag' => 'bad']], 'dif' => 58, 'flightId' => null],
-            ['data' => '2026-08-14', 'hora' => '09:47Z', 'callsign' => 'KBT412', 'tipo' => 'Pesquisa', 'origem' => 'SCCI', 'destino' => 'SCGZ', 'rota' => 'Punta Arenas → Puerto Williams', 'aeronave' => 'CC-KBA', 'modelo' => 'DHC6', 'tempo' => '1:22', 'tempoMin' => 82, 'cond' => 'Turbulência severa', 'condTag' => 'bad', 'ocorrencias' => [], 'dif' => 88, 'flightId' => null],
+            'data' => $v->getStartedAt()->format('Y-m-d'),
+            'hora' => $v->getStartedAt()->format('H:i').'Z',
+            'callsign' => $v->getCallsign(),
+            'tipo' => $v->getTipoOperacao(),
+            'origem' => $v->getOrigem(),
+            'destino' => $v->getDestino(),
+            'rota' => $dados['rota'],
+            'aeronave' => $v->getAeronaveReg(),
+            'modelo' => $dados['modelo'],
+            'tempo' => $tempo,
+            'tempoMin' => $v->getTempoMin(),
+            'cond' => $dados['cond'],
+            'condTag' => $dados['condTag'],
+            'ocorrencias' => $dados['ocorrencias'],
+            'dif' => $v->getDificuldade(),
+            'flightId' => $v->getCodigo(),
+            'dist' => $dados['dist'],
+            'combustivelKg' => $dados['combustivelKg'],
+            'carga' => $dados['carga'],
+            'tempoSoloMin' => $dados['tempoSoloMin'],
+            'tempoArMin' => $dados['tempoArMin'],
+            'metar' => $dados['metar'],
         ];
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * Calculado a partir do Logbook de verdade (`$logbook`, já no formato
+     * de `logbookViewModel()`) em vez de vir fixo — `vatsimPct` continua
+     * 100 fixo de propósito: a validação cruzada com o datafeed da
+     * VATSIM é trabalho da ingestão real do ACARS (ver README, "Próximos
+     * passos"), não existe ainda nenhuma fonte pra calcular esse número.
+     *
+     * @param list<array<string, mixed>> $logbook
+     *
+     * @return array{hours: string, flights: int, avgDifficulty: int, vatsimPct: int}
      */
-    private function fleet(): array
+    private function logbookSummary(array $logbook): array
     {
+        $flights = count($logbook);
+        if (0 === $flights) {
+            return ['hours' => '0,0', 'flights' => 0, 'avgDifficulty' => 0, 'vatsimPct' => 100];
+        }
+
+        $totalMin = array_sum(array_column($logbook, 'tempoMin'));
+        $avgDif = (int) round(array_sum(array_column($logbook, 'dif')) / $flights);
+        $hours = sprintf('%d,%d', intdiv($totalMin, 60), intdiv(($totalMin % 60) * 10, 60));
+
+        return ['hours' => $hours, 'flights' => $flights, 'avgDifficulty' => $avgDif, 'vatsimPct' => 100];
+    }
+
+    /**
+     * Calculado a partir da frota de verdade (`$fleet`, já no formato de
+     * `fleetViewModel()`) em vez de vir fixo.
+     *
+     * @param list<array<string, mixed>> $fleet
+     *
+     * @return array{count: int, totalHours: string, inFlight: int, away: int}
+     */
+    private function fleetSummary(array $fleet): array
+    {
+        $totalHoras = array_sum(array_column($fleet, 'horas'));
+
         return [
-            ['reg' => 'CC-KBA', 'tipo' => 'DHC-6 Twin Otter 300', 'status' => 'Em voo', 'statusTag' => 'warn', 'base' => 'SCCI', 'pos' => 'SCNT', 'horas' => 318, 'ultimo' => '19/08'],
-            ['reg' => 'CC-KBC', 'tipo' => 'Cessna 208B Grand Caravan', 'status' => 'Disponível', 'statusTag' => 'ok', 'base' => 'SCCI', 'pos' => 'SCCI', 'horas' => 204, 'ultimo' => '16/08'],
-            ['reg' => 'CC-KBD', 'tipo' => 'Pilatus PC-6 Porter', 'status' => 'Fora de base', 'statusTag' => 'bad', 'base' => 'SCCI', 'pos' => 'SCBA', 'horas' => 96, 'ultimo' => '17/08'],
-            ['reg' => 'N208KB', 'tipo' => 'Cessna 208B Grand Caravan', 'status' => 'Em voo', 'statusTag' => 'warn', 'base' => 'PAFA', 'pos' => 'PABT', 'horas' => 412, 'ultimo' => '19/08'],
-            ['reg' => 'N412KB', 'tipo' => 'DHC-2 Beaver', 'status' => 'Disponível', 'statusTag' => 'ok', 'base' => 'PAFA', 'pos' => 'PAFA', 'horas' => 147, 'ultimo' => '15/08'],
-            ['reg' => 'N67KB', 'tipo' => 'Beechcraft King Air 350', 'status' => 'Disponível', 'statusTag' => 'ok', 'base' => 'PAFA', 'pos' => 'PAFA', 'horas' => 89, 'ultimo' => '19/08'],
+            'count' => count($fleet),
+            'totalHours' => number_format($totalHoras, 0, ',', ' '),
+            'inFlight' => count(array_filter($fleet, fn ($a) => 'Em voo' === $a['status'])),
+            'away' => count(array_filter($fleet, fn ($a) => 'Fora de base' === $a['status'])),
+        ];
+    }
+
+    /**
+     * Mesmo formato que `portal.js` já esperava do array mock antigo -
+     * `ultimo` (data do voo mais recente dessa matrícula, `dd/mm`) é a
+     * única coisa que não vem direto de `Aeronave` - busca o Logbook
+     * dessa matrícula (`VooRepository::findAllByAeronaveReg()`, já
+     * ordenado mais recente primeiro) e usa a primeira linha, se
+     * existir.
+     *
+     * @return array<string, mixed>
+     */
+    private function fleetViewModel(Aeronave $a, VooRepository $voos): array
+    {
+        $ultimoVoo = $voos->findAllByAeronaveReg($a->getReg())[0] ?? null;
+
+        return [
+            'reg' => $a->getReg(),
+            'tipo' => $a->getTipo(),
+            'status' => $a->getStatusEfetivo(),
+            'statusTag' => $a->getStatusTag(),
+            'base' => $a->getBase(),
+            'pos' => $a->getPosIcao(),
+            'horas' => $a->getHoras(),
+            'ultimo' => null !== $ultimoVoo ? $ultimoVoo->getStartedAt()->format('d/m') : '—',
         ];
     }
 

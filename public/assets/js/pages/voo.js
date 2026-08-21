@@ -16,25 +16,50 @@
   var PHC = { solo: '#7C8F98', subida: '#2F7D50', cruzeiro: '#2C7CA5', descida: '#B85400' };
   var SEVC = { ok: 'var(--ok)', info: 'var(--ice)', warn: 'var(--accent)', bad: 'var(--danger)', '': 'var(--muted)' };
 
+  // Le o dicionario EN da pagina (window.KATABATIC_I18N_EN, definido no
+  // page_javascripts de voo/index.html.twig) e devolve o texto em ingles
+  // se o idioma atual for EN e a chave existir, senao cai no PT literal
+  // que ja estava embutido no JS. `window.katabaticLang` vem do
+  // lang-toggle.js (carregado por ultimo em base.html.twig) - pode ainda
+  // nao existir na primeira renderizacao sincrona desta pagina, dai o
+  // fallback pro PT tambem nesse caso.
+  function tr(key, ptFallback) {
+    var en = window.KATABATIC_I18N_EN || {};
+    return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+  }
+
   var FLIGHTS = [];
   var F = null;
 
   function renderHead() {
+    // `.rt` (origem/destino) e o local no meta vinham fixos como
+    // "UEEE"/"Yakutsk" no HTML/JS - os 3 voos de teste gravados sao
+    // mesmo todos UEEE→UEEE (voo local perto de Yakutsk, ver README),
+    // entao isso nunca dava errado ate agora, mas era coincidencia: o
+    // texto nao vinha de F.orig/F.dest de verdade. Sem uma tabela de
+    // nome-de-cidade pra ICAOs de fora da rede KBT (UEEE nao esta em
+    // airports.json de proposito - telemetria real fica geograficamente
+    // separada da rede mock), o local agora mostra o proprio ICAO em vez
+    // de inventar "Yakutsk" fixo, que ficaria errado no primeiro voo
+    // gravado em outro lugar.
+    var routeEl = document.getElementById('h-route');
+    if (routeEl) routeEl.innerHTML = (F.orig || '—') + '<i></i>' + (F.dest || '—');
     document.getElementById('h-meta').textContent =
-      'Yakutsk · ' + F.start.slice(8, 10) + '/' + F.start.slice(5, 7) + '/' + F.start.slice(0, 4) + ' ' + F.start.slice(11, 16) + 'Z · ' + F.wx;
+      (F.orig || '—') + ' · ' + F.start.slice(8, 10) + '/' + F.start.slice(5, 7) + '/' + F.start.slice(0, 4) + ' ' + F.start.slice(11, 16) + 'Z · ' + F.wx;
     document.getElementById('h-call').textContent = F.id ? F.id.split('_').pop() : '—';
     var s = document.getElementById('score');
     s.textContent = F.score;
     var c = F.score >= 75 ? 'var(--danger)' : (F.score >= 50 ? 'var(--accent)' : 'var(--ice)');
     s.style.color = c;
-    document.getElementById('score-lbl').textContent = F.score >= 75 ? 'severo' : (F.score >= 50 ? 'exigente' : 'rotina');
+    document.getElementById('score-lbl').textContent = F.score >= 75 ? tr('voo.score.severe', 'severo') : (F.score >= 50 ? tr('voo.score.demanding', 'exigente') : tr('voo.score.routine', 'rotina'));
 
-    var k = [['Duração', mmss(F.dur), ''], ['Tempo em voo', mmss(F.air_s), ''], ['Distância', F.dist.toFixed(1), ' nm'],
-      ['GS média', F.gs_avg, ' kt'], ['Altitude máx', F.alt_max.toLocaleString('pt-BR'), ' ft'], ['IAS máx', F.ias_max, ' kt'],
-      ['VS máx', '+' + F.vs_max, ' fpm'], ['VS mín', F.vs_min, ' fpm'], ['Pico de G', F.gmax.toFixed(2), ''],
-      ['G mínimo', F.gmin.toFixed(2), ''], ['Vento médio', (F.windc >= 0 ? '+' : '') + F.windc, ' kt'], ['Combustível', F.fuel.toFixed(1), ' lb'],
-      ['Tempo em nuvem', mmss(F.cloud_s), ''], ['Temp mín', F.oat_min.toFixed(1), ' °C'], ['Amplitude', (F.oat_max - F.oat_min).toFixed(1), ' °C'],
-      ['Chuva máx', F.precip_max.toFixed(1), ' mm'], ['Gelo', F.ice.toFixed(2), ' %'], ['Excedências', F.exceed, '']];
+    var k = [[tr('voo.kpi.duration', 'Duração'), mmss(F.dur), ''], [tr('voo.kpi.airtime', 'Tempo em voo'), mmss(F.air_s), ''], [tr('voo.kpi.distance', 'Distância'), F.dist.toFixed(1), ' nm'],
+      [tr('voo.kpi.gsavg', 'GS média'), F.gs_avg, ' kt'], [tr('voo.kpi.altmax', 'Altitude máx'), F.alt_max.toLocaleString('pt-BR'), ' ft'], [tr('voo.kpi.iasmax', 'IAS máx'), F.ias_max, ' kt'],
+      [tr('voo.kpi.vsmax', 'VS máx'), '+' + F.vs_max, ' fpm'], [tr('voo.kpi.vsmin', 'VS mín'), F.vs_min, ' fpm'], [tr('voo.kpi.gmax', 'Pico de G'), F.gmax.toFixed(2), ''],
+      [tr('voo.kpi.gmin', 'G mínimo'), F.gmin.toFixed(2), ''], [tr('voo.kpi.wind', 'Vento méd. / rajada'), (F.windc >= 0 ? '+' : '') + F.windc + ' / ' + F.wind_max.toFixed(1), ' kt'],
+      [tr('voo.fuel', 'Combustível'), F.fuel.toFixed(1), ' lb'], [tr('voo.kpi.cloudtime', 'Tempo em nuvem'), mmss(F.cloud_s), ''], [tr('voo.kpi.tempmin', 'Temp mín'), F.oat_min.toFixed(1), ' °C'],
+      [tr('voo.kpi.temprange', 'Amplitude'), (F.oat_max - F.oat_min).toFixed(1), ' °C'], [tr('voo.kpi.precipmax', 'Chuva máx'), F.precip_max.toFixed(1), ' mm'], [tr('voo.kpi.icing', 'Gelo'), F.ice.toFixed(2), ' %'],
+      [tr('voo.kpi.exceedances', 'Excedências'), F.exceed, '']];
     document.getElementById('kpis').innerHTML = k.map(function (x) {
       return '<div><b class="mono">' + x[1] + '<small>' + x[2] + '</small></b><span>' + x[0] + '</span></div>';
     }).join('');
@@ -42,12 +67,16 @@
 
   function renderPhases() {
     var tot = F.dur || 1;
+    // `p[0]` (solo/subida/cruzeiro/descida) tambem indexa PHC (cor) - so o
+    // ROTULO exibido (texto do bloco/title) passa pelo dicionario de
+    // idioma via PHL, o valor de dados em si (p[0]) nunca muda.
+    var PHL = { solo: tr('voo.phase.ground', 'solo'), subida: tr('voo.phase.climb', 'subida'), cruzeiro: tr('voo.phase.cruise', 'cruzeiro'), descida: tr('voo.phase.descent', 'descida') };
     document.getElementById('phases').innerHTML = F.phases.map(function (p) {
       var w = ((p[2] - p[1] + 1) / tot) * 100;
-      return '<div style="width:' + w.toFixed(2) + '%;background:' + PHC[p[0]] + '" title="' + p[0] + ' ' + mmss(p[1]) + '–' + mmss(p[2]) + '">' +
-        (w > 9 ? p[0] : '') + '</div>';
+      return '<div style="width:' + w.toFixed(2) + '%;background:' + PHC[p[0]] + '" title="' + PHL[p[0]] + ' ' + mmss(p[1]) + '–' + mmss(p[2]) + '">' +
+        (w > 9 ? PHL[p[0]] : '') + '</div>';
     }).join('');
-    document.getElementById('ph-note').textContent = F.phases.length + ' segmentos · solo ' + mmss(F.ground_s) + ' · ar ' + mmss(F.air_s);
+    document.getElementById('ph-note').textContent = F.phases.length + ' ' + tr('voo.phases.segments', 'segmentos') + ' · ' + PHL.solo + ' ' + mmss(F.ground_s) + ' · ' + tr('voo.phases.air', 'ar') + ' ' + mmss(F.air_s);
   }
 
   function renderParcels() {
@@ -70,19 +99,19 @@
     var el = document.getElementById('land'), note = document.getElementById('land-note');
     if (!F.td) {
       note.textContent = '—';
-      el.innerHTML = '<p class="obs">Nenhum toque registrado: a sessão foi encerrada com a aeronave em voo.</p>';
+      el.innerHTML = '<p class="obs">' + tr('voo.landing.empty', 'Nenhum toque registrado: a sessão foi encerrada com a aeronave em voo.') + '</p>';
       return;
     }
     var vs = F.td.vs;
-    var q = vs < 150 ? ['Suave', 'var(--ok)'] : (vs < 300 ? ['Normal', 'var(--ok)'] : (vs < 450 ? ['Firme', 'var(--accent)'] : ['Duro', 'var(--danger)']));
+    var q = vs < 150 ? [tr('voo.landing.smooth', 'Suave'), 'var(--ok)'] : (vs < 300 ? [tr('voo.landing.normal', 'Normal'), 'var(--ok)'] : (vs < 450 ? [tr('voo.landing.firm', 'Firme'), 'var(--accent)'] : [tr('voo.landing.hard', 'Duro'), 'var(--danger)']));
     note.textContent = q[0];
-    el.innerHTML = '<div class="verdict" style="border-left-color:' + q[1] + '">Toque classificado como <b style="color:' + q[1] + '">' + q[0].toLowerCase() + '</b>' +
-      (F.bounces ? ' · <b>' + F.bounces + ' quique' + (F.bounces > 1 ? 's' : '') + '</b> após o contato' : '') + '.</div>' +
+    el.innerHTML = '<div class="verdict" style="border-left-color:' + q[1] + '">' + tr('voo.landing.classifiedas', 'Toque classificado como') + ' <b style="color:' + q[1] + '">' + q[0].toLowerCase() + '</b>' +
+      (F.bounces ? ' · <b>' + F.bounces + ' ' + tr('voo.landing.bounce', 'quique') + (F.bounces > 1 ? 's' : '') + '</b> ' + tr('voo.landing.aftercontact', 'após o contato') : '') + '.</div>' +
       '<div class="land">' +
-      '<div><span>Razão de toque</span><b style="color:' + q[1] + '">' + vs.toFixed(0) + ' fpm</b></div>' +
-      '<div><span>Atitude</span><b>' + F.td.pitch.toFixed(1) + '°</b></div>' +
-      '<div><span>Inclinação</span><b>' + F.td.bank.toFixed(1) + '°</b></div>' +
-      '<div><span>Proa</span><b>' + F.td.hdg + '°</b></div>' +
+      '<div><span>' + tr('voo.landing.touchdownrate', 'Razão de toque') + '</span><b style="color:' + q[1] + '">' + vs.toFixed(0) + ' fpm</b></div>' +
+      '<div><span>' + tr('voo.landing.pitch', 'Atitude') + '</span><b>' + F.td.pitch.toFixed(1) + '°</b></div>' +
+      '<div><span>' + tr('voo.landing.bank', 'Inclinação') + '</span><b>' + F.td.bank.toFixed(1) + '°</b></div>' +
+      '<div><span>' + tr('voo.landing.heading', 'Proa') + '</span><b>' + F.td.hdg + '°</b></div>' +
       '</div>';
   }
 
@@ -104,7 +133,7 @@
     var view = document.getElementById('report-view');
     var p = document.getElementById('report-view-text');
     if (txt) { view.classList.remove('empty'); p.textContent = txt; }
-    else { view.classList.add('empty'); p.textContent = 'Nenhum relato registrado para este voo.'; }
+    else { view.classList.add('empty'); p.textContent = tr('voo.report.empty', 'Nenhum relato registrado para este voo.'); }
   }
 
   function exitEditMode() {
@@ -114,7 +143,8 @@
 
   function updateReportCount() {
     var n = document.getElementById('pilot-obs').value.length;
-    document.getElementById('report-count').textContent = n + ' caractere' + (n === 1 ? '' : 's');
+    document.getElementById('report-count').textContent = window.katabaticLang && window.katabaticLang() === 'en' ?
+      n + ' character' + (n === 1 ? '' : 's') : n + ' caractere' + (n === 1 ? '' : 's');
   }
 
   document.getElementById('pilot-obs').addEventListener('input', updateReportCount);
@@ -122,16 +152,53 @@
     document.getElementById('pilot-obs').value = F.pilot_report || '';
     document.getElementById('report-view').style.display = 'none';
     document.getElementById('report-edit-wrap').style.display = '';
+    document.getElementById('report-error').style.display = 'none';
     updateReportCount();
     document.getElementById('pilot-obs').focus();
   });
   document.getElementById('report-cancel').addEventListener('click', function () {
     exitEditMode();
   });
-  document.getElementById('report-save').addEventListener('click', function () {
-    F.pilot_report = document.getElementById('pilot-obs').value.trim();
-    exitEditMode();
-    renderReportView();
+  var reportSaveBtn = document.getElementById('report-save');
+  var reportSaveLabel = reportSaveBtn.textContent;
+  var reportErrorEl = document.getElementById('report-error');
+
+  reportSaveBtn.addEventListener('click', function () {
+    // Ate esta fatia de backend, "Salvar relato" so mudava F.pilot_report
+    // em memoria (perdia no reload) - agora e um POST de verdade em
+    // /voo/{codigo}/relato (ver VooController::relato()), so pra voos com
+    // telemetria gravada (F.id e o codigo/flightId - ver flights.json).
+    var novoRelato = document.getElementById('pilot-obs').value.trim();
+    reportErrorEl.style.display = 'none';
+    reportSaveBtn.disabled = true;
+    reportSaveBtn.textContent = tr('voo.report.saving', 'Salvando…');
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/relato', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relato: novoRelato })
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        reportSaveBtn.disabled = false;
+        reportSaveBtn.textContent = reportSaveLabel;
+        if (!result.ok) {
+          reportErrorEl.textContent = (result.body && result.body.error) || tr('voo.report.error', 'Não foi possível salvar — tente de novo.');
+          reportErrorEl.style.display = '';
+          return;
+        }
+        F.pilot_report = result.body.pilot_report;
+        exitEditMode();
+        renderReportView();
+      })
+      .catch(function () {
+        reportSaveBtn.disabled = false;
+        reportSaveBtn.textContent = reportSaveLabel;
+        reportErrorEl.textContent = tr('voo.report.error', 'Não foi possível salvar — verifique sua conexão e tente de novo.');
+        reportErrorEl.style.display = '';
+      });
   });
 
   /* ---------- debrief ---------- */
@@ -140,13 +207,14 @@
     var x = function (s) { return PL + (s / dur) * (W - PL - PR); };
     function series(src, idx) { return src.map(function (r) { return [r[0], r[idx]]; }); }
     var CH = [
-      { label: 'Altitude', unit: 'ft', h: 96, fill: true, lines: [{ data: series(F.prof, 1), color: 'var(--text)', w: 1.8 }] },
-      { label: 'Velocidade', unit: 'kt', h: 82, lines: [{ data: series(F.prof, 2), color: 'var(--accent)', w: 1.6, name: 'IAS' }, { data: series(F.prof, 6), color: 'var(--ice)', w: 1.4, name: 'GS' }] },
-      { label: 'Razão vertical', unit: 'fpm', h: 82, zero: true, lines: [{ data: series(F.prof, 3), color: 'var(--ice)', w: 1.5 }] },
-      { label: 'Fator de carga', unit: 'G', h: 76, ref: 1, lines: [{ data: series(F.prof, 4), color: 'var(--danger)', w: 1.5 }] },
-      { label: 'Turbulência', unit: 'rms', h: 76, lines: [{ data: series(F.prof, 5), color: 'var(--accent)', w: 1.4 }] },
-      { label: 'Temperatura', unit: '°C', h: 82, lines: [{ data: series(F.env, 1), color: 'var(--text)', w: 1.8 }] },
-      { label: 'Vento', unit: 'kt', h: 76, lines: [{ data: series(F.env, 5), color: 'var(--ice)', w: 1.6 }] }
+      { label: tr('voo.altitude', 'Altitude'), unit: 'ft', h: 96, fill: true, lines: [{ data: series(F.prof, 1), color: 'var(--text)', w: 1.8 }] },
+      { label: tr('voo.chart.speed', 'Velocidade'), unit: 'kt', h: 82, lines: [{ data: series(F.prof, 2), color: 'var(--accent)', w: 1.6, name: 'IAS' }, { data: series(F.prof, 6), color: 'var(--ice)', w: 1.4, name: 'GS' }, { data: series(F.prof, 8), color: 'var(--ok)', w: 1.2, name: 'TAS' }] },
+      { label: tr('voo.chart.vspeed', 'Razão vertical'), unit: 'fpm', h: 82, zero: true, lines: [{ data: series(F.prof, 3), color: 'var(--ice)', w: 1.5 }] },
+      { label: tr('voo.chart.loadfactor', 'Fator de carga'), unit: 'G', h: 76, ref: 1, lines: [{ data: series(F.prof, 4), color: 'var(--danger)', w: 1.5 }] },
+      { label: tr('voo.turbulence', 'Turbulência'), unit: 'rms', h: 76, lines: [{ data: series(F.prof, 5), color: 'var(--accent)', w: 1.4 }] },
+      { label: tr('voo.chart.temperature', 'Temperatura'), unit: '°C', h: 82, lines: [{ data: series(F.env, 1), color: 'var(--text)', w: 1.8 }] },
+      { label: tr('voo.chart.wind', 'Vento'), unit: 'kt', h: 76, lines: [{ data: series(F.env, 5), color: 'var(--ice)', w: 1.6 }] },
+      { label: tr('voo.fuel', 'Combustível'), unit: 'lb', h: 76, lines: [{ data: series(F.env, 7), color: 'var(--accent)', w: 1.6 }] }
     ];
     function build(c) {
       var all = []; c.lines.forEach(function (l) { l.data.forEach(function (p) { if (p[1] !== null) all.push(p[1]); }); });
@@ -193,17 +261,27 @@
     var out = document.getElementById('readout');
     function at(list, sec) { var b = list[0]; for (var i = 0; i < list.length; i++) { if (list[i][0] <= sec) b = list[i]; } return b; }
     function render(sec) {
-      var p = at(F.prof, sec), e = at(F.env, sec), tr = at(F.track, sec);
-      out.innerHTML = '<div><span>tempo</span><b>' + mmss(sec) + '</b></div>' +
+      // `trk` (linha de F.track) - deliberadamente NAO se chama `tr` aqui:
+      // esse nome ja e o helper de traducao (function tr(), topo do
+      // arquivo) e as duas coisas convivem neste mesmo escopo (as chamadas
+      // tr('voo.readout...') logo abaixo). Antes da traducao esta variavel
+      // se chamava `tr` sem problema; um rename automatizado por regex
+      // (L(...) -> tr(...), pra nao colidir com o `L` global do Leaflet)
+      // acabou colidindo com ESSE `tr` local pre-existente, quebrando o
+      // hover do grafico inteiro (TypeError: tr is not a function).
+      var p = at(F.prof, sec), e = at(F.env, sec), trk = at(F.track, sec);
+      out.innerHTML = '<div><span>' + tr('voo.readout.time', 'tempo') + '</span><b>' + mmss(sec) + '</b></div>' +
         '<div><span>alt</span><b>' + fmt(p[1]) + '</b></div><div><span>ias</span><b>' + fmt(p[2]) + '</b></div>' +
-        '<div><span>gs</span><b>' + fmt(p[6]) + '</b></div><div><span>vs</span><b>' + fmt(p[3]) + '</b></div>' +
+        '<div><span>gs</span><b>' + fmt(p[6]) + '</b></div><div><span>tas</span><b>' + fmt(p[8]) + '</b></div>' +
+        '<div><span>vs</span><b>' + fmt(p[3]) + '</b></div>' +
         '<div><span>g</span><b>' + fmt(p[4], 2) + '</b></div><div><span>turb</span><b>' + fmt(p[5], 2) + '</b></div>' +
-        '<div><span>solo</span><b>' + (p[7] ? 'sim' : 'não') + '</b></div>' +
-        '<div><span>oat</span><b>' + fmt(e[1], 1) + '</b></div><div><span>vento</span><b>' + fmt(e[6]) + '/' + fmt(e[5]) + '</b></div>' +
-        '<div><span>chuva</span><b>' + fmt(e[2], 1) + '</b></div><div><span>gelo</span><b>' + fmt(e[4], 2) + '</b></div>';
+        '<div><span>' + tr('voo.readout.onground', 'solo') + '</span><b>' + (p[7] ? tr('voo.readout.yes', 'sim') : tr('voo.readout.no', 'não')) + '</b></div>' +
+        '<div><span>oat</span><b>' + fmt(e[1], 1) + '</b></div><div><span>' + tr('voo.readout.wind', 'vento') + '</span><b>' + fmt(e[6]) + '/' + fmt(e[5]) + '</b></div>' +
+        '<div><span>' + tr('voo.readout.precip', 'chuva') + '</span><b>' + fmt(e[2], 1) + '</b></div><div><span>' + tr('voo.readout.icing', 'gelo') + '</span><b>' + fmt(e[4], 2) + '</b></div>' +
+        '<div><span>' + tr('voo.readout.fuel', 'combustível') + '</span><b>' + fmt(e[7]) + '</b></div>';
       var px = x(sec);
       box.querySelectorAll('.cross').forEach(function (l) { l.setAttribute('x1', px); l.setAttribute('x2', px); l.setAttribute('opacity', '.9'); });
-      if (window.__cursor && tr) window.__cursor(tr[1], tr[2]);
+      if (window.__cursor && trk) window.__cursor(trk[1], trk[2]);
     }
     box.onmousemove = function (ev) {
       var r = box.getBoundingClientRect();
@@ -238,29 +316,34 @@
         if (!tp) return;
         L.circleMarker([tp[1], tp[2]], { radius: e[3] ? 7 : 5, color: '#fff', weight: 1.5, fillColor: wxColor(e), fillOpacity: .9 })
           .addTo(MLAYER).bindPopup('<b>' + mmss(e[0]) + '</b><br><span>' + e[1].toFixed(1) + ' °C · ' +
-            (e[2] > 0.05 ? e[2].toFixed(1) + ' mm' : 'sem precipitação') + '<br>vento ' + Math.round(e[6]) + '/' + e[5].toFixed(0) + ' kt' +
-            (e[3] ? ' · em nuvem' : '') + (e[4] > 0 ? '<br>gelo ' + e[4].toFixed(2) + '%' : '') + '</span>');
+            (e[2] > 0.05 ? e[2].toFixed(1) + ' mm' : tr('voo.map.noprecip', 'sem precipitação')) + '<br>' + tr('voo.readout.wind', 'vento') + ' ' + Math.round(e[6]) + '/' + e[5].toFixed(0) + ' kt' +
+            (e[3] ? ' · ' + tr('voo.legend.incloud', 'em nuvem') : '') + (e[4] > 0 ? '<br>' + tr('voo.readout.icing', 'gelo') + ' ' + e[4].toFixed(2) + '%' : '') + '</span>');
       });
     }
-    L.circleMarker(pts[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#2F7D50', fillOpacity: 1 }).addTo(MLAYER).bindPopup('Início');
-    L.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#B33B2C', fillOpacity: 1 }).addTo(MLAYER).bindPopup('Fim');
+    L.circleMarker(pts[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#2F7D50', fillOpacity: 1 }).addTo(MLAYER).bindPopup(tr('voo.map.start', 'Início'));
+    L.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#B33B2C', fillOpacity: 1 }).addTo(MLAYER).bindPopup(tr('voo.map.end', 'Fim'));
     if (F.td) L.circleMarker([F.td.lat, F.td.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#B85400', fillOpacity: 1 })
-      .addTo(MLAYER).bindPopup('Toque · ' + F.td.vs.toFixed(0) + ' fpm');
+      .addTo(MLAYER).bindPopup(tr('voo.map.touchdown', 'Toque') + ' · ' + F.td.vs.toFixed(0) + ' fpm');
     MAP.fitBounds(L.latLngBounds(pts).pad(0.15));
     document.getElementById('map-note').textContent =
-      MODE === 'turb' ? 'cor = turbulência medida' : (MODE === 'alt' ? 'cor = altitude' : 'cor = clima no momento da passagem');
+      MODE === 'turb' ? tr('voo.map.note.turb', 'cor = turbulência medida') : (MODE === 'alt' ? tr('voo.map.note.alt', 'cor = altitude') : tr('voo.map.note.wx', 'cor = clima no momento da passagem'));
     document.getElementById('map-count').textContent = F.track.length + ' pontos a 1 Hz · clima a cada 10 s';
     document.getElementById('legend').innerHTML =
-      MODE === 'turb' ? '<span><i style="background:#5AA9D6"></i>calmo</span><span><i style="background:#FF8A1F"></i>moderado</span><span><i style="background:#E4574A"></i>severo</span>' :
-        MODE === 'alt' ? '<span><i style="background:#2C7CA5"></i>baixo</span><span><i style="background:#7BA05B"></i>médio</span><span><i style="background:#B85400"></i>alto</span>' :
-          '<span><i style="background:#5AA9D6"></i>seco</span><span><i style="background:#A78BFA"></i>em nuvem</span><span><i style="background:#FF8A1F"></i>precipitação</span><span><i style="background:#E4574A"></i>intensa</span>';
+      MODE === 'turb' ? '<span><i style="background:#5AA9D6"></i>' + tr('voo.legend.calm', 'calmo') + '</span><span><i style="background:#FF8A1F"></i>' + tr('voo.legend.moderate', 'moderado') + '</span><span><i style="background:#E4574A"></i>' + tr('voo.legend.severe', 'severo') + '</span>' :
+        MODE === 'alt' ? '<span><i style="background:#2C7CA5"></i>' + tr('voo.legend.low', 'baixo') + '</span><span><i style="background:#7BA05B"></i>' + tr('voo.legend.medium', 'médio') + '</span><span><i style="background:#B85400"></i>' + tr('voo.legend.high', 'alto') + '</span>' :
+          '<span><i style="background:#5AA9D6"></i>' + tr('voo.legend.dry', 'seco') + '</span><span><i style="background:#A78BFA"></i>' + tr('voo.legend.incloud', 'em nuvem') + '</span><span><i style="background:#FF8A1F"></i>' + tr('voo.legend.precip', 'precipitação') + '</span><span><i style="background:#E4574A"></i>' + tr('voo.legend.heavy', 'intensa') + '</span>';
+  }
+
+  function renderMapUnavailable() {
+    var el = document.getElementById('map');
+    if (el) el.innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--fm);font-size:12px">' + tr('voo.map.unavailable', 'Mapa indisponível') + '</p>';
   }
 
   function initMap() {
-    if (!window.L) { document.getElementById('map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--fm);font-size:12px">Mapa indisponível</p>'; return; }
+    if (!window.L) { renderMapUnavailable(); return; }
     var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
-    MAP = L.map('map', { scrollWheelZoom: false, minZoom: 3, maxZoom: 14 });
+    MAP = L.map('map', { scrollWheelZoom: true, minZoom: 3, maxZoom: 14 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 14, detectRetina: true }).addTo(MAP);
     new MutationObserver(function () { base.setUrl(TL[th()]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     MLAYER = L.layerGroup().addTo(MAP);
@@ -321,6 +404,27 @@
     .catch(function (err) {
       console.error('Katabatic: falha ao carregar telemetria do voo.', err);
       var meta = document.getElementById('h-meta');
-      if (meta) meta.textContent = 'Não foi possível carregar a telemetria deste voo.';
+      if (meta) meta.textContent = tr('voo.error.load', 'Não foi possível carregar a telemetria deste voo.');
     });
+
+  // voo.js nao tinha nenhum tratamento de 'katabatic:langchange' - toda a
+  // tela e montada dinamicamente a partir da telemetria (KPIs, fases,
+  // graficos, leitura ao passar o mouse, card de pouso, mapa), entao
+  // trocar o idioma depois do carregamento inicial precisa re-chamar as
+  // funcoes de render que tem texto traduzivel. Deliberadamente NAO
+  // chama renderObs()/exitEditMode() aqui: exitEditMode() fecharia o
+  // formulario de relato do piloto (e descartaria o rascunho digitado)
+  // so por causa da troca de idioma, o que seria uma perda de dados
+  // desnecessaria - so o texto do estado vazio (renderReportView) e do
+  // contador precisa ficar em dia.
+  document.addEventListener('katabatic:langchange', function () {
+    if (!F) return;
+    renderHead();
+    renderPhases();
+    renderLanding();
+    renderReportView();
+    renderCharts();
+    updateReportCount();
+    if (MAP) drawMap(); else if (document.getElementById('map')) renderMapUnavailable();
+  });
 })();

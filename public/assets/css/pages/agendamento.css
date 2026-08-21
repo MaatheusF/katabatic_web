@@ -1,0 +1,108 @@
+/* ==========================================================================
+   Katabatic — agendamento.css
+   Agendamento de voo: formulário de reserva + um card por aeronave com a
+   sequência de pernas encadeadas. Depende de base.css + app-shell.css
+   carregados antes (rail, bar, botões, tokens já vem de lá) - campos/
+   grid/chips/card seguem o mesmo padrão de nova-aeronave.css, cada
+   página com seu próprio CSS autocontido.
+   ========================================================================== */
+
+.bar { z-index: 600; }
+.bar h1 { font-size: 18px; font-weight: 500; letter-spacing: 0; }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 24px 28px 70px; }
+
+/* ---------- resumo ---------- */
+.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
+.summary div { background: var(--surface); padding: 16px 18px; }
+.summary b { display: block; font-family: var(--font-mono); font-size: 22px; font-weight: 500; line-height: 1.1; }
+.summary span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+
+/* ---------- campos de formulário (mesmo padrão de nova-aeronave.css) ---------- */
+label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+input[type=text], input[type=date], input[type=time], select, textarea {
+  width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+.card-h { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 15px; }
+.card-h .note { margin-left: auto; font-size: 12px; color: var(--muted); }
+.card-b { padding: 20px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid2:last-child, .grid3:last-child { margin-bottom: 0; }
+.field { min-width: 0; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.btn { font-family: var(--font-body); font-size: 13px; font-weight: 500; padding: 9px 16px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+.btn-ghost { background: transparent; }
+.btn-ghost:hover { border-color: var(--border-strong); }
+
+.footer-actions { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface-2); }
+.footer-actions .right { margin-left: auto; }
+
+.ag-alert { margin-top: 4px; padding: 11px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.ag-alert.bad { background: color-mix(in srgb, var(--danger) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border)); color: var(--text); }
+.ag-alert.warn { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); }
+
+/* ---------- tags (status/sequência) ---------- */
+.tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+/* ---------- ações por perna (editar/remover) ---------- */
+.row-actions { display: flex; gap: 6px; }
+.btn-edit, .btn-remove { font-family: var(--font-mono); font-size: 11px; padding: 5px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.btn-edit:hover { border-color: var(--accent); color: var(--accent); }
+.btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+.btn-remove[data-armed="1"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+/* ---------- cards por aeronave ---------- */
+#ag-cards .card:last-child { margin-bottom: 20px; }
+.ag-card-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ag-ac { display: flex; flex-direction: column; }
+.ag-ac b { font-family: var(--font-mono); font-size: 16px; }
+.ag-ac span { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+.ag-add-btn { margin-left: auto; font-size: 12px; padding: 7px 12px; }
+
+/* linha do tempo resumida (só pra dar a "ideia da sequência" de relance) */
+.ag-chain { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 14px 20px 0; }
+.ag-node { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); }
+.ag-node.muted { color: var(--muted); font-weight: 400; }
+.ag-arrow { font-size: 13px; padding: 0 6px; color: var(--ok); font-weight: 600; }
+.ag-arrow.warn { color: var(--accent); }
+
+.ag-empty { padding: 16px 20px; color: var(--muted); font-size: 13px; }
+.ag-empty.flying { color: var(--text-2); }
+
+/* ---------- agenda da semana (cronológica, cruza todas as aeronaves) ---------- */
+.ag-agenda-card { margin-bottom: 24px; }
+.ag-day-row td { background: var(--surface-2); font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--border); }
+
+/* tabela de pernas por aeronave */
+.ag-table-wrap { padding: 12px 20px 18px; overflow-x: auto; }
+.ag-table { width: 100%; border-collapse: collapse; }
+.ag-table thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ag-table tbody td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; white-space: nowrap; }
+.ag-table tbody tr:last-child td { border-bottom: 0; }
+.ag-table .route { font-family: var(--font-mono); }
+.ag-table .sub { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; white-space: normal; }
+.ag-table tr.ag-new-row { animation: ag-flash 1.6s ease-out; }
+@keyframes ag-flash { 0% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 100% { background: transparent; } }
+
+@media (max-width: 900px) {
+  .wrap { padding: 16px; }
+  .summary { grid-template-columns: repeat(2, 1fr); }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .ag-add-btn { margin-left: 0; }
+}

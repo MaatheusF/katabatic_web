@@ -13,4 +13,15 @@
       });
     });
   });
+
+  // Banner de flash message (app.flashes(), ver app_base.html.twig) - so
+  // fecha o card ao clicar no x. Sem timeout automatico: a mensagem ja
+  // some sozinha na proxima navegacao, porque o flash bag do Symfony e
+  // consumido na leitura.
+  document.querySelectorAll('.flash-close').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var flash = btn.closest('.flash');
+      if (flash) flash.remove();
+    });
+  });
 })();

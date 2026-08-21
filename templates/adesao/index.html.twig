@@ -15,11 +15,11 @@
       {% include 'partials/_brand.html.twig' %}
     </a>
     <div class="tools">
-      <div class="lang" role="group" aria-label="Idioma">
+      <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:a11y.language">
         <button type="button" data-lang="pt" aria-pressed="true">PT</button>
         <button type="button" data-lang="en" aria-pressed="false">EN</button>
       </div>
-      <button class="theme-toggle" id="theme" aria-label="Alternar tema">
+      <button class="theme-toggle" id="theme" aria-label="Alternar tema" data-i18n-attr="aria-label:a11y.theme">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
@@ -32,77 +32,79 @@
   <div class="adesao-card" id="adesao-form-card">
     <div class="adesao-head">
       {% include 'partials/_brand_icon.html.twig' %}
-      <h1>Solicitação de adesão</h1>
-      <p>A Katabatic não abre vagas em massa — toda entrada passa por três voos de avaliação. Preencha os dados abaixo pra começar; a gente responde por e-mail com os próximos passos.</p>
+      <h1 data-i18n="adesao.title">Solicitação de adesão</h1>
+      <p data-i18n="adesao.lead">A Katabatic não abre vagas em massa — toda entrada passa por três voos de avaliação. Preencha os dados abaixo pra começar; a gente responde por e-mail com os próximos passos.</p>
     </div>
+
+    <div class="adesao-error" id="ad-error" style="display:none"></div>
 
     <form id="adesao-form" novalidate>
       <div class="grid2">
         <div class="field">
-          <label for="ad-nome">Nome completo</label>
-          <input type="text" id="ad-nome" placeholder="Seu nome" required>
+          <label for="ad-nome" data-i18n="adesao.nome.label">Nome completo</label>
+          <input type="text" id="ad-nome" placeholder="Seu nome" data-i18n-attr="placeholder:adesao.nome.ph" required>
         </div>
         <div class="field">
-          <label for="ad-email">E-mail</label>
-          <input type="email" id="ad-email" placeholder="voce@exemplo.com" required>
+          <label for="ad-email" data-i18n="adesao.email.label">E-mail</label>
+          <input type="email" id="ad-email" placeholder="voce@exemplo.com" data-i18n-attr="placeholder:adesao.email.ph" required>
         </div>
       </div>
 
       <div class="grid2">
         <div class="field">
-          <label for="ad-cid">CID VATSIM</label>
+          <label for="ad-cid" data-i18n="adesao.cid.label">CID VATSIM</label>
           <input type="text" id="ad-cid" class="mono-input" inputmode="numeric" placeholder="1234567" required>
-          <p class="hint">Ainda não tem? Crie uma conta gratuita em <a href="https://my.vatsim.net" target="_blank" rel="noopener">my.vatsim.net</a>.</p>
+          <p class="hint" data-i18n="adesao.cid.hint">Ainda não tem? Crie uma conta gratuita em <a href="https://my.vatsim.net" target="_blank" rel="noopener">my.vatsim.net</a>.</p>
         </div>
         <div class="field">
-          <label for="ad-discord">ID do Discord <span class="opt">(opcional)</span></label>
-          <input type="text" id="ad-discord" class="mono-input" placeholder="usuario">
-          <p class="hint">Pra te adicionar no servidor da tripulação assim que aprovar.</p>
+          <label for="ad-discord" data-i18n="adesao.discord.label">ID do Discord <span class="opt">(opcional)</span></label>
+          <input type="text" id="ad-discord" class="mono-input" placeholder="usuario" data-i18n-attr="placeholder:adesao.discord.ph">
+          <p class="hint" data-i18n="adesao.discord.hint">Pra te adicionar no servidor da tripulação assim que aprovar.</p>
         </div>
       </div>
 
       <div class="field">
-        <label>Experiência em voo simulado</label>
+        <label data-i18n="adesao.exp.label">Experiência em voo simulado</label>
         <div class="chips" id="ad-exp-chips">
-          <button class="chip on" data-exp="Iniciante" type="button">Iniciante</button>
-          <button class="chip" data-exp="Intermediário" type="button">Intermediário</button>
-          <button class="chip" data-exp="Experiente" type="button">Experiente</button>
+          <button class="chip on" data-exp="Iniciante" type="button" data-i18n="adesao.exp.beginner">Iniciante</button>
+          <button class="chip" data-exp="Intermediário" type="button" data-i18n="adesao.exp.intermediate">Intermediário</button>
+          <button class="chip" data-exp="Experiente" type="button" data-i18n="adesao.exp.experienced">Experiente</button>
         </div>
       </div>
 
       <div class="field">
-        <label>Base preferida</label>
+        <label data-i18n="adesao.base.label">Base preferida</label>
         <div class="chips" id="ad-base-chips">
           <button class="chip on" data-base="PAFA" type="button">PAFA · Fairbanks</button>
           <button class="chip" data-base="SCCI" type="button">SCCI · Punta Arenas</button>
-          <button class="chip" data-base="Sem preferência" type="button">Sem preferência</button>
+          <button class="chip" data-base="Sem preferência" type="button" data-i18n="adesao.base.none">Sem preferência</button>
         </div>
       </div>
 
       <div class="field">
-        <label for="ad-conheceu">Como conheceu a Katabatic <span class="opt">(opcional)</span></label>
+        <label for="ad-conheceu" data-i18n="adesao.heard.label">Como conheceu a Katabatic <span class="opt">(opcional)</span></label>
         <select id="ad-conheceu">
-          <option value="">Selecione…</option>
-          <option>Rede VATSIM</option>
-          <option>Discord</option>
-          <option>Indicação de outro piloto</option>
-          <option>Redes sociais</option>
-          <option>Outro</option>
+          <option value="" data-i18n="adesao.heard.placeholder">Selecione…</option>
+          <option data-i18n="adesao.heard.vatsim">Rede VATSIM</option>
+          <option data-i18n="adesao.heard.discord">Discord</option>
+          <option data-i18n="adesao.heard.referral">Indicação de outro piloto</option>
+          <option data-i18n="adesao.heard.social">Redes sociais</option>
+          <option data-i18n="adesao.heard.other">Outro</option>
         </select>
       </div>
 
       <div class="field">
-        <label for="ad-motivacao">Por que quer voar na Katabatic?</label>
-        <textarea id="ad-motivacao" rows="5" placeholder="Conte um pouco da sua experiência e o que te atraiu pra cá…" required></textarea>
+        <label for="ad-motivacao" data-i18n="adesao.motivation.label">Por que quer voar na Katabatic?</label>
+        <textarea id="ad-motivacao" rows="5" placeholder="Conte um pouco da sua experiência e o que te atraiu pra cá…" data-i18n-attr="placeholder:adesao.motivation.ph" required></textarea>
         <div class="charcount" id="ad-motivacao-count">0 caracteres</div>
       </div>
 
       <label class="agree">
         <input type="checkbox" id="ad-agree">
-        <span>Li e concordo com os <a href="{{ path('app_home') }}#tripulacao">critérios de avaliação</a> da Katabatic.</span>
+        <span data-i18n="adesao.agree">Li e concordo com os <a href="{{ path('app_home') }}#tripulacao">critérios de avaliação</a> da Katabatic.</span>
       </label>
 
-      <button type="submit" class="btn btn-primary adesao-submit" id="ad-submit" disabled>Enviar solicitação</button>
+      <button type="submit" class="btn btn-primary adesao-submit" id="ad-submit" disabled data-i18n="adesao.submit">Enviar solicitação</button>
     </form>
   </div>
 
@@ -110,13 +112,13 @@
     <div class="adesao-success-icon">
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
     </div>
-    <h1>Solicitação enviada</h1>
+    <h1 data-i18n="adesao.success.title">Solicitação enviada</h1>
     <p id="ad-success-summary"></p>
     <div class="adesao-note">
-      <b>Ambiente de desenvolvimento</b>
-      <span>Este envio ainda é simulado (sem backend de verdade) — não fica gravado, então não aparece automaticamente no grid de Solicitações da área logada. Vira um POST de verdade quando o schema do banco existir.</span>
+      <b data-i18n="adesao.success.note.title">Próximos passos</b>
+      <span data-i18n="adesao.success.note.body">Seu pedido já está registrado e aparece no grid de Solicitações da tripulação — vamos revisar e responder por e-mail.</span>
     </div>
-    <a class="btn" href="{{ path('app_home') }}">‹ Voltar para a home</a>
+    <a class="btn" href="{{ path('app_home') }}" data-i18n="adesao.success.back">‹ Voltar para a home</a>
   </div>
 </div>
 
@@ -125,7 +127,50 @@
 {% block javascripts %}
 <script>
   window.KATABATIC_I18N_EN = {
-    'nav.pilot': 'Pilot area'
+    'nav.pilot': 'Pilot area',
+    'adesao.title': 'Membership request',
+    'adesao.lead': 'Katabatic does not recruit in bulk — every pilot goes through three assessment flights. Fill in the details below to get started; we\'ll reply by email with the next steps.',
+    'adesao.nome.label': 'Full name',
+    'adesao.nome.ph': 'Your name',
+    'adesao.email.label': 'Email',
+    'adesao.email.ph': 'you@example.com',
+    'adesao.cid.label': 'VATSIM CID',
+    'adesao.cid.hint': 'Don\'t have one yet? Create a free account at <a href="https://my.vatsim.net" target="_blank" rel="noopener">my.vatsim.net</a>.',
+    'adesao.discord.label': 'Discord ID <span class="opt">(optional)</span>',
+    'adesao.discord.ph': 'username',
+    'adesao.discord.hint': 'So we can add you to the crew server as soon as you\'re approved.',
+    'adesao.exp.label': 'Simulated flight experience',
+    'adesao.exp.beginner': 'Beginner',
+    'adesao.exp.intermediate': 'Intermediate',
+    'adesao.exp.experienced': 'Experienced',
+    'adesao.base.label': 'Preferred base',
+    'adesao.base.none': 'No preference',
+    'adesao.heard.label': 'How did you hear about Katabatic <span class="opt">(optional)</span>',
+    'adesao.heard.placeholder': 'Select…',
+    'adesao.heard.vatsim': 'VATSIM network',
+    'adesao.heard.discord': 'Discord',
+    'adesao.heard.referral': 'Referral from another pilot',
+    'adesao.heard.social': 'Social media',
+    'adesao.heard.other': 'Other',
+    'adesao.motivation.label': 'Why do you want to fly at Katabatic?',
+    'adesao.motivation.ph': 'Tell us a bit about your experience and what drew you here…',
+    'adesao.agree': 'I have read and agree to Katabatic\'s <a href="/#tripulacao">assessment criteria</a>.',
+    'adesao.submit': 'Submit request',
+    'adesao.success.title': 'Request sent',
+    'adesao.success.note.title': 'Next steps',
+    'adesao.success.note.body': 'Your request is already on record and shows up in the crew\'s Applications grid — we will review it and reply by email.',
+    'adesao.success.back': '‹ Back to home',
+    'adesao.count.word': 'character',
+    'adesao.summary.receivedPrefix': ', we received your request (',
+    'adesao.summary.withCid': ') with CID ',
+    'adesao.summary.and': ' and ',
+    'adesao.summary.noBasePref': 'no base preference',
+    'adesao.summary.basePrefix': 'base',
+    'adesao.summary.discordNoted': 'noted',
+    'adesao.summary.reviewPrefix': ' We will review and reply by email (',
+    'adesao.summary.soonSuffix': ') soon.',
+    'adesao.error.generic': 'Something went wrong sending your request — check your connection and try again.',
+    'adesao.submit.sending': 'Sending…'
   };
 </script>
 <script src="/assets/js/pages/adesao.js" defer></script>

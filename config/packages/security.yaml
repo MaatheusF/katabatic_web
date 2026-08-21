@@ -1,0 +1,58 @@
+# Security "de verdade" - primeira peça do backend (ver README, seção
+# "Backend: login e perfil"). Substitui o login mock que existia em
+# LoginController (sessão com um array fixo, "any password" pro CID
+# 1234567) por autenticação contra a tabela `pilot` (Doctrine), com
+# senha de verdade (bcrypt) via App\Security\LoginFormAuthenticator.
+#
+# IMPORTANTE - estratégia de transição: as outras 11 telas da área
+# logada (Portal, Voo, Agendamentos etc.) ainda fazem seu próprio guard
+# manual, lendo `$request->getSession()->get('pilot')` (um array, não
+# o Security). Pra não precisar migrar todo mundo de uma vez,
+# LoginFormAuthenticator::onAuthenticationSuccess() grava ESSE MESMO
+# array na sessão, no mesmo formato de antes (initials/name/cid/admin/
+# email/photo) - o Security cuida da autenticação de verdade, e o
+# resto do site continua enxergando exatamente o que já esperava. Por
+# isso não há `access_control` abaixo: a autorização em si continua
+# manual, tela por tela, até migrarmos o resto (ver README).
+security:
+    password_hashers:
+        # bcrypt (não 'auto') de propósito: custo determinístico, sem
+        # depender de qual variante o PHP do servidor tem disponível -
+        # importante pro hash semeado na migration bater certinho
+        # (gerado com password_hash(..., PASSWORD_BCRYPT) puro).
+        App\Entity\Pilot:
+            algorithm: bcrypt
+
+    providers:
+        pilot_provider:
+            entity:
+                class: App\Entity\Pilot
+                property: cid
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        main:
+            lazy: true
+            provider: pilot_provider
+            custom_authenticators:
+                - App\Security\LoginFormAuthenticator
+            logout:
+                path: app_logout
+                # invalidate_session (default true) já limpa a sessão
+                # inteira no logout - inclusive o array 'pilot' acima,
+                # sem precisar de nada extra aqui.
+
+    # access_control: de propósito vazio por enquanto - ver nota no
+    # topo do arquivo.
+    access_control: []
+
+when@test:
+    security:
+        password_hashers:
+            # Menos custo em teste, só pra rodar mais rápido.
+            App\Entity\Pilot:
+                algorithm: bcrypt
+                cost: 4

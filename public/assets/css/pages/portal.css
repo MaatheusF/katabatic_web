@@ -11,6 +11,47 @@
 .summary b small { font-size: 13px; color: var(--muted); }
 .summary span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-2); }
 
+/* ---------- estatísticas agregadas do Logbook (recalcula com os filtros) ---------- */
+.lb-stats-card { margin-bottom: 22px; }
+.card-h { display: flex; align-items: baseline; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 15px; }
+.card-h .note { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.lb-stats-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
+.lb-stats-tiles div { background: var(--surface); padding: 14px 18px; }
+.lb-stats-tiles b { display: block; font-family: var(--font-mono); font-size: 20px; font-weight: 500; line-height: 1.1; }
+.lb-stats-tiles b small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.lb-stats-tiles span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+
+.lb-stats-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 16px 20px; border-top: 1px solid var(--border); }
+.lb-stats-top div { min-width: 0; }
+.lb-stats-top span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.lb-stats-top b { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+
+.lb-trend { padding: 14px 20px 18px; border-top: 1px solid var(--border); }
+.lb-trend > span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.lb-trend > span small { text-transform: none; letter-spacing: 0; font-family: var(--font-body); color: var(--muted); }
+.lb-trend-bars { display: flex; align-items: flex-end; gap: 3px; height: 46px; }
+.lb-trend-bar { flex: 1 1 0; min-width: 3px; max-width: 22px; border-radius: 2px 2px 0 0; background: var(--border); cursor: default; }
+.lb-trend-bar.lo { background: var(--ice); }
+.lb-trend-bar.mid { background: var(--accent); }
+.lb-trend-bar.hi { background: var(--danger); }
+.lb-trend-empty { font-size: 13px; color: var(--muted); align-self: center; }
+
+/* ---------- detalhe expansível por voo (dist/combustível/carga/METAR) ---------- */
+.lb-expand-col { width: 32px; padding: 11px 0 11px 14px !important; }
+.lb-expand-btn { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-2); cursor: pointer; padding: 0; }
+.lb-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+.lb-expand-btn svg { transition: transform .15s ease; }
+.lb-expand-btn.open svg { transform: rotate(90deg); }
+tr.lb-detail td { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 14px 20px; }
+.lb-detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 20px; }
+.lb-detail-grid div { min-width: 0; }
+.lb-detail-grid span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.lb-detail-grid b { font-size: 13px; font-weight: 500; }
+.lb-detail-metar { grid-column: span 2; }
+.lb-detail-metar b { font-size: 12px; letter-spacing: .02em; }
+
 /* ---------- filtros ---------- */
 .filters { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
 .chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; }
@@ -124,4 +165,8 @@ td.num, th.num { text-align: right; }
 @media (max-width: 900px) {
   .summary, .metrics { grid-template-columns: repeat(2, 1fr); }
   .bases { grid-template-columns: 1fr; }
+  .lb-stats-tiles { grid-template-columns: repeat(2, 1fr); }
+  .lb-stats-top { grid-template-columns: 1fr; }
+  .lb-detail-grid { grid-template-columns: repeat(2, 1fr); }
+  .lb-detail-metar { grid-column: span 2; }
 }

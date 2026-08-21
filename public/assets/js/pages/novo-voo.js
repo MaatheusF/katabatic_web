@@ -17,6 +17,14 @@
 
   var AIRCRAFT = window.KATABATIC_AIRCRAFT || [];
 
+  // Le o dicionario EN da pagina (window.KATABATIC_I18N_EN, definido no
+  // page_javascripts de novo_voo/index.html.twig) - mesmo padrao do
+  // helper equivalente em voo.js.
+  function L(key, ptFallback) {
+    var en = window.KATABATIC_I18N_EN || {};
+    return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+  }
+
   /* ---------- modo importar / manual ---------- */
   var mode = 'import';
   function setMode(m) {
@@ -61,7 +69,7 @@
     var origEl = document.getElementById('f-orig');
     if (!origEl.value) {
       origEl.value = a.pos;
-      document.getElementById('orig-hint').innerHTML = 'Preenchido com a posição atual da aeronave — ajuste se decolou de outro lugar.';
+      document.getElementById('orig-hint').innerHTML = L('novovoo.orighint.autofilled', 'Preenchido com a posição atual da aeronave — ajuste se decolou de outro lugar.');
     }
   });
 
@@ -79,9 +87,12 @@
   });
 
   /* ---------- contador do relato ---------- */
-  document.getElementById('f-report').addEventListener('input', function (e) {
-    document.getElementById('report-count').textContent = e.target.value.length + ' caracteres';
-  });
+  function updateReportCount() {
+    var n = document.getElementById('f-report').value.length;
+    document.getElementById('report-count').textContent = window.katabaticLang && window.katabaticLang() === 'en' ?
+      n + ' character' + (n === 1 ? '' : 's') : n + ' caractere' + (n === 1 ? '' : 's');
+  }
+  document.getElementById('f-report').addEventListener('input', updateReportCount);
 
   /* ---------- slider manual ---------- */
   document.getElementById('f-diff-manual').addEventListener('input', function (e) {
@@ -128,25 +139,25 @@
   document.getElementById('dropzone').addEventListener('click', function () {
     if (imported) return;
     var dz = this;
-    dz.innerHTML = '<b>Lendo arquivos…</b><span>calculando índice de dificuldade a partir da telemetria</span>';
+    dz.innerHTML = '<b>' + L('novovoo.dropzone.reading', 'Lendo arquivos…') + '</b><span>' + L('novovoo.dropzone.calculating', 'calculando índice de dificuldade a partir da telemetria') + '</span>';
     setTimeout(function () {
       imported = true;
       dz.classList.add('done');
       dz.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-        '<b>Importado com sucesso</b><span>20260819_033457_KBT118 · clique para trocar o arquivo</span>';
+        '<b>' + L('novovoo.dropzone.imported', 'Importado com sucesso') + '</b><span>20260819_033457_KBT118 · ' + L('novovoo.dropzone.clicktoswap', 'clique para trocar o arquivo') + '</span>';
 
       document.getElementById('import-result').innerHTML =
         '<div class="filelist">' +
-          fileRow('samples.csv', '345 amostras') +
-          fileRow('env.csv', '35 leituras') +
-          fileRow('events.csv', '6 eventos') +
-          fileRow('session.json', 'metadados da sessão') +
+          fileRow('samples.csv', '345 ' + L('novovoo.import.samples', 'amostras')) +
+          fileRow('env.csv', '35 ' + L('novovoo.import.readings', 'leituras')) +
+          fileRow('events.csv', '6 ' + L('novovoo.import.events', 'eventos')) +
+          fileRow('session.json', L('novovoo.import.sessionmeta', 'metadados da sessão')) +
         '</div>' +
         '<div class="preview">' +
-          prevCell('5:44', 'Duração') +
-          prevCell('12,9<span style="font-size:11px"> nm</span>', 'Distância') +
-          prevCell('-20,7°', 'Temp. mínima') +
-          '<div><div class="diff-mini"><b>64</b></div><span>Dificuldade calculada</span></div>' +
+          prevCell('5:44', L('novovoo.import.duration', 'Duração')) +
+          prevCell('12,9<span style="font-size:11px"> nm</span>', L('novovoo.import.distance', 'Distância')) +
+          prevCell('-20,7°', L('novovoo.import.mintemp', 'Temp. mínima')) +
+          '<div><div class="diff-mini"><b>64</b></div><span>' + L('novovoo.import.calcdiff', 'Dificuldade calculada') + '</span></div>' +
         '</div>';
 
       // preenche data/rota se ainda vazios, a partir do "arquivo"
@@ -172,7 +183,7 @@
       } else {
         warnBox.style.display = 'flex';
         warnBox.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>' +
-          '<p>O arquivo trouxe a matrícula <b>' + tailFromFile + '</b>, que não corresponde a nenhuma aeronave da frota — parece ser o callsign configurado no lugar do <code>ATC ID</code>. Selecione a aeronave manualmente e confira essa configuração no simulador antes do próximo voo.</p>';
+          '<p>' + L('novovoo.tailmismatch', 'O arquivo trouxe a matrícula <b>' + tailFromFile + '</b>, que não corresponde a nenhuma aeronave da frota — parece ser o callsign configurado no lugar do <code>ATC ID</code>. Selecione a aeronave manualmente e confira essa configuração no simulador antes do próximo voo.').replace('{tail}', tailFromFile) + '</p>';
       }
 
       updatePublishState();
@@ -194,9 +205,18 @@
   updatePublishState();
 
   document.getElementById('btn-draft').addEventListener('click', function () {
-    alert('Rascunho salvo (mock) — retome depois pelo Logbook.');
+    alert(L('novovoo.alert.draft', 'Rascunho salvo (mock) — retome depois pelo Logbook.'));
   });
   document.getElementById('btn-publish').addEventListener('click', function () {
-    alert('Voo publicado (mock) — apareceria agora no Logbook.');
+    alert(L('novovoo.alert.publish', 'Voo publicado (mock) — apareceria agora no Logbook.'));
+  });
+
+  // novo-voo.js nao tinha nenhum tratamento de 'katabatic:langchange'.
+  // A maior parte da tela e formulario estatico (ja coberto por
+  // data-i18n no template), mas o contador de caracteres do relato
+  // precisa recalcular o texto na troca de idioma mesmo sem o usuario
+  // ter digitado nada ainda.
+  document.addEventListener('katabatic:langchange', function () {
+    updateReportCount();
   });
 })();
