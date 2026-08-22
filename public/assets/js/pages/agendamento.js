@@ -4,18 +4,18 @@
    de pernas futuras já reservadas (quando a próxima perna sai de onde a
    anterior chega, elas contam como uma sequência encadeada — ver
    buildWaypoints/legChainInfo) e um formulário pra criar um novo
-   agendamento. Tudo mock: window.KATABATIC_AG_AGENDAMENTOS só dá o estado
-   inicial (via AgendamentoController), o resto vira um array em memória
-   nesta página (sem persistir entre reloads), mesmo padrão de
-   solicitacoes.js.
+   agendamento. Backend real (ver AgendamentoController/README "Agendamento
+   de voo"): window.KATABATIC_AG_AGENDAMENTOS dá o estado inicial vindo do
+   banco, e criar/editar/remover fazem um `fetch` POST de verdade
+   (mesmo padrão de solicitacoes.js) — o array local (`AGENDAMENTOS`) só
+   espelha o que o servidor confirmou, nunca é escrito otimisticamente
+   antes da resposta.
    ========================================================================== */
 (function () {
   'use strict';
 
   var FLEET = window.KATABATIC_AG_FLEET || [];
   var AGENDAMENTOS = (window.KATABATIC_AG_AGENDAMENTOS || []).slice();
-  var AIRPORTS = {};
-  var nextId = AGENDAMENTOS.reduce(function (m, a) { return Math.max(m, a.id); }, 0) + 1;
   var HIGHLIGHT_REG = null, HIGHLIGHT_ID = null;
   var EDITING_ID = null; // id do agendamento em edição no formulário, ou null quando é um novo
   var NOW = window.KATABATIC_NOW ? new Date(window.KATABATIC_NOW) : new Date();
@@ -212,14 +212,47 @@
     if (entry) openForm(entry.reg, entry);
   }
 
-  function removeLeg(id) {
-    AGENDAMENTOS = AGENDAMENTOS.filter(function (a) { return a.id !== id; });
-    if (EDITING_ID === id) closeForm();
-    HIGHLIGHT_REG = null;
-    HIGHLIGHT_ID = null;
-    renderSummary();
-    renderAgenda();
-    renderCards();
+  // POST /agendamentos/{id}/remover (ver AgendamentoController) - só mexe
+  // no array local depois do servidor confirmar. `btn` (o próprio botão
+  // "Confirmar?" que disparou a remoção) recebe feedback de erro embutido
+  // nele mesmo em vez de um banner separado - esta tela não tem um lugar
+  // fixo pra mensagem de erro fora do formulário (que pode nem estar
+  // aberto quando se remove direto de um card).
+  function removeLeg(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = L('agendamento.removing', 'Removendo…'); }
+
+    fetch('/agendamentos/' + id + '/remover', { method: 'POST', headers: { 'Accept': 'application/json' } })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          if (btn) {
+            btn.disabled = false;
+            btn.dataset.armed = '0';
+            btn.textContent = L('agendamento.removeerror', 'Erro — tente de novo');
+            clearTimeout(btn._agTimer);
+            btn._agTimer = setTimeout(function () { btn.textContent = L('common.remove', 'Remover'); }, 4000);
+          }
+          return;
+        }
+        AGENDAMENTOS = AGENDAMENTOS.filter(function (a) { return a.id !== id; });
+        if (EDITING_ID === id) closeForm();
+        HIGHLIGHT_REG = null;
+        HIGHLIGHT_ID = null;
+        renderSummary();
+        renderAgenda();
+        renderCards();
+      })
+      .catch(function () {
+        if (btn) {
+          btn.disabled = false;
+          btn.dataset.armed = '0';
+          btn.textContent = L('agendamento.removeerror', 'Erro — tente de novo');
+          clearTimeout(btn._agTimer);
+          btn._agTimer = setTimeout(function () { btn.textContent = L('common.remove', 'Remover'); }, 4000);
+        }
+      });
   }
 
   // Delegado (anexado uma única vez em wireForm) em vez de religar por
@@ -234,7 +267,7 @@
       var rmBtn = e.target.closest('.btn-remove');
       if (!rmBtn) return;
       if (rmBtn.dataset.armed === '1') {
-        removeLeg(+rmBtn.dataset.id);
+        removeLeg(+rmBtn.dataset.id, rmBtn);
         return;
       }
       rmBtn.dataset.armed = '1';
@@ -326,12 +359,104 @@
     regSel.innerHTML = '<option value="">Selecione…</option>' + FLEET.map(function (ac) {
       return '<option value="' + ac.reg + '">' + ac.reg + ' · ' + ac.tipo + '</option>';
     }).join('');
+  }
 
-    var icaoOptions = '<option value="">Selecione…</option>' + Object.keys(AIRPORTS).sort().map(function (icao) {
-      return '<option value="' + icao + '">' + icao + ' · ' + AIRPORTS[icao].city + '</option>';
-    }).join('');
-    document.getElementById('f-origem').innerHTML = icaoOptions;
-    document.getElementById('f-destino').innerHTML = icaoOptions;
+  // Origem/destino: campo hidden (`#f-origem`/`#f-destino`, valor de
+  // verdade - mesmo id de sempre, entao validateForm()/computeWindow()/
+  // o submit nao mudaram nada) + input de texto visivel + busca (ver
+  // wireAirportCombo()). Trocou de <select> porque o catalogo de
+  // aeroportos deixou de caber numa lista de <option> depois da
+  // importacao global via OurAirports (ver README, "Backend: importação
+  // global de aeroportos") - hoje tem milhares de linhas, nao mais uma
+  // duzia.
+  var AEROPORTOS_BUSCA_URL = window.KATABATIC_AEROPORTOS_BUSCA_URL || '/aeroportos/buscar';
+
+  function setAirportField(prefix, icao, label) {
+    var hiddenEl = document.getElementById(prefix);
+    var buscaEl = document.getElementById(prefix + '-busca');
+    hiddenEl.value = icao || '';
+    if (buscaEl) buscaEl.value = icao ? (label || icao) : '';
+    // dispara pros listeners de validateForm() (attachados em 'input'/
+    // 'change' do proprio hidden, ver wireForm()) rodarem de novo.
+    hiddenEl.dispatchEvent(new Event('change'));
+  }
+
+  // Selo "Local" quando o codigo nao e um ICAO oficial - pistas de bush
+  // flying sem ICAO nas regioes de missao (ver aeroporto.js e README,
+  // "Pistas sem ICAO nas regiões de missão"). Mesmo raciocinio da busca
+  // administrativa: nao e erro, so um aviso pra quem esta escolhendo
+  // origem/destino saber que aquele codigo nao existe fora deste catalogo.
+  function comboLocalTag(a) {
+    if (a.icaoOficial === false) {
+      return ' <span class="tag tag-local" title="' + L('agendamento.airport.local.title', 'Código local/FAA — não é um ICAO oficial') + '">' + L('agendamento.airport.local', 'Local') + '</span>';
+    }
+    return '';
+  }
+
+  function comboItemHtml(a) {
+    return '<div class="ap-combo-item" data-icao="' + a.icao + '" data-nome="' + a.nome.replace(/"/g, '&quot;') + '">' +
+      '<span class="ic mono">' + a.icao + comboLocalTag(a) + '</span><span class="ct">' + a.nome + ' · ' + a.cidade + '</span></div>';
+  }
+
+  // Combobox de busca reaproveitado pra origem e destino - `prefix` e
+  // 'f-origem' ou 'f-destino', mesmo padrao de ids usado em toda essa
+  // tela (`#${prefix}` e sempre o valor de verdade). Mesmo endpoint que
+  // aeroporto.js usa pra busca administrativa (`AeroportoController::
+  // buscar()`), aqui so pra escolher, nunca pra marcar posto avancado.
+  function wireAirportCombo(prefix) {
+    var buscaEl = document.getElementById(prefix + '-busca');
+    var listaEl = document.getElementById(prefix + '-lista');
+    if (!buscaEl || !listaEl) return;
+    var timer = null;
+    var seq = 0;
+
+    function hideList() { listaEl.hidden = true; listaEl.innerHTML = ''; }
+
+    function renderResults(list) {
+      if (!list.length) {
+        listaEl.innerHTML = '<div class="ap-combo-empty">' + L('agendamento.airport.empty', 'Nenhum aeroporto encontrado.') + '</div>';
+        listaEl.hidden = false;
+        return;
+      }
+      listaEl.innerHTML = list.map(comboItemHtml).join('');
+      listaEl.hidden = false;
+    }
+
+    buscaEl.addEventListener('input', function () {
+      clearTimeout(timer);
+      var q = buscaEl.value.trim();
+      // Campo de texto mudou sem uma selecao nova ainda - o valor de
+      // verdade (#prefix) fica invalido ate o piloto escolher um item
+      // da lista, senao um ICAO so parcialmente digitado passaria pro
+      // submit como se fosse valido.
+      document.getElementById(prefix).value = '';
+      document.getElementById(prefix).dispatchEvent(new Event('change'));
+      if (q.length < 2) { hideList(); return; }
+      timer = setTimeout(function () {
+        var mySeq = ++seq;
+        fetch(AEROPORTOS_BUSCA_URL + '?q=' + encodeURIComponent(q))
+          .then(function (r) { return r.json(); })
+          .then(function (list) { if (mySeq === seq) renderResults(list); })
+          .catch(function () { if (mySeq === seq) renderResults([]); });
+      }, 250);
+    });
+
+    listaEl.addEventListener('mousedown', function (e) {
+      // mousedown (nao click) pra rodar antes do blur do input, senao o
+      // blur esconderia a lista antes do clique nela ser reconhecido.
+      var item = e.target.closest('.ap-combo-item');
+      if (!item) return;
+      e.preventDefault();
+      setAirportField(prefix, item.dataset.icao, item.dataset.icao + ' · ' + item.dataset.nome);
+      hideList();
+    });
+
+    buscaEl.addEventListener('blur', function () {
+      setTimeout(hideList, 150); // da tempo do mousedown da lista rodar primeiro
+    });
+    buscaEl.addEventListener('focus', function () {
+      if (buscaEl.value.trim().length >= 2 && listaEl.innerHTML) listaEl.hidden = false;
+    });
   }
 
   function currentTipo() {
@@ -355,7 +480,11 @@
     if (!ac) return;
     var legs = legsByReg(reg);
     var suggested = legs.length ? legs[legs.length - 1].destino : ac.pos;
-    document.getElementById('f-origem').value = suggested;
+    // So o ICAO como rotulo (sem cidade) - a sugestao vem de outra perna
+    // agendada ou da posicao atual da aeronave, nao de uma busca no
+    // catalogo, entao nao ha nome/cidade em mao aqui sem mais uma
+    // chamada de rede so pra isso.
+    setAirportField('f-origem', suggested, suggested);
     document.getElementById('f-origem-hint').textContent = legs.length
       ? L('agendamento.suggest.continues', 'Sugerido: continua de onde termina o último voo agendado dessa aeronave ({icao}).').replace('{icao}', suggested)
       : L('agendamento.suggest.currentpos', 'Sugerido: posição atual da aeronave ({icao}).').replace('{icao}', suggested);
@@ -401,6 +530,14 @@
 
   function resetForm() {
     ['f-reg', 'f-origem', 'f-destino', 'f-data', 'f-de', 'f-ate', 'f-notas'].forEach(function (id) { document.getElementById(id).value = ''; });
+    ['f-origem-busca', 'f-destino-busca'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    ['f-origem-lista', 'f-destino-lista'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.hidden = true; el.innerHTML = ''; }
+    });
     document.getElementById('f-piloto').value = window.KATABATIC_PILOT_NAME || '';
     document.getElementById('f-origem-hint').textContent = '';
     document.querySelectorAll('#f-tipo-chips .chip').forEach(function (c, i) { c.classList.toggle('on', i === 0); });
@@ -438,8 +575,11 @@
     if (reg) {
       document.getElementById('f-reg').value = reg;
       if (editEntry) {
-        document.getElementById('f-origem').value = editEntry.origem;
-        document.getElementById('f-destino').value = editEntry.destino;
+        // So o ICAO como rotulo (mesma razao de suggestOrigem()) - o
+        // agendamento ja guarda so o ICAO, nao nome/cidade, entao nao
+        // ha o que mostrar alem dele sem buscar de novo.
+        setAirportField('f-origem', editEntry.origem, editEntry.origem);
+        setAirportField('f-destino', editEntry.destino, editEntry.destino);
         var d = new Date(editEntry.de), a = new Date(editEntry.ate);
         document.getElementById('f-data').value = d.toISOString().slice(0, 10);
         document.getElementById('f-de').value = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes());
@@ -481,6 +621,16 @@
       document.getElementById(id).addEventListener('change', validateForm);
     });
 
+    // POST /agendamentos (criar) ou /agendamentos/{id}/atualizar (editar)
+    // - ver AgendamentoController. A checagem de sobreposição/sequência
+    // acima (validateForm(), a cada mudança no formulário) já dá feedback
+    // imediato sem round-trip, mas quem decide de verdade é o servidor
+    // (ver docblock do controller) - por isso este handler trata a
+    // resposta como a fonte da verdade: só mexe em AGENDAMENTOS depois de
+    // `result.ok`, e mostra o erro do servidor (não o texto genérico) se
+    // a validação do lado de lá pegar algo que passou no cliente (ex.:
+    // outra aba criou uma sobreposição entre a última checagem local e
+    // este clique).
     document.getElementById('f-submit').addEventListener('click', function () {
       var win = computeWindow();
       var reg = document.getElementById('f-reg').value;
@@ -491,49 +641,65 @@
       var piloto = document.getElementById('f-piloto').value.trim();
       var notas = document.getElementById('f-notas').value.trim() || null;
 
-      if (EDITING_ID) {
-        for (var i = 0; i < AGENDAMENTOS.length; i++) {
-          if (AGENDAMENTOS[i].id === EDITING_ID) {
-            AGENDAMENTOS[i] = { id: EDITING_ID, reg: reg, origem: origem, destino: destino, tipo: tipo, piloto: piloto, de: win.de, ate: win.ate, notas: notas };
-            break;
+      var payload = { reg: reg, origem: origem, destino: destino, tipo: tipo, piloto: piloto, de: win.de, ate: win.ate, notas: notas };
+      var submitBtn = document.getElementById('f-submit');
+      submitBtn.disabled = true;
+
+      var url = EDITING_ID ? ('/agendamentos/' + EDITING_ID + '/atualizar') : '/agendamentos';
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+        })
+        .then(function (result) {
+          if (!result.ok) {
+            var msg = (result.body.errors && result.body.errors[0]) || L('agendamento.error.generic', 'Não foi possível salvar — tente de novo.');
+            showAlert('bad', msg);
+            submitBtn.disabled = false;
+            return;
           }
-        }
-        HIGHLIGHT_REG = reg;
-        HIGHLIGHT_ID = EDITING_ID;
-      } else {
-        var entry = { id: nextId++, reg: reg, origem: origem, destino: destino, tipo: tipo, piloto: piloto, de: win.de, ate: win.ate, notas: notas };
-        AGENDAMENTOS.push(entry);
-        HIGHLIGHT_REG = reg;
-        HIGHLIGHT_ID = entry.id;
-      }
-      closeForm();
-      renderSummary();
-      renderAgenda();
-      renderCards();
+
+          var saved = result.body.agendamento;
+          if (EDITING_ID) {
+            for (var i = 0; i < AGENDAMENTOS.length; i++) {
+              if (AGENDAMENTOS[i].id === EDITING_ID) { AGENDAMENTOS[i] = saved; break; }
+            }
+          } else {
+            AGENDAMENTOS.push(saved);
+          }
+          HIGHLIGHT_REG = saved.reg;
+          HIGHLIGHT_ID = saved.id;
+          closeForm();
+          renderSummary();
+          renderAgenda();
+          renderCards();
+        })
+        .catch(function () {
+          showAlert('bad', L('agendamento.error.network', 'Algo deu errado — verifique sua conexão e tente de novo.'));
+          submitBtn.disabled = false;
+        });
     });
+
+    wireAirportCombo('f-origem');
+    wireAirportCombo('f-destino');
 
     var searchEl = document.getElementById('ag-search');
     if (searchEl) searchEl.addEventListener('input', renderAgenda);
   }
 
   /* ---------- carregamento ---------- */
-  var airportsUrl = window.KATABATIC_AIRPORTS_URL || '/assets/data/airports.json';
-  fetch(airportsUrl)
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      AIRPORTS = data;
-      populateSelects();
-      renderSummary();
-      renderAgenda();
-      renderCards();
-      wireForm();
-    })
-    .catch(function (err) {
-      console.error('Katabatic: falha ao carregar coordenadas dos aeroportos.', err);
-      renderSummary();
-      renderAgenda();
-      renderCards();
-    });
+  // Nao ha mais um catalogo inteiro pra buscar de cara (ver
+  // wireAirportCombo()/AEROPORTOS_BUSCA_URL acima) - origem/destino
+  // resolvem sob demanda, entao o resto da tela pode renderizar direto,
+  // sem esperar nenhum fetch primeiro.
+  populateSelects();
+  renderSummary();
+  renderAgenda();
+  renderCards();
+  wireForm();
 
   // Alem do #title (ja cuidado abaixo), praticamente todo o resto desta
   // tela - tiles do resumo, tabela da Agenda da semana, cards por

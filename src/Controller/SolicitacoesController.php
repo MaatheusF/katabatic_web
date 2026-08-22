@@ -6,6 +6,7 @@ use App\Entity\MembershipRequest;
 use App\Entity\Pilot;
 use App\Repository\MembershipRequestRepository;
 use App\Repository\PilotRepository;
+use App\Repository\VooRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -31,7 +32,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class SolicitacoesController extends AbstractController
 {
     #[Route('/solicitacoes', name: 'app_solicitacoes', methods: ['GET'])]
-    public function index(Request $request, MembershipRequestRepository $requests, PilotRepository $pilots): Response
+    public function index(Request $request, MembershipRequestRepository $requests, PilotRepository $pilots, VooRepository $voos): Response
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
@@ -41,6 +42,11 @@ class SolicitacoesController extends AbstractController
             return $this->redirectToRoute('app_portal');
         }
 
+        // Uma consulta agregada pra todos os pilotos de uma vez (ver
+        // VooRepository::countsByPilot()) em vez de um COUNT por linha
+        // do grid.
+        $voosCounts = $voos->countsByPilot();
+
         return $this->render('solicitacoes/index.html.twig', [
             'activeView' => $request->query->get('view', 'solicitacoes'),
             'pilot' => $pilot,
@@ -49,7 +55,7 @@ class SolicitacoesController extends AbstractController
                 $requests->findAllOrderedByRequestDate()
             ),
             'pilotos' => array_map(
-                fn (Pilot $p) => $this->pilotViewModel($p),
+                fn (Pilot $p) => $this->pilotViewModel($p, $voosCounts[$p->getId()] ?? 0),
                 $pilots->findBy([], ['createdAt' => 'ASC'])
             ),
         ]);
@@ -62,6 +68,7 @@ class SolicitacoesController extends AbstractController
         EntityManagerInterface $em,
         MembershipRequestRepository $requests,
         PilotRepository $pilots,
+        VooRepository $voos,
         UserPasswordHasherInterface $hasher,
     ): JsonResponse {
         if (null !== $err = $this->ensureAdmin($request)) {
@@ -105,7 +112,7 @@ class SolicitacoesController extends AbstractController
 
         return $this->json([
             'solicitacao' => $this->requestViewModel($membershipRequest),
-            'piloto' => $this->pilotViewModel($existingPilot),
+            'piloto' => $this->pilotViewModel($existingPilot, $voos->countForPilot($existingPilot)),
             // null quando o piloto já existia (nada foi gerado) — o front
             // só mostra o aviso de senha temporária quando isto vem preenchido.
             'senhaTemporaria' => $tempPassword,
@@ -173,9 +180,14 @@ class SolicitacoesController extends AbstractController
     }
 
     /**
+     * `$voosCount` vem de fora (`VooRepository::countsByPilot()` no grid
+     * inteiro, `countForPilot()` num piloto só em `aprovar()`) em vez de
+     * ser calculado aqui dentro — evita esta função disparar uma query
+     * por piloto sozinha.
+     *
      * @return array<string, mixed>
      */
-    private function pilotViewModel(Pilot $p): array
+    private function pilotViewModel(Pilot $p, int $voosCount): array
     {
         return [
             'nome' => $p->getName(),
@@ -183,10 +195,7 @@ class SolicitacoesController extends AbstractController
             'base' => $p->getBase(),
             'papel' => $p->isAdmin() ? 'admin' : 'piloto',
             'dataAdesao' => $p->getCreatedAt()->format('Y-m-d'),
-            // Contagem de voos de verdade depende do schema de telemetria
-            // (Voo ainda não tem tabela própria — ver README, "Próximos
-            // passos") — fica 0 pra todo mundo até esse passo migrar.
-            'voos' => 0,
+            'voos' => $voosCount,
             'status' => $p->isActive() ? 'ativo' : 'inativo',
         ];
     }

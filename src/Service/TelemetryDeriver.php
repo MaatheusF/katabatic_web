@@ -37,6 +37,16 @@ namespace App\Service;
  * - Sem METAR: teto/visibilidade não são buscados aqui (ver
  *   `AcarsIngestaoController`, que deixa esse campo do Logbook como
  *   `null`).
+ * - Amostras com slew ativo ou `sim_rate` fora de ~1× são excluídas
+ *   das estatísticas agregadas (`dist`/`score`/min-max-avg/fases/
+ *   través — ver `trustedSamples()`), implementando o princípio #3 do
+ *   contrato ("ninguém confia no cliente"): sem isso, um piloto que
+ *   acelera o sim ou usa slew conseguiria distância/velocidade/G
+ *   fisicamente impossíveis inflando (ou zerando) o índice de
+ *   dificuldade. `track`/`prof` (o que o mapa/gráfico do relatório
+ *   mostra) continuam com a gravação inteira, sem esse filtro — a
+ *   ideia é não confiar nos números derivados, não esconder o que
+ *   aconteceu no voo.
  *
  * Deliberadamente sem nenhuma dependência de Doctrine/Symfony — só
  * arrays entra, array sai. Isso deixa testar isolado (`php -r` com um
@@ -119,16 +129,26 @@ class TelemetryDeriver
             $env
         );
 
-        [$groundS, $airS] = $this->groundAirSeconds($samples);
-        $altMax = self::maxOf($samples, 'alt_ft') ?? 0.0;
-        $iasMax = self::maxOf($samples, 'ias_kt') ?? 0.0;
-        $gsAvg = self::avgOf($samples, 'gs_kt') ?? 0.0;
-        $vsMax = self::maxOf($samples, 'vs_fpm') ?? 0.0;
-        $vsMin = self::minOf($samples, 'vs_fpm') ?? 0.0;
-        $gmax = self::maxOf($samples, 'g_max') ?? 1.0;
-        $gmin = self::minOf($samples, 'g_min') ?? 1.0;
-        $accYRmsMax = self::maxOf($samples, 'acc_y_rms') ?? 0.0;
-        $dist = $this->trackDistanceNm($track);
+        // Estatísticas agregadas usam só o subconjunto confiável (sem
+        // slew/sim_rate anormal) — ver `trustedSamples()` e docblock da
+        // classe. `track`/`prof` acima, pro mapa/gráfico, ficam com
+        // `$samples` inteiro de propósito.
+        $trusted = $this->trustedSamples($samples);
+        $trustedTrack = array_map(
+            static fn (array $s) => [$s['t_s'], self::num($s['lat']), self::num($s['lon'])],
+            $trusted
+        );
+
+        [$groundS, $airS] = $this->groundAirSeconds($trusted);
+        $altMax = self::maxOf($trusted, 'alt_ft') ?? 0.0;
+        $iasMax = self::maxOf($trusted, 'ias_kt') ?? 0.0;
+        $gsAvg = self::avgOf($trusted, 'gs_kt') ?? 0.0;
+        $vsMax = self::maxOf($trusted, 'vs_fpm') ?? 0.0;
+        $vsMin = self::minOf($trusted, 'vs_fpm') ?? 0.0;
+        $gmax = self::maxOf($trusted, 'g_max') ?? 1.0;
+        $gmin = self::minOf($trusted, 'g_min') ?? 1.0;
+        $accYRmsMax = self::maxOf($trusted, 'acc_y_rms') ?? 0.0;
+        $dist = $this->trackDistanceNm($trustedTrack);
 
         $oatMin = self::minOf($env, 'oat_c') ?? 0.0;
         $oatMax = self::maxOf($env, 'oat_c') ?? 0.0;
@@ -139,11 +159,11 @@ class TelemetryDeriver
         $imc = $dur > 0 ? (int) round($cloudS / $dur * 100) : 0;
         $fuel = $this->fuelUsed($payload, $env);
 
-        $phases = $this->derivePhases($samples, $dur);
+        $phases = $this->derivePhases($trusted, $dur);
         [$evList, $exceed, $bounces, $td] = $this->deriveEvents($events, $limiteG, $gmax);
 
         $wx = $this->classifyWeather($oatMin, $precipMax);
-        $windc = $this->crosswindComponent($samples, $env, $td);
+        $windc = $this->crosswindComponent($trusted, $env, $td);
 
         [$score, $parcels] = $this->difficultyScore($accYRmsMax, $gmax, $gmin, $iceMax, $precipMax, $windc, $td);
 
@@ -221,6 +241,48 @@ class TelemetryDeriver
         }
 
         return $out;
+    }
+
+    /**
+     * Limiar de desvio de `sim_rate` em relação a 1× que ainda conta
+     * como "voo normal" — mesma folga que `katabatic_capture.py` usa
+     * (0,01) seria sensível demais aqui (dispararia por ruído de
+     * ponto flutuante numa leitura só); 0,05 deixa passar oscilação
+     * pequena e ainda pega qualquer aceleração de sim perceptível.
+     */
+    private const SIM_RATE_TOLERANCE = 0.05;
+
+    /**
+     * Subconjunto de `$samples` sem slew ativo e sem `sim_rate` fora de
+     * ~1× — usado só pras estatísticas agregadas (`dist`, min/max/avg,
+     * fases, través, e por consequência `score`/`dificuldade`), nunca
+     * pro `track`/`prof` que o relatório mostra (esses continuam com a
+     * gravação inteira — ver docblock da classe).
+     *
+     * Se filtrar tudo (voo inteiro com sim rate alterado, por exemplo),
+     * cai de volta pro conjunto sem filtro: estatística aproximada é
+     * melhor que nenhuma, e um voo 100% fora do normal já fica visível
+     * pelos eventos `sim_rate_change`/`slew_detected` na timeline.
+     *
+     * @param list<array<string, mixed>> $samples
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function trustedSamples(array $samples): array
+    {
+        $trusted = array_values(array_filter($samples, static function (array $s): bool {
+            if (true === ($s['slew'] ?? false)) {
+                return false;
+            }
+            $rate = self::num($s['sim_rate'] ?? null);
+            if (null !== $rate && abs(((float) $rate) - 1.0) > self::SIM_RATE_TOLERANCE) {
+                return false;
+            }
+
+            return true;
+        }));
+
+        return $trusted ?: $samples;
     }
 
     private static function num(mixed $v): float|int|null
@@ -547,6 +609,48 @@ class TelemetryDeriver
         }
 
         $diff = deg2rad(((float) $windDir) - ((float) $heading));
+
+        return ((float) $windKt) * sin($diff);
+    }
+
+    /**
+     * Recalcula o través (windc) usando um heading de PISTA real
+     * (magnético, `Aeroporto::$pistaPrincipalHeadingMag`) em vez da
+     * aproximação padrão de `crosswindComponent()` (heading da aeronave
+     * no toque, ou o último heading conhecido) — chamado de
+     * `AcarsIngestaoController::ingerir()` só quando o aeroporto de
+     * pouso real do voo tem essa informação cadastrada.
+     *
+     * Reaproveita a mesma fórmula, mas a partir do `env` JÁ derivado
+     * dentro de `$telemetria` (última amostra) em vez de reprocessar o
+     * payload cru — quem chama não precisa guardar `$env` à parte só
+     * pra este recálculo pontual, feito depois de `derive()` já ter
+     * rodado (a resolução do aeroporto de pouso real depende da
+     * telemetria já derivada, ver `AcarsIngestaoController::pousoRealIcao()`).
+     *
+     * **Não corrige variação magnética** entre o heading magnético
+     * cadastrado e `wind_dir`, que o simulador manda em graus
+     * VERDADEIROS — ver docblock de `Aeroporto::$pistaPrincipalHeadingMag`.
+     *
+     * @param array<string, mixed> $telemetria mesmo array que `derive()` devolve em `telemetria`
+     *
+     * @return float|null `null` quando não há amostra de ambiente nenhuma pra calcular (voo sem env, ou tempo de gravação curto demais)
+     */
+    public function recomputeWindcComHeadingDePista(array $telemetria, float $pistaHeadingMagDeg): ?float
+    {
+        $env = $telemetria['env'] ?? [];
+        if (!is_array($env) || [] === $env) {
+            return null;
+        }
+
+        $ultimo = end($env);
+        $windKt = self::num($ultimo[5] ?? null);
+        $windDir = self::num($ultimo[6] ?? null);
+        if (null === $windKt || null === $windDir) {
+            return null;
+        }
+
+        $diff = deg2rad(((float) $windDir) - $pistaHeadingMagDeg);
 
         return ((float) $windKt) * sin($diff);
     }

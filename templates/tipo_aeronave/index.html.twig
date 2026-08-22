@@ -1,0 +1,169 @@
+{% extends 'app_base.html.twig' %}
+
+{% block title %}Tipos de aeronave — Katabatic{% endblock %}
+{% block meta_description %}Perfil de performance por tipo de aeronave da frota Katabatic.{% endblock %}
+
+{% block page_stylesheets %}
+<link rel="stylesheet" href="/assets/css/pages/tipo-aeronave.css">
+{% endblock %}
+
+{% block bar %}
+<div class="bar">
+  <h1 data-i18n="tipoaeronave.title">Tipos de aeronave</h1>
+  <div class="right">
+    <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:a11y.language">
+      <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="icon-btn" id="theme" aria-label="Tema" data-i18n-attr="aria-label:a11y.theme">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="ta-error" id="ta-error" style="display:none"></div>
+
+  <p class="ta-intro" data-i18n="tipoaeronave.intro">Cada tipo cadastrado aqui alimenta as calculadoras de peso e balanceamento e de distância de decolagem/pouso em <b>Ferramentas do piloto</b>. Os números vêm do POH/AFM de cada tipo — todo campo é opcional e pode ficar em branco até alguém preencher.</p>
+
+  <div class="card">
+    <div class="card-h"><h3 id="ta-form-title" data-i18n="tipoaeronave.new.title">Novo tipo</h3><span class="note" data-i18n="tipoaeronave.new.note">todos os campos de performance são opcionais</span></div>
+    <div class="card-b">
+      <div class="grid2">
+        <div class="field">
+          <label data-i18n="tipoaeronave.nome">Tipo</label>
+          <select id="f-nome-select">
+            <option value="" data-i18n="tipoaeronave.nome.select">Selecione…</option>
+            {% for t in tiposConhecidos %}
+            <option>{{ t }}</option>
+            {% endfor %}
+            <option value="__custom" data-i18n="tipoaeronave.nome.other">Outro tipo…</option>
+          </select>
+          <input type="text" class="mono-input" id="f-nome-custom" placeholder="Ex.: Cessna 185F Skywagon" style="display:none;margin-top:8px">
+        </div>
+        <div class="field">
+          <label data-i18n="tipoaeronave.combustivel">Combustível máx.</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-combustivel" step="1" min="0" placeholder="335"><span class="unit">gal</span></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label data-i18n="tipoaeronave.pesovazio">Peso vazio</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-pesovazio" step="1" min="0" placeholder="4900"><span class="unit">lb</span></div>
+        </div>
+        <div class="field">
+          <label data-i18n="tipoaeronave.mtow">Peso máx. de decolagem (MTOW)</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-mtow" step="1" min="0" placeholder="8807"><span class="unit">lb</span></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label data-i18n="tipoaeronave.consumo">Consumo médio de cruzeiro</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-consumo" step="0.1" min="0" placeholder="32.5"><span class="unit">gal/h</span></div>
+        </div>
+        <div class="field" style="margin-bottom:0"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label data-i18n="tipoaeronave.decolagem">Distância de decolagem de referência</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-decolagem" step="1" min="0" placeholder="1275"><span class="unit">ft</span></div>
+          <p class="hint" data-i18n="tipoaeronave.decolagem.hint">Nível do mar, ISA, sem vento, peso máximo (ground roll ou balanced field, conforme o POH).</p>
+        </div>
+        <div class="field">
+          <label data-i18n="tipoaeronave.pouso">Distância de pouso de referência</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-pouso" step="1" min="0" placeholder="1085"><span class="unit">ft</span></div>
+          <p class="hint" data-i18n="tipoaeronave.pouso.hint">Nível do mar, ISA, sem vento, peso de pouso típico.</p>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <label data-i18n="tipoaeronave.obs">Observações</label>
+        <textarea id="f-obs" rows="2" placeholder="Fonte dos dados, variante do tipo, ressalvas…" data-i18n-attr="placeholder:tipoaeronave.obs.placeholder"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-actions">
+    <a href="#" class="btn btn-ghost" id="btn-cancel-edit" style="display:none" data-i18n="tipoaeronave.cancel">Cancelar edição</a>
+    <div class="right">
+      <button class="btn btn-primary" id="btn-save" disabled data-i18n="tipoaeronave.save">Salvar tipo</button>
+    </div>
+  </div>
+
+  <div class="card ta-list-card">
+    <div class="card-h"><h3 data-i18n="tipoaeronave.list.heading">Tipos cadastrados</h3><span class="note" id="ta-count"></span></div>
+    <div class="table-scroll">
+      <table id="ta-table">
+        <thead>
+          <tr>
+            <th data-i18n="tipoaeronave.nome">Tipo</th>
+            <th class="num" data-i18n="tipoaeronave.pesovazio.short">Vazio</th>
+            <th class="num" data-i18n="tipoaeronave.mtow.short">MTOW</th>
+            <th class="num" data-i18n="tipoaeronave.combustivel.short">Combustível</th>
+            <th class="num" data-i18n="tipoaeronave.consumo.short">Consumo</th>
+            <th class="num" data-i18n="tipoaeronave.decolagem.short">Decolagem</th>
+            <th class="num" data-i18n="tipoaeronave.pouso.short">Pouso</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ta-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_javascripts %}
+<script>
+  (function () {
+    var d = {
+      'tipoaeronave.title': 'Aircraft types',
+      'tipoaeronave.intro': 'Every type registered here feeds the weight-and-balance and adjusted takeoff/landing distance calculators in <b>Pilot tools</b>. The numbers come from each type\'s POH/AFM — every field is optional and can stay blank until someone fills it in.',
+      'tipoaeronave.new.title': 'New type',
+      'tipoaeronave.new.note': 'every performance field is optional',
+      'tipoaeronave.nome': 'Type',
+      'tipoaeronave.nome.select': 'Select…',
+      'tipoaeronave.nome.other': 'Other type…',
+      'tipoaeronave.pesovazio': 'Empty weight',
+      'tipoaeronave.pesovazio.short': 'Empty',
+      'tipoaeronave.mtow': 'Max takeoff weight (MTOW)',
+      'tipoaeronave.mtow.short': 'MTOW',
+      'tipoaeronave.combustivel': 'Max fuel',
+      'tipoaeronave.combustivel.short': 'Fuel',
+      'tipoaeronave.consumo': 'Average cruise burn',
+      'tipoaeronave.consumo.short': 'Burn',
+      'tipoaeronave.decolagem': 'Reference takeoff distance',
+      'tipoaeronave.decolagem.short': 'Takeoff',
+      'tipoaeronave.decolagem.hint': 'Sea level, ISA, no wind, max weight (ground roll or balanced field, per the POH).',
+      'tipoaeronave.pouso': 'Reference landing distance',
+      'tipoaeronave.pouso.short': 'Landing',
+      'tipoaeronave.pouso.hint': 'Sea level, ISA, no wind, typical landing weight.',
+      'tipoaeronave.obs': 'Notes',
+      'tipoaeronave.obs.placeholder': 'Data source, type variant, caveats…',
+      'tipoaeronave.cancel': 'Cancel edit',
+      'tipoaeronave.save': 'Save type',
+      'tipoaeronave.save.editing': 'Save changes',
+      'tipoaeronave.save.saving': 'Saving…',
+      'tipoaeronave.error.generic': 'Could not save the type — check your connection and try again.',
+      'tipoaeronave.list.heading': 'Registered types',
+      'tipoaeronave.list.empty': 'No aircraft type registered yet.',
+      'tipoaeronave.count.suffix': 'types',
+      'tipoaeronave.edit': 'Edit',
+      'tipoaeronave.remove': 'Remove',
+      'tipoaeronave.remove.confirm': 'Remove the performance profile for "%s"? Calculators in Pilot tools will stop working for this type until it\'s registered again.',
+      'tipoaeronave.remove.error': 'Could not remove — try again.'
+    };
+    for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
+  })();
+  window.KATABATIC_TIPOS_AERONAVE = {{ tipos|json_encode|raw }};
+</script>
+<script src="/assets/js/pages/tipo-aeronave.js" defer></script>
+{% endblock %}

@@ -28,6 +28,8 @@
 {% block content %}
 <div class="wrap">
 
+  <div class="nv-error" id="nv-error" style="display:none"></div>
+
   <!-- Escolha de modo -->
   <div class="modepick">
     <button class="mode on" id="mode-import" type="button">
@@ -71,11 +73,11 @@
       <div class="grid2" style="margin-top:16px">
         <div class="field">
           <label data-i18n="novovoo.duration">Duração</label>
-          <input type="text" class="mono-input" placeholder="1:20">
+          <input type="text" class="mono-input" id="f-duration" placeholder="1:20">
         </div>
         <div class="field">
           <label data-i18n="novovoo.condition">Condição predominante</label>
-          <select>
+          <select id="f-cond">
             <option data-i18n="novovoo.condition.clear">Claro</option><option data-i18n="novovoo.condition.rain">Chuva</option><option data-i18n="novovoo.condition.snow">Neve</option><option data-i18n="novovoo.condition.fog">Nevoeiro</option><option data-i18n="novovoo.condition.turbulence">Turbulência</option>
           </select>
         </div>
@@ -216,6 +218,8 @@
 {% block page_javascripts %}
 <script>
   window.KATABATIC_AIRCRAFT = {{ aircraft|json_encode|raw }};
+  window.KATABATIC_NOVOVOO_PUBLICAR_URL = {{ path('app_novo_voo_publicar')|json_encode|raw }};
+  window.KATABATIC_PORTAL_URL = {{ path('app_portal')|json_encode|raw }};
 </script>
 {# Dicionario EN desta tela: cobre os data-i18n estaticos do template
    acima e as chaves lidas via L() dentro de novo-voo.js (estados da
@@ -287,7 +291,11 @@
       'novovoo.tailmismatch': 'The file reported registration <b>{tail}</b>, which doesn\'t match any aircraft in the fleet — this looks like the callsign configured in place of the <code>ATC ID</code>. Select the aircraft manually and check that setting in the sim before the next flight.',
       'novovoo.count.chars': 'characters',
       'novovoo.alert.draft': 'Draft saved (mock) — resume later from the Logbook.',
-      'novovoo.alert.publish': 'Flight published (mock) — it would now appear in the Logbook.'
+      'novovoo.alert.publish': 'Flight published (mock) — it would now appear in the Logbook.',
+
+      'novovoo.publish.publishing': 'Publishing…',
+      'novovoo.publish.generr': 'Could not publish — check your connection and try again.',
+      'novovoo.publish.required': 'Fill in callsign, aircraft, route, date/time and duration to publish.'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();

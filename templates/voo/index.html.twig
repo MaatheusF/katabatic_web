@@ -42,7 +42,7 @@
   <div>
     <div class="hero">
       <div>
-        <div class="rt" id="h-route">UEEE <i></i> UEEE</div>
+        <div class="rt" id="h-route"><span id="h-route-text">UEEE <i></i> UEEE</span><span class="tag tag-bad" id="crash-badge" style="display:none" data-i18n="voo.crash.badge">Acidentado</span><span class="tag tag-warn" id="diversion-badge" style="display:none"></span></div>
         <p class="meta" id="h-meta"></p>
         <p class="meta">C185F Skywagon · N104KT · voo local de avaliação</p>
       </div>
@@ -111,6 +111,39 @@
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.photos.title">Fotos do voo</h3><span class="note" id="photos-count"></span></div>
+      <div class="card-b">
+        <p class="obs" id="photos-empty" data-i18n="voo.photos.empty">Nenhuma foto anexada a este voo ainda.</p>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div class="photo-upload">
+          <label class="btn btn-sm" for="photo-input" data-i18n="voo.photos.add">Adicionar fotos</label>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
+          <span class="photo-hint" data-i18n="voo.photos.hint">JPEG, PNG ou WEBP · até 8 MB cada · até 12 fotos por voo</span>
+        </div>
+        <span class="report-error" id="photos-error" style="display:none"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.danger.title">Marcar este voo como acidentado</h3></div>
+      <div class="card-b">
+        <p class="obs" data-i18n="voo.danger.desc">Voo registrado por engano — acidente no meio do trajeto, sessão corrompida, ou qualquer outro motivo pra essa perna não valer? Marcar como acidentado deixa o voo no Logbook (com um selo, pra histórico) mas tira ele das horas/estatísticas, e devolve a aeronave pra origem dessa perna, como se ela nunca tivesse partido. Só é possível marcar o voo <b>mais recente</b> de cada aeronave — se voos mais novos dela já foram registrados, marque-os primeiro, na ordem inversa. Esta ação não pode ser desfeita.</p>
+        <span class="report-error" id="delete-error" style="display:none"></span>
+        <p class="obs" id="delete-already" style="display:none" data-i18n="voo.danger.already">Este voo já está marcado como acidentado.</p>
+        <button class="btn btn-danger" id="delete-flight" type="button" data-armed="0" data-i18n="voo.danger.button">Marcar como acidentado</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.purge.title">Excluir este voo permanentemente</h3></div>
+      <div class="card-b">
+        <p class="obs" data-i18n="voo.purge.desc">Diferente de marcar como acidentado, isto apaga o voo de vez — telemetria inteira incluída, sem deixar rastro no Logbook. Use pra gravação de teste, duplicata ou qualquer voo que simplesmente não devia existir, marcado como acidentado ou não. Mesma regra: só é possível excluir o voo <b>mais recente</b> de cada aeronave. Esta ação não pode ser desfeita.</p>
+        <span class="report-error" id="purge-error" style="display:none"></span>
+        <button class="btn btn-danger" id="purge-flight" type="button" data-armed="0" data-i18n="voo.purge.button">Excluir permanentemente</button>
+      </div>
+    </div>
   </div>
 
   <div>
@@ -132,11 +165,32 @@
     <div class="card">
       <div class="card-h"><h3 data-i18n="voo.links.title">Referências externas</h3></div>
       <div class="card-b links">
-        <a href="#" target="_blank" rel="noopener"><span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px" data-i18n="voo.links.simbrief">Plano de voo · OFP</span></span><span class="ext">↗</span></a>
-        <a href="#" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck">Voo no logbook pessoal</span></span><span class="ext">↗</span></a>
-        <a href="#" target="_blank" rel="noopener"><span class="ic">VS</span><span><b>VATSIM</b><br><span style="font-size:12px" data-i18n="voo.links.vatsim">Sessão online · CID {{ pilot.cid }}</span></span><span class="ext">↗</span></a>
-        <a href="#"><span class="ic">↓</span><span><b>Telemetria</b><br><span style="font-size:12px" data-i18n="voo.links.csv">CSV bruto</span></span><span class="ext">CSV</span></a>
-        <a href="#"><span class="ic">↓</span><span><b>Traço GPX</b><br><span style="font-size:12px" data-i18n="voo.links.gpx">Abrir no Google Earth</span></span><span class="ext">GPX</span></a>
+        <div class="link-row" id="simbrief-row">
+          <a class="link-view" id="simbrief-view" href="#" target="_blank" rel="noopener" style="display:none">
+            <span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px" data-i18n="voo.links.simbrief">Plano de voo · OFP</span></span><span class="ext">↗</span>
+          </a>
+          <div class="link-empty" id="simbrief-empty">
+            <span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px" data-i18n="voo.links.simbrief.empty">Nenhum link salvo pra este voo</span></span>
+            <button type="button" class="btn btn-sm" id="simbrief-add" data-i18n="voo.links.simbrief.add">Adicionar</button>
+          </div>
+          <button type="button" class="link-edit-btn" id="simbrief-edit" style="display:none" data-i18n-attr="title:voo.links.simbrief.edit" title="Editar">✎</button>
+        </div>
+        <div class="link-edit-wrap" id="simbrief-edit-wrap" style="display:none">
+          <input type="url" id="simbrief-input" placeholder="https://www.simbrief.com/…" data-i18n-attr="placeholder:voo.links.simbrief.placeholder">
+          <button type="button" class="btn btn-sm btn-primary" id="simbrief-save" data-i18n="voo.links.simbrief.save">Salvar</button>
+          <button type="button" class="btn btn-sm" id="simbrief-cancel" data-i18n="common.cancel">Cancelar</button>
+          <span class="report-error" id="simbrief-error" style="display:none"></span>
+        </div>
+
+        {% if pilot.aviodeckUsername %}
+        <a href="https://aviodeck.app/@{{ pilot.aviodeckUsername }}" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck">Perfil do piloto</span></span><span class="ext">↗</span></a>
+        {% else %}
+        <a href="{{ path('app_perfil') }}"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck.empty">Configure seu usuário no perfil</span></span><span class="ext">＋</span></a>
+        {% endif %}
+
+        <a href="https://stats.vatsim.net/stats/{{ pilot.cid }}" target="_blank" rel="noopener"><span class="ic">VS</span><span><b>VATSIM</b><br><span style="font-size:12px" data-i18n="voo.links.vatsim">Estatísticas · CID {{ pilot.cid }}</span></span><span class="ext">↗</span></a>
+        <a href="#" id="csv-link"><span class="ic">↓</span><span><b>Telemetria</b><br><span style="font-size:12px" data-i18n="voo.links.csv">CSV bruto</span></span><span class="ext">CSV</span></a>
+        <a href="#" id="gpx-link"><span class="ic">↓</span><span><b>Traço GPX</b><br><span style="font-size:12px" data-i18n="voo.links.gpx">Baixar arquivo GPX</span></span><span class="ext">GPX</span></a>
       </div>
     </div>
   </div>
@@ -179,15 +233,30 @@
       'voo.report.empty': 'No report recorded for this flight.',
       'voo.report.saving': 'Saving…',
       'voo.report.error': 'Could not save — try again.',
+      'voo.photos.title': 'Flight photos',
+      'voo.photos.empty': 'No photos attached to this flight yet.',
+      'voo.photos.add': 'Add photos',
+      'voo.photos.hint': 'JPEG, PNG or WEBP · up to 8 MB each · up to 12 photos per flight',
+      'voo.photos.remove': 'Remove',
+      'voo.photos.remove.confirm': 'Remove this photo? This cannot be undone.',
+      'voo.photos.error': 'Could not process — try again.',
       'voo.landing.title': 'Landing',
       'voo.parcels.title': 'Index breakdown',
       'voo.events.title': 'Event log',
       'voo.links.title': 'External references',
       'voo.links.simbrief': 'Flight plan · OFP',
-      'voo.links.aviodeck': 'Flight in personal logbook',
-      'voo.links.vatsim': 'Online session · CID {{ pilot.cid }}',
+      'voo.links.simbrief.empty': 'No link saved for this flight',
+      'voo.links.simbrief.add': 'Add',
+      'voo.links.simbrief.edit': 'Edit',
+      'voo.links.simbrief.placeholder': 'https://www.simbrief.com/…',
+      'voo.links.simbrief.save': 'Save',
+      'voo.links.simbrief.error': 'Paste a simbrief.com link — the same one SimBrief gave you when you generated the plan.',
+      'voo.links.simbrief.saveerror': 'Could not save — try again.',
+      'voo.links.aviodeck': 'Pilot profile',
+      'voo.links.aviodeck.empty': 'Set up your username in your profile',
+      'voo.links.vatsim': 'Stats · CID {{ pilot.cid }}',
       'voo.links.csv': 'Raw telemetry',
-      'voo.links.gpx': 'Open in Google Earth',
+      'voo.links.gpx': 'Download GPX file',
 
       'voo.kpi.duration': 'Duration',
       'voo.kpi.airtime': 'Time airborne',
@@ -207,6 +276,10 @@
       'voo.kpi.precipmax': 'Max precip',
       'voo.kpi.icing': 'Icing',
       'voo.kpi.exceedances': 'Exceedances',
+      'voo.kpi.weight': 'Takeoff weight',
+      'voo.kpi.mtowmargin': 'Margin to MTOW',
+      'voo.kpi.mtowmargin.over': 'took off above the registered MTOW',
+      'voo.kpi.wind.pista': 'crosswind computed against the registered real runway heading',
       'voo.score.severe': 'severe',
       'voo.score.demanding': 'demanding',
       'voo.score.routine': 'routine',
@@ -258,7 +331,24 @@
       'voo.map.touchdown': 'Touchdown',
       'voo.map.unavailable': 'Map unavailable',
 
-      'voo.error.load': 'Could not load telemetry for this flight.'
+      'voo.error.load': 'Could not load telemetry for this flight.',
+
+      'voo.crash.badge': 'Crashed',
+      'voo.diversion.badge': 'Landed at',
+      'voo.danger.title': 'Mark this flight as crashed',
+      'voo.danger.desc': 'Flight logged by mistake — a crash mid-route, a corrupted session, or any other reason this leg shouldn’t count? Marking it as crashed keeps the flight in the Logbook (flagged, for the record) but drops it from hours/stats, and sends the aircraft back to this leg’s origin, as if it never departed. You can only mark the aircraft’s <b>most recent</b> flight — if newer ones exist, mark those first, in reverse order. This action cannot be undone.',
+      'voo.danger.already': 'This flight is already marked as crashed.',
+      'voo.danger.button': 'Mark as crashed',
+      'voo.danger.confirm': 'Confirm?',
+      'voo.danger.deleting': 'Marking…',
+      'voo.danger.error': 'Could not mark — try again.',
+
+      'voo.purge.title': 'Permanently delete this flight',
+      'voo.purge.desc': 'Unlike marking as crashed, this deletes the flight for good — telemetry included, no trace left in the Logbook. Use it for a test recording, a duplicate, or any flight that simply shouldn’t exist, crashed or not. Same rule: you can only delete the aircraft’s <b>most recent</b> flight. This action cannot be undone.',
+      'voo.purge.button': 'Delete permanently',
+      'voo.purge.confirm': 'Confirm?',
+      'voo.purge.deleting': 'Deleting…',
+      'voo.purge.error': 'Could not delete — try again.'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();

@@ -82,6 +82,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
             'admin' => $pilot->isAdmin(),
             'email' => $pilot->getEmail(),
             'photo' => $pilot->getPhoto(),
+            'aviodeckUsername' => $pilot->getAviodeckUsername(),
         ]);
 
         return new RedirectResponse($this->urlGenerator->generate('app_portal'));

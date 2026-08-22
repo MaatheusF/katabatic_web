@@ -42,7 +42,13 @@
     // separada da rede mock), o local agora mostra o proprio ICAO em vez
     // de inventar "Yakutsk" fixo, que ficaria errado no primeiro voo
     // gravado em outro lugar.
-    var routeEl = document.getElementById('h-route');
+    // `#h-route-text` e um span dedicado dentro de `#h-route`, nao o
+    // container inteiro - `#crash-badge`/`#diversion-badge` sao irmaos
+    // dele, nao filhos, exatamente pra sobreviver a este innerHTML (um
+    // `routeEl.innerHTML = ...` direto em `#h-route` apagava os dois
+    // selos toda vez que renderHead() rodava, ja que eles moravam dentro
+    // do mesmo elemento sobrescrito).
+    var routeEl = document.getElementById('h-route-text');
     if (routeEl) routeEl.innerHTML = (F.orig || '—') + '<i></i>' + (F.dest || '—');
     document.getElementById('h-meta').textContent =
       (F.orig || '—') + ' · ' + F.start.slice(8, 10) + '/' + F.start.slice(5, 7) + '/' + F.start.slice(0, 4) + ' ' + F.start.slice(11, 16) + 'Z · ' + F.wx;
@@ -56,12 +62,28 @@
     var k = [[tr('voo.kpi.duration', 'Duração'), mmss(F.dur), ''], [tr('voo.kpi.airtime', 'Tempo em voo'), mmss(F.air_s), ''], [tr('voo.kpi.distance', 'Distância'), F.dist.toFixed(1), ' nm'],
       [tr('voo.kpi.gsavg', 'GS média'), F.gs_avg, ' kt'], [tr('voo.kpi.altmax', 'Altitude máx'), F.alt_max.toLocaleString('pt-BR'), ' ft'], [tr('voo.kpi.iasmax', 'IAS máx'), F.ias_max, ' kt'],
       [tr('voo.kpi.vsmax', 'VS máx'), '+' + F.vs_max, ' fpm'], [tr('voo.kpi.vsmin', 'VS mín'), F.vs_min, ' fpm'], [tr('voo.kpi.gmax', 'Pico de G'), F.gmax.toFixed(2), ''],
-      [tr('voo.kpi.gmin', 'G mínimo'), F.gmin.toFixed(2), ''], [tr('voo.kpi.wind', 'Vento méd. / rajada'), (F.windc >= 0 ? '+' : '') + F.windc + ' / ' + F.wind_max.toFixed(1), ' kt'],
+      [tr('voo.kpi.gmin', 'G mínimo'), F.gmin.toFixed(2), ''],
+      [tr('voo.kpi.wind', 'Vento méd. / rajada'), (F.windc >= 0 ? '+' : '') + F.windc + ' / ' + F.wind_max.toFixed(1), ' kt', F.windcFonte === 'pista' ? tr('voo.kpi.wind.pista', 'través calculado com o heading real da pista') : ''],
       [tr('voo.fuel', 'Combustível'), F.fuel.toFixed(1), ' lb'], [tr('voo.kpi.cloudtime', 'Tempo em nuvem'), mmss(F.cloud_s), ''], [tr('voo.kpi.tempmin', 'Temp mín'), F.oat_min.toFixed(1), ' °C'],
       [tr('voo.kpi.temprange', 'Amplitude'), (F.oat_max - F.oat_min).toFixed(1), ' °C'], [tr('voo.kpi.precipmax', 'Chuva máx'), F.precip_max.toFixed(1), ' mm'], [tr('voo.kpi.icing', 'Gelo'), F.ice.toFixed(2), ' %'],
       [tr('voo.kpi.exceedances', 'Excedências'), F.exceed, '']];
+
+    // Peso de decolagem / margem até o MTOW - so aparecem quando o
+    // payload ACARS trouxe o peso (ident.weight_lb) e, pra margem, o
+    // tipo tiver MTOW cadastrado em /tipos-aeronave (ver
+    // AcarsIngestaoController::ingerir()) - nunca um numero inventado no
+    // lugar de um tile ausente.
+    if (F.pesoDecolagemLb != null) {
+      k.push([tr('voo.kpi.weight', 'Peso decolagem'), F.pesoDecolagemLb.toLocaleString('pt-BR'), ' lb']);
+      if (F.pesoMaxDecolagemLb != null) {
+        var margem = F.pesoMaxDecolagemLb - F.pesoDecolagemLb;
+        k.push([tr('voo.kpi.mtowmargin', 'Margem até MTOW'), margem.toLocaleString('pt-BR'), ' lb', margem < 0 ? tr('voo.kpi.mtowmargin.over', 'decolou acima do MTOW cadastrado') : '']);
+      }
+    }
+
     document.getElementById('kpis').innerHTML = k.map(function (x) {
-      return '<div><b class="mono">' + x[1] + '<small>' + x[2] + '</small></b><span>' + x[0] + '</span></div>';
+      var titleAttr = x[3] ? ' title="' + x[3] + '"' : '';
+      return '<div' + titleAttr + '><b class="mono">' + x[1] + '<small>' + x[2] + '</small></b><span>' + x[0] + '</span></div>';
     }).join('');
   }
 
@@ -198,6 +220,371 @@
         reportSaveBtn.textContent = reportSaveLabel;
         reportErrorEl.textContent = tr('voo.report.error', 'Não foi possível salvar — verifique sua conexão e tente de novo.');
         reportErrorEl.style.display = '';
+      });
+  });
+
+  /* ---------- fotos do voo ----------
+     Galeria anexada pelo piloto ao relatorio (ver
+     VooController::adicionarFotos()/removerFoto() e
+     App\Entity\Voo::getFotos()). F.fotos e uma lista de
+     {arquivo, url, enviadoEm} - so 'url' e 'arquivo' sao usados aqui
+     (url pra exibir/abrir, arquivo pra identificar na remocao). */
+  function renderFotos() {
+    var grid = document.getElementById('photo-grid');
+    var empty = document.getElementById('photos-empty');
+    var count = document.getElementById('photos-count');
+    var fotos = F.fotos || [];
+
+    if (!fotos.length) {
+      grid.innerHTML = '';
+      empty.style.display = '';
+      count.textContent = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+    count.textContent = fotos.length + (window.katabaticLang && window.katabaticLang() === 'en' ?
+      (fotos.length === 1 ? ' photo' : ' photos') : (fotos.length === 1 ? ' foto' : ' fotos'));
+
+    var removeLabel = tr('voo.photos.remove', 'Remover');
+    grid.innerHTML = fotos.map(function (f) {
+      return '<a class="photo-thumb" href="' + f.url + '" target="_blank" rel="noopener">' +
+        '<img src="' + f.url + '" loading="lazy" alt="">' +
+        '<button type="button" class="photo-remove" data-arquivo="' + f.arquivo + '" title="' + removeLabel + '">&times;</button>' +
+        '</a>';
+    }).join('');
+  }
+
+  var photoInput = document.getElementById('photo-input');
+  var photosErrorEl = document.getElementById('photos-error');
+
+  photoInput.addEventListener('change', function () {
+    var files = photoInput.files;
+    if (!files || !files.length) return;
+
+    photosErrorEl.style.display = 'none';
+    photoInput.disabled = true;
+
+    var fd = new FormData();
+    for (var i = 0; i < files.length; i++) fd.append('fotos[]', files[i]);
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/fotos', {
+      method: 'POST',
+      body: fd
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        photoInput.disabled = false;
+        photoInput.value = '';
+        if (result.body && result.body.fotos) F.fotos = result.body.fotos;
+        if (!result.ok || (result.body && result.body.error)) {
+          photosErrorEl.textContent = (result.body && result.body.error) || tr('voo.photos.error', 'Não foi possível enviar — tente de novo.');
+          photosErrorEl.style.display = '';
+        }
+        renderFotos();
+      })
+      .catch(function () {
+        photoInput.disabled = false;
+        photoInput.value = '';
+        photosErrorEl.textContent = tr('voo.photos.error', 'Não foi possível enviar — verifique sua conexão e tente de novo.');
+        photosErrorEl.style.display = '';
+      });
+  });
+
+  document.getElementById('photo-grid').addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('.photo-remove') : null;
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    if (!window.confirm(tr('voo.photos.remove.confirm', 'Remover esta foto? Isso não pode ser desfeito.'))) return;
+
+    var arquivo = btn.getAttribute('data-arquivo');
+    photosErrorEl.style.display = 'none';
+    btn.disabled = true;
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/fotos/remover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arquivo: arquivo })
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          btn.disabled = false;
+          photosErrorEl.textContent = (result.body && result.body.error) || tr('voo.photos.error', 'Não foi possível remover — tente de novo.');
+          photosErrorEl.style.display = '';
+          return;
+        }
+        F.fotos = result.body.fotos;
+        renderFotos();
+      })
+      .catch(function () {
+        btn.disabled = false;
+        photosErrorEl.textContent = tr('voo.photos.error', 'Não foi possível remover — verifique sua conexão e tente de novo.');
+        photosErrorEl.style.display = '';
+      });
+  });
+
+  /* ---------- referencias externas ----------
+     AvioDeck/VATSIM sao fixos (servidos pelo proprio Twig, dependem so
+     do piloto logado, nao do voo aberto - ver voo/index.html.twig).
+     SimBrief/CSV/GPX dependem do VOO aberto (F), entao precisam ser
+     atualizados aqui toda vez que F muda (renderAll()/go()). */
+  function renderLinks() {
+    var csvLink = document.getElementById('csv-link');
+    var gpxLink = document.getElementById('gpx-link');
+    if (csvLink) csvLink.setAttribute('href', '/voo/' + encodeURIComponent(F.id) + '/telemetria.csv');
+    if (gpxLink) gpxLink.setAttribute('href', '/voo/' + encodeURIComponent(F.id) + '/track.gpx');
+
+    exitSimbriefEditMode();
+
+    var view = document.getElementById('simbrief-view');
+    var empty = document.getElementById('simbrief-empty');
+    var editBtn = document.getElementById('simbrief-edit');
+    if (F.simbrief_link) {
+      view.setAttribute('href', F.simbrief_link);
+      view.style.display = '';
+      empty.style.display = 'none';
+      editBtn.style.display = '';
+    } else {
+      view.style.display = 'none';
+      empty.style.display = '';
+      editBtn.style.display = 'none';
+    }
+  }
+
+  function exitSimbriefEditMode() {
+    document.getElementById('simbrief-row').style.display = '';
+    document.getElementById('simbrief-edit-wrap').style.display = 'none';
+    document.getElementById('simbrief-error').style.display = 'none';
+  }
+
+  function enterSimbriefEditMode() {
+    document.getElementById('simbrief-input').value = F.simbrief_link || '';
+    document.getElementById('simbrief-row').style.display = 'none';
+    document.getElementById('simbrief-edit-wrap').style.display = '';
+    document.getElementById('simbrief-error').style.display = 'none';
+    document.getElementById('simbrief-input').focus();
+  }
+
+  document.getElementById('simbrief-add').addEventListener('click', enterSimbriefEditMode);
+  document.getElementById('simbrief-edit').addEventListener('click', enterSimbriefEditMode);
+  document.getElementById('simbrief-cancel').addEventListener('click', exitSimbriefEditMode);
+
+  var simbriefSaveBtn = document.getElementById('simbrief-save');
+  var simbriefSaveLabel = simbriefSaveBtn.textContent;
+  var simbriefErrorEl = document.getElementById('simbrief-error');
+
+  simbriefSaveBtn.addEventListener('click', function () {
+    var link = document.getElementById('simbrief-input').value.trim();
+    simbriefErrorEl.style.display = 'none';
+    simbriefSaveBtn.disabled = true;
+    simbriefSaveBtn.textContent = tr('voo.report.saving', 'Salvando…');
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/simbrief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link: link })
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        simbriefSaveBtn.disabled = false;
+        simbriefSaveBtn.textContent = simbriefSaveLabel;
+        if (!result.ok) {
+          simbriefErrorEl.textContent = (result.body && result.body.error) || tr('voo.links.simbrief.saveerror', 'Não foi possível salvar — tente de novo.');
+          simbriefErrorEl.style.display = '';
+          return;
+        }
+        F.simbrief_link = result.body.simbrief_link;
+        renderLinks();
+      })
+      .catch(function () {
+        simbriefSaveBtn.disabled = false;
+        simbriefSaveBtn.textContent = simbriefSaveLabel;
+        simbriefErrorEl.textContent = tr('voo.links.simbrief.saveerror', 'Não foi possível salvar — verifique sua conexão e tente de novo.');
+        simbriefErrorEl.style.display = '';
+      });
+  });
+
+  /* ---------- marcar voo como acidentado ----------
+     POST /voo/{codigo}/acidentado (ver VooController::marcarAcidentado())
+     - so pra voos com telemetria gravada (F.id e o codigo, mesma chave
+     que relato() ja usa). Dois cliques: o primeiro arma um estado de
+     confirmacao por 4s (mesmo padrao sem confirm() nativo que
+     agendamento.js ja usa pra "Remover"), o segundo dispara o POST de
+     verdade. O servidor decide se pode (so o voo mais recente da
+     aeronave, e so se ainda nao estiver marcado) - o erro dele aparece
+     aqui, nao um texto generico.
+
+     Diferente da versao anterior (excluir/hard-delete, ver git log): o
+     voo continua existindo depois do POST, so muda de status - entao
+     em vez de sair da pagina, so re-renderiza o card de perigo e o selo
+     no cabecalho (renderCrashState(), definido acima em renderHead()). */
+  var deleteBtn = document.getElementById('delete-flight');
+  var deleteErrorEl = document.getElementById('delete-error');
+  var deleteBtnLabel = deleteBtn.textContent;
+
+  deleteBtn.addEventListener('click', function () {
+    if (deleteBtn.dataset.armed !== '1') {
+      deleteBtn.dataset.armed = '1';
+      deleteBtn.textContent = tr('voo.danger.confirm', 'Confirmar?');
+      clearTimeout(deleteBtn._confirmTimer);
+      deleteBtn._confirmTimer = setTimeout(function () {
+        deleteBtn.dataset.armed = '0';
+        deleteBtn.textContent = deleteBtnLabel;
+      }, 4000);
+      return;
+    }
+
+    clearTimeout(deleteBtn._confirmTimer);
+    deleteErrorEl.style.display = 'none';
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = tr('voo.danger.deleting', 'Marcando…');
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/acidentado', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          deleteBtn.disabled = false;
+          deleteBtn.dataset.armed = '0';
+          deleteBtn.textContent = deleteBtnLabel;
+          deleteErrorEl.textContent = (result.body && result.body.error) || tr('voo.danger.error', 'Não foi possível marcar — tente de novo.');
+          deleteErrorEl.style.display = '';
+          return;
+        }
+        F.status = result.body.status || 'acidentado';
+        renderCrashState();
+      })
+      .catch(function () {
+        deleteBtn.disabled = false;
+        deleteBtn.dataset.armed = '0';
+        deleteBtn.textContent = deleteBtnLabel;
+        deleteErrorEl.textContent = tr('voo.danger.error', 'Não foi possível marcar — verifique sua conexão e tente de novo.');
+        deleteErrorEl.style.display = '';
+      });
+  });
+
+  // Reflete F.status no selo do cabecalho ("Acidentado") e no card de
+  // perigo (esconde o botao, mostra o aviso "ja marcado") - chamada em
+  // todo renderAll() (troca de voo pelo prev/next) e depois de marcar
+  // com sucesso. F.status vem sempre do servidor (ver
+  // VooController::telemetria(), que sobrescreve com o valor real da
+  // coluna, igual pilot_report ja fazia).
+  function renderCrashState() {
+    var acidentado = F.status === 'acidentado';
+    var badge = document.getElementById('crash-badge');
+    if (badge) badge.style.display = acidentado ? '' : 'none';
+    var already = document.getElementById('delete-already');
+    if (already) already.style.display = acidentado ? '' : 'none';
+    deleteBtn.style.display = acidentado ? 'none' : '';
+    deleteBtn.disabled = false;
+    deleteBtn.dataset.armed = '0';
+    deleteBtn.textContent = deleteBtnLabel;
+    deleteErrorEl.style.display = 'none';
+
+    // Excluir permanentemente fica disponivel sempre (marcado ou nao) -
+    // so reseta o estado de confirmacao/erro ao trocar de voo (prev/next).
+    // purgeBtn/purgeBtnLabel/purgeErrorEl sao declarados mais abaixo
+    // (bloco "excluir voo permanentemente") mas ja existem nesse ponto
+    // da execucao: renderCrashState() so e chamada de dentro de
+    // renderAll(), depois que o script inteiro (incluindo aquele bloco)
+    // ja rodou uma vez - mesmo raciocinio de deleteBtn/deleteBtnLabel
+    // logo acima.
+    if (typeof purgeBtn !== 'undefined') {
+      purgeBtn.disabled = false;
+      purgeBtn.dataset.armed = '0';
+      purgeBtn.textContent = purgeBtnLabel;
+      purgeErrorEl.style.display = 'none';
+    }
+  }
+
+  // Selo "Pouso alternativo" no cabecalho - F.destino_real vem de
+  // VooController::telemetria() (App\Entity\Voo::$destinoReal, gravado
+  // por AcarsIngestaoController::ingerir() quando o pouso de verdade
+  // divergiu do destino declarado no plano de voo). null na grande
+  // maioria dos voos - o selo fica escondido nesse caso. Só leitura,
+  // sem acao do piloto aqui (diferente do selo de acidentado).
+  function renderDiversionState() {
+    var badge = document.getElementById('diversion-badge');
+    if (!badge) return;
+    if (F.destino_real) {
+      badge.textContent = tr('voo.diversion.badge', 'Pousou em') + ' ' + F.destino_real;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  /* ---------- excluir voo permanentemente ----------
+     POST /voo/{codigo}/excluir (ver VooController::excluir()) - acao
+     separada de "marcar como acidentado" acima: essa apaga o voo de
+     vez (marcado como acidentado ou nao), a outra so sinaliza e
+     mantem a linha. Mesmo padrao de dois cliques e o mesmo guard no
+     servidor (so o voo mais recente da aeronave).
+
+     Diferente de marcarAcidentado(): o voo realmente deixa de existir
+     depois do POST, entao aqui sim faz sentido sair da pagina - esta
+     tela nao tem um estado "sem voo selecionado" pronto (FLIGHTS/F sao
+     montados uma vez em boot()). Mesmo destino do link "Logbook" da
+     barra, lido do proprio DOM em vez de hardcoded. */
+  var purgeBtn = document.getElementById('purge-flight');
+  var purgeErrorEl = document.getElementById('purge-error');
+  var purgeBtnLabel = purgeBtn.textContent;
+
+  purgeBtn.addEventListener('click', function () {
+    if (purgeBtn.dataset.armed !== '1') {
+      purgeBtn.dataset.armed = '1';
+      purgeBtn.textContent = tr('voo.purge.confirm', 'Confirmar?');
+      clearTimeout(purgeBtn._confirmTimer);
+      purgeBtn._confirmTimer = setTimeout(function () {
+        purgeBtn.dataset.armed = '0';
+        purgeBtn.textContent = purgeBtnLabel;
+      }, 4000);
+      return;
+    }
+
+    clearTimeout(purgeBtn._confirmTimer);
+    purgeErrorEl.style.display = 'none';
+    purgeBtn.disabled = true;
+    purgeBtn.textContent = tr('voo.purge.deleting', 'Excluindo…');
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/excluir', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          purgeBtn.disabled = false;
+          purgeBtn.dataset.armed = '0';
+          purgeBtn.textContent = purgeBtnLabel;
+          purgeErrorEl.textContent = (result.body && result.body.error) || tr('voo.purge.error', 'Não foi possível excluir — tente de novo.');
+          purgeErrorEl.style.display = '';
+          return;
+        }
+        var back = document.querySelector('.back');
+        window.location.href = back ? back.getAttribute('href') : '/portal';
+      })
+      .catch(function () {
+        purgeBtn.disabled = false;
+        purgeBtn.dataset.armed = '0';
+        purgeBtn.textContent = purgeBtnLabel;
+        purgeErrorEl.textContent = tr('voo.purge.error', 'Não foi possível excluir — verifique sua conexão e tente de novo.');
+        purgeErrorEl.style.display = '';
       });
   });
 
@@ -364,6 +751,10 @@
 
   function renderAll() {
     renderHead(); renderPhases(); renderParcels(); renderEvents(); renderLanding(); renderObs(); renderCharts();
+    renderFotos();
+    renderLinks();
+    renderCrashState();
+    renderDiversionState();
     if (MCUR) { MAP.removeLayer(MCUR); MCUR = null; }
     drawMap();
   }
@@ -424,7 +815,14 @@
     renderLanding();
     renderReportView();
     renderCharts();
+    renderFotos();
     updateReportCount();
+    // renderDiversionState() escreve o prefixo "Pousou em"/"Landed at"
+    // via tr() no proprio textContent (diferente do selo de acidentado,
+    // que so alterna display: o texto dele fica no HTML estatico, ja
+    // coberto pelo re-scan de data-i18n do lang-toggle.js) - precisa
+    // re-rodar aqui pra nao ficar preso no idioma anterior.
+    renderDiversionState();
     if (MAP) drawMap(); else if (document.getElementById('map')) renderMapUnavailable();
   });
 })();

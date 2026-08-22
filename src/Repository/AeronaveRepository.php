@@ -66,4 +66,25 @@ class AeronaveRepository extends ServiceEntityRepository
 
         return array_values(array_filter($todas, static fn (Aeronave $a) => 'Em voo' !== $a->getStatusEfetivo()));
     }
+
+    /**
+     * Tipos distintos já usados na frota, em ordem alfabética — alimenta
+     * o `<select>` de "Tipo" em `TipoAeronaveController` (mesmo texto
+     * livre que `Aeronave::$tipo` guarda, incluindo "outro tipo"
+     * digitado à mão em `NovaAeronaveController`) pra reduzir erro de
+     * digitação no casamento por string com `TipoAeronave::$nome` (ver
+     * docblock daquela entidade).
+     *
+     * @return list<string>
+     */
+    public function findDistinctTipos(): array
+    {
+        $linhas = $this->createQueryBuilder('a')
+            ->select('DISTINCT a.tipo')
+            ->orderBy('a.tipo', 'ASC')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_column($linhas, 'tipo');
+    }
 }

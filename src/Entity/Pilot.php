@@ -71,6 +71,16 @@ class Pilot implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
+    /**
+     * Usuário do piloto no AvioDeck (sem o `@`) — opcional, preenchido
+     * em `/perfil`. Usado só pra montar um link real em "Referências
+     * externas" no relatório de voo (`aviodeck.app/@{usuario}`, ver
+     * `VooController`/`voo/index.html.twig`) — nunca validado contra a
+     * API do AvioDeck (não existe integração de verdade, só o link).
+     */
+    #[ORM\Column(length: 60, nullable: true)]
+    private ?string $aviodeckUsername = null;
+
     public function __construct(string $cid, string $name, string $email)
     {
         $this->cid = $cid;
@@ -171,6 +181,18 @@ class Pilot implements UserInterface, PasswordAuthenticatedUserInterface
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getAviodeckUsername(): ?string
+    {
+        return $this->aviodeckUsername;
+    }
+
+    public function setAviodeckUsername(?string $aviodeckUsername): static
+    {
+        $this->aviodeckUsername = $aviodeckUsername;
+
+        return $this;
     }
 
     /**

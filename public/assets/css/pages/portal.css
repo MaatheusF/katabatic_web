@@ -51,6 +51,14 @@ tr.lb-detail td { background: var(--surface-2); border-bottom: 1px solid var(--b
 .lb-detail-grid b { font-size: 13px; font-weight: 500; }
 .lb-detail-metar { grid-column: span 2; }
 .lb-detail-metar b { font-size: 12px; letter-spacing: .02em; }
+.lb-detail-occ { grid-column: span 2; }
+/* ".lb-detail-grid span" (acima) deixaria as tags de ocorrencia cinzas
+   (sobrescreve a cor de severidade com --muted, por especificidade) -
+   essas regras reforçam a cor certa dentro do detalhe. */
+.lb-detail-occ .tag { display: inline-block; margin-bottom: 0; }
+.lb-detail-occ .tag-ok { color: var(--ok); }
+.lb-detail-occ .tag-warn { color: var(--accent); }
+.lb-detail-occ .tag-bad { color: var(--danger); }
 
 /* ---------- filtros ---------- */
 .filters { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
@@ -119,11 +127,19 @@ td.num, th.num { text-align: right; }
 .tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
 /* Uma linha do Logbook pode ter varias ocorrencias (ex.: overspeed E
-   quique no mesmo pouso) - empilha as tags em vez de deixar so a ultima
-   sobrescrever a coluna. Em .dense o gap encolhe pra caber nas linhas
-   compactas. */
+   quique no mesmo pouso). A celula principal (ver .occ-summary abaixo)
+   mostra so a mais grave pra linha nao crescer pra baixo - esta lista
+   empilhada continua existindo, mas so dentro do detalhe expansível
+   (.lb-detail-occ, ver lbDetailRow em portal.js), onde ha espaço de
+   sobra. Em .dense o gap encolhe pra caber nas linhas compactas. */
 .occ-list { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 #lb-table.dense .occ-list { gap: 2px; }
+
+/* Resumo da ocorrencia mais grave na celula principal - o "+N" ao lado
+   sinaliza que ha mais, com a lista completa num title (hover) e na
+   linha de detalhe. */
+.occ-summary { display: flex; align-items: center; gap: 6px; }
+.occ-more { font-family: var(--font-mono); font-size: 10px; color: var(--muted); cursor: default; }
 
 /* ---------- frota ---------- */
 .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }

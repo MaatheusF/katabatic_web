@@ -35,10 +35,37 @@
 .report-count { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-right: auto; }
 .report-error { font-size: 12px; color: var(--danger); }
 
+/* ---------- fotos do voo ---------- */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.photo-grid:empty { display: none; }
+.photo-thumb { position: relative; display: block; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-remove {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: none;
+  background: rgba(0, 0, 0, .55); color: #fff; font-size: 15px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s;
+}
+.photo-thumb:hover .photo-remove, .photo-remove:focus-visible { opacity: 1; }
+.photo-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.photo-hint { font-size: 12px; color: var(--muted); }
+
+/* ---------- marcar voo como acidentado / excluir permanentemente ---------- */
+#delete-error, #purge-error { display: block; margin: -6px 0 12px; }
+#delete-already { color: var(--danger); }
+.btn-danger { background: transparent; border-color: var(--border); color: var(--text-2); }
+.btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+.btn-danger[data-armed="1"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+/* ---------- selo (tag) ---------- */
+.tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
 /* ---------- cabecalho do voo ---------- */
 .hero { display: flex; align-items: flex-start; gap: 24px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .hero .rt { font-family: var(--font-mono); font-size: 26px; display: flex; align-items: center; gap: 12px; }
 .hero .rt i { width: 42px; height: 1px; background: var(--border-strong); }
+.hero .rt .tag { font-size: 11px; vertical-align: middle; }
 .hero .meta { color: var(--text-2); font-size: 14px; margin-top: 6px; }
 .hero .score { margin-left: auto; text-align: right; }
 .hero .score span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
@@ -114,11 +141,25 @@
 
 /* ---------- referencias externas ---------- */
 .links a { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-2); }
-.links a:last-child { border-bottom: 0; }
+.links > a:last-child, .links > .link-row:last-child { border-bottom: 0; }
 .links a:hover { color: var(--accent); }
-.links a b { font-weight: 500; color: var(--text); }
-.links a .ext { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
-.links a .ic { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-mono); font-size: 10px; flex: none; }
+.links b { font-weight: 500; color: var(--text); }
+.links .ext { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.links .ic { width: 26px; height: 26px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-family: var(--font-mono); font-size: 10px; flex: none; }
+
+/* SimBrief e o unico link editavel (link colado pelo proprio piloto, ver
+   VooController::salvarSimbrief()) - as outras linhas de .links continuam
+   <a> simples. */
+.links .link-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-2); position: relative; }
+.links .link-row .link-view, .links .link-row .link-empty { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+.links .link-row .link-view:hover { color: var(--accent); }
+.links .link-row .link-empty .btn { margin-left: auto; }
+.link-edit-btn { flex: none; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.link-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
+.link-edit-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.link-edit-wrap input { flex: 1 1 220px; font-family: var(--font-body); font-size: 13px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+.link-edit-wrap input:focus { outline: none; border-color: var(--accent); }
+.link-edit-wrap .report-error { flex-basis: 100%; }
 
 /* ---------- resumo automatico ---------- */
 .obs { font-size: 14px; color: var(--text-2); line-height: 1.7; }

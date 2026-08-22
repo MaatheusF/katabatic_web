@@ -29,6 +29,19 @@ use Doctrine\ORM\Mapping as ORM;
  * trava, perde internet e nunca manda o `POST .../voos` de fechamento):
  * sem isso, a aeronave ficaria marcada `'Em voo'` pra sempre. Ver
  * `getStatusEfetivo()`.
+ *
+ * **Atualizado (ACARS fase 3 — posição em tempo real, ver README
+ * "Backend: posição em tempo real (ACARS fase 3)"):** `ultimoPingEm`
+ * guarda quando o servidor recebeu o heartbeat mais recente (`POST
+ * .../voos/iniciar` ou `.../voos/posicao`) — não é mais só o *início* do
+ * voo, e sim "ainda está vivo até quando". Isso deixa
+ * `getStatusEfetivo()` detectar uma sessão travada muito mais rápido
+ * (minutos, não horas) pra quem já manda o heartbeat de posição; quem
+ * ainda usa um cliente sem isso continua caindo no comportamento antigo
+ * (timeout de `EM_VOO_MAX_HORAS` a partir de `emVooDesde`) — ver
+ * `getStatusEfetivo()`. A posição em si (lat/lon/alt/proa) não mora
+ * aqui, mora em `App\Entity\PosicaoAoVivo` (uma tabela à parte, de
+ * propósito — ver docblock dela).
  */
 #[ORM\Entity(repositoryClass: AeronaveRepository::class)]
 #[ORM\Table(name: 'aeronave')]
@@ -88,6 +101,16 @@ class Aeronave
      */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $emVooDesde = null;
+
+    /**
+     * Último heartbeat ACARS recebido pra esta aeronave (`iniciar` ou
+     * `posicao`) — ver docblock da classe e `getStatusEfetivo()`. `null`
+     * sempre que `status` não é `'Em voo'`, ou quando o cliente que
+     * mandou `iniciar` ainda não manda heartbeat de posição (fica só no
+     * timeout antigo baseado em `emVooDesde`).
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $ultimoPingEm = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
@@ -170,6 +193,18 @@ class Aeronave
         return $this;
     }
 
+    public function getUltimoPingEm(): ?\DateTimeImmutable
+    {
+        return $this->ultimoPingEm;
+    }
+
+    public function setUltimoPingEm(?\DateTimeImmutable $ultimoPingEm): static
+    {
+        $this->ultimoPingEm = $ultimoPingEm;
+
+        return $this;
+    }
+
     /**
      * Quanto tempo uma sessão ACARS pode ficar "Em voo" antes de ser
      * tratada como travada (PC do piloto caiu, nunca chegou o `POST
@@ -177,8 +212,23 @@ class Aeronave
      * voo mais longo que já existiu no Logbook (~3 h) de propósito: é
      * melhor um voo real e longo nunca ser marcado errado do que essa
      * autocorreção disparar cedo demais.
+     *
+     * Só vale pra quem NÃO manda heartbeat de posição (`ultimoPingEm`
+     * nulo) — é o fallback pro comportamento da fase 2, mantido pra não
+     * quebrar um cliente que só chama `iniciar`/fechamento e nunca
+     * `posicao`.
      */
     private const EM_VOO_MAX_HORAS = 8;
+
+    /**
+     * Quantos minutos sem um heartbeat de posição (`ultimoPingEm`) até
+     * tratar a sessão como travada — bem acima do intervalo de ping
+     * recomendado pro cliente (10-15 s, ver
+     * `docs/payload-telemetria-acars.md` e README), pra tolerar uma
+     * rede ruim sem "piscar" o status a cada ping perdido, mas ainda
+     * assim detectar um PC travado em minutos em vez de horas.
+     */
+    private const PING_MAX_MINUTOS = 10;
 
     /**
      * `status` "de verdade" pra exibir — igual ao valor cru, exceto
@@ -186,13 +236,26 @@ class Aeronave
      * ACARS travada): nesse caso volta `'Disponível'` sozinho, sem
      * precisar de nenhum job/cron rodando pra corrigir a coluna. A
      * coluna em si só é reescrita quando um novo evento ACARS chega
-     * (`POST .../voos/iniciar` ou `.../voos`) — até lá, esta função é a
-     * única coisa que "esconde" o estado travado da UI.
+     * (`POST .../voos/iniciar`, `.../voos/posicao` ou `.../voos`) — até
+     * lá, esta função é a única coisa que "esconde" o estado travado da
+     * UI.
+     *
+     * Duas janelas de tolerância, preferindo a mais precisa quando
+     * disponível: com heartbeat de posição (`ultimoPingEm` preenchido,
+     * cliente atualizado — ver ACARS fase 3), o timeout é
+     * `PING_MAX_MINUTOS` desde o último ping; sem heartbeat nenhum
+     * (cliente antigo, só chamou `iniciar`), cai no timeout antigo de
+     * `EM_VOO_MAX_HORAS` desde o início do voo (`emVooDesde`).
      */
     public function getStatusEfetivo(): string
     {
         if ('Em voo' !== $this->status) {
             return $this->status;
+        }
+        if (null !== $this->ultimoPingEm) {
+            $limite = $this->ultimoPingEm->modify('+'.self::PING_MAX_MINUTOS.' minutes');
+
+            return $limite < new \DateTimeImmutable() ? 'Disponível' : 'Em voo';
         }
         if (null === $this->emVooDesde) {
             return 'Disponível';

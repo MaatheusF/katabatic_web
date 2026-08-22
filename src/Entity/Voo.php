@@ -15,9 +15,10 @@ use Doctrine\ORM\Mapping as ORM;
  * `destino`, `aeronaveReg`, `startedAt`, `tempoMin`, `dificuldade`) são
  * o que a tela de Logbook filtra/ordena; o resto — incluindo a
  * telemetria inteira (track/prof/env/eventos/fases/parcelas/toque)
- * quando ela existe — fica dentro de `dados` (coluna `json`), num
- * formato bem próximo do que `flights.json` já usava. Ver
- * `VooRepository`, `PortalController::logbookViewModel()` e
+ * quando ela existe — fica dentro de `dados` (coluna `jsonb`, ver
+ * `Version20260822100000`), num formato bem próximo do que
+ * `flights.json` já usava. Ver `VooRepository`,
+ * `PortalController::logbookViewModel()` e
  * `VooController::telemetriaViewModel()` pra como cada lado lê esse
  * blob.
  *
@@ -28,6 +29,21 @@ use Doctrine\ORM\Mapping as ORM;
  * quais voos aparecem na lista de telemetria (só quem tem `codigo`) e
  * `portal.js` decide quais linhas do Logbook são clicáveis (mesma
  * lógica de antes, só que lendo do banco agora).
+ *
+ * **Atualizado: marcar como acidentado.** Ver `$status` abaixo —
+ * substituiu o antigo `VooController::excluir()` (hard-delete, ver git
+ * log). Um voo `acidentado` continua na tabela pra sempre (histórico,
+ * auditoria), só sai das contagens/estatísticas do piloto
+ * (`VooRepository::countsByPilot()`/`countForPilot()`) e ganha um selo
+ * visual no relatório e, opcionalmente, na tela de histórico da
+ * aeronave (ver `AeronaveController::legViewModel()`).
+ *
+ * **Atualizado: pouso alternativo (diversão).** `destino` continua
+ * sendo o que o piloto declarou no plano de voo (rota pretendida, o que
+ * o Logbook sempre mostrou) — `$destinoReal` abaixo é preenchido só
+ * quando `AcarsIngestaoController::ingerir()` detecta que o pouso de
+ * verdade (telemetria) aconteceu num aeroporto diferente do declarado.
+ * Ver `hasPousoAlternativo()` e `AeroportoRepository::findNearest()`.
  */
 #[ORM\Entity(repositoryClass: VooRepository::class)]
 #[ORM\Table(name: 'voo')]
@@ -60,6 +76,15 @@ class Voo
     #[ORM\Column(length: 8)]
     private string $destino;
 
+    /**
+     * ICAO onde a aeronave pousou de verdade, quando difere de `destino`
+     * (pouso alternativo/diversão) — `null` na grande maioria dos voos
+     * (pousou onde o plano dizia, ou não tem telemetria pra saber). Ver
+     * `hasPousoAlternativo()` e docblock da classe.
+     */
+    #[ORM\Column(length: 8, nullable: true)]
+    private ?string $destinoReal = null;
+
     /** Matrícula da aeronave (ver Frota — ainda mock, ver README). */
     #[ORM\Column(length: 16)]
     private string $aeronaveReg;
@@ -84,6 +109,15 @@ class Voo
      * formato de objeto que `flights.json` usava (label/wx/track/prof/
      * env/events/phases/parcels/score/dur/... /td/orig/dest).
      *
+     * O tipo DBAL continua `Types::JSON` de propósito, mesmo com a
+     * coluna física sendo `jsonb` no Postgres (ver
+     * `Version20260822100000`): o tipo `json` do Doctrine só faz
+     * `json_encode`/`json_decode` em PHP, não olha o subtipo físico da
+     * coluna — então `jsonb` (indexa, faz `->`/`->>`/`@>` sem
+     * reparsear) não exige (nem deve virar) outro `ORM\Column`. Se um
+     * `doctrine:migrations:diff` no futuro sugerir voltar isto pra
+     * `json`, é falso positivo — ignore o diff nessa coluna.
+     *
      * @var array<string, mixed>
      */
     #[ORM\Column(type: Types::JSON)]
@@ -91,6 +125,20 @@ class Voo
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
+
+    public const STATUS_VALIDO = 'valido';
+    public const STATUS_ACIDENTADO = 'acidentado';
+
+    /**
+     * `valido` (padrão) ou `acidentado` — marcado pelo próprio piloto
+     * quando a perna não devia ter contado (acidente no meio do
+     * trajeto, sessão corrompida, etc. — ver
+     * `VooController::marcarAcidentado()`). Substitui o hard-delete que
+     * esta tela tinha antes: o voo continua na tabela (auditoria), só
+     * fica marcado e some das contagens de horas/voos do piloto.
+     */
+    #[ORM\Column(length: 20)]
+    private string $status = self::STATUS_VALIDO;
 
     public function __construct(
         Pilot $pilot,
@@ -155,6 +203,29 @@ class Voo
     public function getDestino(): string
     {
         return $this->destino;
+    }
+
+    public function getDestinoReal(): ?string
+    {
+        return $this->destinoReal;
+    }
+
+    public function setDestinoReal(?string $destinoReal): static
+    {
+        $this->destinoReal = $destinoReal;
+
+        return $this;
+    }
+
+    /**
+     * true quando o pouso de verdade (telemetria) aconteceu num
+     * aeroporto diferente do `destino` declarado no plano de voo — ver
+     * `AcarsIngestaoController::ingerir()`, que é quem preenche
+     * `destinoReal` (nunca este método).
+     */
+    public function hasPousoAlternativo(): bool
+    {
+        return null !== $this->destinoReal && $this->destinoReal !== $this->destino;
     }
 
     public function getAeronaveReg(): string
@@ -232,8 +303,85 @@ class Voo
         return $this;
     }
 
+    /**
+     * Fotos anexadas pelo piloto ao relatório deste voo — mesma ideia
+     * do relato acima: mora dentro de `dados` (nunca vem do ACARS,
+     * `AcarsIngestaoController::ingerir()` nunca escreve esta chave),
+     * uma lista de referências, não os arquivos em si (esses ficam em
+     * disco, ver `App\Service\FotoVooUploader` e
+     * `VooController::adicionarFotos()`/`removerFoto()`).
+     *
+     * Sem trava de visibilidade: quem já pode ver o relatório deste
+     * voo (hoje, só o próprio piloto — o Logbook ainda não tem uma
+     * visão pública entre pilotos, ver docblock de
+     * `VooController::telemetria()`) vê as fotos junto, sem checagem
+     * extra. Se um dia existir uma visão de Logbook cross-piloto, as
+     * fotos já aparecem nela de graça.
+     *
+     * @return list<array{arquivo: string, enviadoEm: string}>
+     */
+    public function getFotos(): array
+    {
+        return $this->dados['fotos'] ?? [];
+    }
+
+    /**
+     * @param list<array{arquivo: string, enviadoEm: string}> $fotos
+     */
+    public function setFotos(array $fotos): static
+    {
+        $this->dados['fotos'] = $fotos;
+
+        return $this;
+    }
+
+    /**
+     * Link do plano de voo no SimBrief (OFP) pra ESTE voo especificamente
+     * — colado pelo próprio piloto (ver `VooController::salvarSimbrief()`),
+     * não derivado de nenhum ID cadastrado no perfil. SimBrief não expõe
+     * uma URL pública estável pra "o plano de voo Xis de tal data" (só
+     * "o último plano gerado por tal Pilot ID", que fica desatualizado
+     * assim que o piloto gera outro OFP) — pedir pro piloto colar o link
+     * de verdade que o próprio SimBrief entrega ao gerar o plano é o
+     * único jeito confiável de linkar o OFP certo. Mesma ideia de
+     * `pilotReport`: mora dentro de `dados`, nunca vem do ACARS.
+     */
+    public function getSimbriefLink(): ?string
+    {
+        return $this->dados['simbriefLink'] ?? null;
+    }
+
+    public function setSimbriefLink(?string $simbriefLink): static
+    {
+        $this->dados['simbriefLink'] = $simbriefLink;
+
+        return $this;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function isAcidentado(): bool
+    {
+        return self::STATUS_ACIDENTADO === $this->status;
+    }
+
+    /**
+     * Marca este voo como acidentado — não desfaz sozinho o efeito na
+     * aeronave (horas/posição), isso é responsabilidade de quem chama
+     * (ver `VooController::marcarAcidentado()`).
+     */
+    public function marcarAcidentado(): static
+    {
+        $this->status = self::STATUS_ACIDENTADO;
+
+        return $this;
     }
 }

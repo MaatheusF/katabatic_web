@@ -48,7 +48,7 @@
       <div id="mv-parked-list"></div>
     </div>
 
-    <p class="mv-note" data-i18n="mapavivo.note.sim">Posição em voo é uma simulação: repete em loop a telemetria de uma gravação real de cada aeronave (~5-6 min) sobre a rota planejada, já que ainda não existe um feed ao vivo via ACARS. Altitude/velocidade mostradas vêm dessa gravação real.</p>
+    <p class="mv-note" data-i18n="mapavivo.note.sim">Posição em voo é real quando a aeronave já manda heartbeat pelo ACARS (ver popup de cada uma — "Posição real (ACARS)") — atualizada a cada ~12s. Sem heartbeat ainda, a posição cai numa simulação: repete em loop a telemetria de uma gravação real de cada aeronave (~5-6 min) sobre a rota planejada. Altitude/velocidade mostradas acompanham a fonte usada em cada caso.</p>
 
     <div class="mv-wx-panel">
       <div class="mv-wx-row">
@@ -79,7 +79,9 @@
     var d = {
       'mapavivo.panel.heading': 'Fleet now',
       'mapavivo.onground': 'On ground',
-      'mapavivo.note.sim': 'In-flight position is a simulation: it loops the real recorded telemetry of each aircraft (~5-6 min) over the planned route, since there is no live ACARS feed yet. Altitude/speed shown come from that real recording.',
+      'mapavivo.note.sim': 'In-flight position is real once the aircraft is sending ACARS heartbeats (see each popup — "Real position (ACARS)") — updated roughly every 12s. Without a heartbeat yet, position falls back to a simulation: it loops the real recorded telemetry of each aircraft (~5-6 min) over the planned route. Altitude/speed shown follow whichever source is active.',
+      'mapavivo.pos.live': 'Real position (ACARS)',
+      'mapavivo.pos.sim': 'Simulated position',
       'mapavivo.radar.label': 'Precipitation radar',
       'mapavivo.radar.play': '▶ Animate',
       'mapavivo.radar.pause': '⏸ Pause',
@@ -108,7 +110,9 @@
       'mapavivo.flying.empty': 'No aircraft in flight right now.',
       'mapavivo.fleet.noun': 'aircraft',
       'mapavivo.map.unavailable': 'Map unavailable',
-      'mapavivo.fetch.error': 'Could not load the map data.'
+      'mapavivo.fetch.error': 'Could not load the map data.',
+      'mapavivo.airport.posto': 'Forward post of',
+      'mapavivo.airport.local': 'Local code — not an official ICAO'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();
@@ -116,6 +120,7 @@
   window.KATABATIC_MV_PARKED = {{ parkedAircraft|json_encode|raw }};
   window.KATABATIC_AIRPORTS_URL = {{ airportsUrl|json_encode|raw }};
   window.KATABATIC_FLIGHTS_URL = {{ flightsUrl|json_encode|raw }};
+  window.KATABATIC_MV_POSICOES_URL = {{ posicoesUrl|json_encode|raw }};
 </script>
 <script src="/assets/js/pages/mapa-ao-vivo.js" defer></script>
 {% endblock %}

@@ -42,6 +42,12 @@
 .daterange input[type=date]:focus { outline: none; border-color: var(--accent); }
 .labeltoggle { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .labeltoggle input { accent-color: var(--accent); }
+.labeltoggle input:disabled { cursor: wait; opacity: .6; }
+/* Status do toggle "Mostrar todas as posicoes" (#ac-fullres) - texto de
+   carregamento/erro enquanto GET /aeronave/{reg}/trajetos-completos
+   resolve, ver aeronave.js. Vazio (sem reservar espaco) fora desses
+   estados. */
+.labeltoggle .status { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .filters .right { margin-left: auto; }
 
 .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
@@ -86,6 +92,18 @@ td.num, th.num { text-align: right; }
 .route-cell .sub { font-family: var(--font-body); }
 .leg-callsign-link { color: var(--accent); position: relative; z-index: 1; }
 .leg-callsign-link:hover { text-decoration: underline; }
+
+/* linha de perna marcada como acidentada (ver Voo::isAcidentado(), filtro
+   "Mostrar acidentadas" em aeronave.js) - opacidade reduzida pra destacar
+   visualmente sem esconder, e o selo .leg-crash-tag ao lado do callsign */
+tbody tr.leg-crashed td { opacity: .62; }
+.leg-crash-tag { margin-left: 6px; vertical-align: middle; }
+/* selo "Pouso alt." ao lado do callsign e nota de rota real (ver
+   Voo::$destinoReal, legRow()/legPopup() em aeronave.js) - mesmo
+   espacamento do selo de acidentado, cor de aviso (nao erro: a aeronave
+   nao acidentou, so nao pousou onde o plano dizia). */
+.leg-diversion-tag { margin-left: 6px; vertical-align: middle; }
+.route-diversion { color: var(--accent); }
 .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
 
 @media (max-width: 1200px) {

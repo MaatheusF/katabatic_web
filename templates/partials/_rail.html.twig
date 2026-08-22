@@ -31,6 +31,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M15 3v4h4"/><path d="M8 12h8M8 15.5h8M8 8.5h4"/></svg>
     <span data-i18n="rail.manuais">Manuais</span>
   </a>
+  <a data-view="ferramentas" href="{{ path('app_ferramentas') }}"{% if activeView == 'ferramentas' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14.7 6.3a4 4 0 015 5L9 22l-5-5L14.7 6.3z"/><path d="M9 8l3 3"/></svg>
+    <span data-i18n="rail.ferramentas">Ferramentas</span>
+  </a>
 
   {% if pilot.admin %}
   <span class="rail-group" data-i18n="rail.adminGroup">Administração</span>
@@ -41,6 +45,14 @@
   <a data-view="pilotos" href="{{ path('app_solicitacoes') }}?view=pilotos"{% if activeView == 'pilotos' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/><circle cx="18" cy="8" r="2.4"/><path d="M22 20c0-3-1.6-5.5-4-6.6"/></svg>
     <span data-i18n="rail.pilotos">Pilotos</span>
+  </a>
+  <a data-view="aeroportos" href="{{ path('app_aeroportos') }}"{% if activeView == 'aeroportos' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 16l20-6-2 6-6 2-4 4-2-6-6-2z"/><path d="M14 10l4-6"/></svg>
+    <span data-i18n="rail.aeroportos">Aeroportos</span>
+  </a>
+  <a data-view="tiposAeronave" href="{{ path('app_tipos_aeronave') }}"{% if activeView == 'tiposAeronave' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l2 9 7 3v2l-9-2-9 2v-2l7-3z"/></svg>
+    <span data-i18n="rail.tiposAeronave">Tipos de aeronave</span>
   </a>
   {% endif %}
 

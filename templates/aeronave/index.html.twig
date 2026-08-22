@@ -69,6 +69,15 @@
       <button class="chip" data-tipo="Pesquisa" type="button" data-i18n="common.optype.research">Pesquisa</button>
       <button class="chip" data-tipo="Reposicionamento" type="button" data-i18n="common.optype.repositioning">Reposicionamento</button>
     </div>
+    <label class="labeltoggle">
+      <input type="checkbox" id="ac-show-acidentadas" checked>
+      <span data-i18n="aeronave.filter.showcrashed">Mostrar acidentadas</span>
+    </label>
+    <label class="labeltoggle" title="Por padrão, cada perna mostra até 180 posições no mapa; marque para carregar o trajeto completo (todas as posições gravadas)." data-i18n-attr="title:aeronave.filter.fullres.title">
+      <input type="checkbox" id="ac-fullres">
+      <span data-i18n="aeronave.filter.fullres">Mostrar todas as posições</span>
+      <span class="status" id="ac-fullres-status"></span>
+    </label>
     <label class="labeltoggle right">
       <input type="checkbox" id="ac-labels" checked>
       <span data-i18n="aeronave.map.labels">Labels no mapa</span>
@@ -116,6 +125,8 @@
       'aeronave.clear': 'Clear',
       'aeronave.clear.title': 'Clear dates',
       'aeronave.map.labels': 'Map labels',
+      'aeronave.filter.showcrashed': 'Show crashed legs',
+      'aeronave.leg.crashed': 'Crashed',
       'aeronave.map.legendnote': 'color and thickness = most recent (strong) → oldest (faint)',
       'aeronave.legs.heading': 'Legs',
       'aeronave.th.flight': 'Flight',
@@ -127,12 +138,23 @@
       'aeronave.airport.visit.noun': 'landing/takeoff',
       'aeronave.map.noknownlegs': 'No legs with a recognized airport in this period.',
       'aeronave.leg.viewreport': 'View real report ↗',
-      'aeronave.map.unavailable': 'Map unavailable'
+      'aeronave.leg.circuit': 'Circuit at',
+      'aeronave.leg.estimated': 'estimated track',
+      'aeronave.map.unavailable': 'Map unavailable',
+      'aeronave.filter.fullres': 'Show all positions',
+      'aeronave.filter.fullres.title': 'By default, each leg shows up to 180 positions on the map; check to load the full track (every recorded position).',
+      'aeronave.fullres.loading': 'Loading…',
+      'aeronave.fullres.error': 'Failed to load.',
+      'aeronave.leg.diversion.badge': 'Diverted',
+      'aeronave.leg.diversion': 'landed at',
+      'aeronave.airport.posto': 'Forward post of',
+      'aeronave.airport.local': 'Local code — not an official ICAO'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();
   window.KATABATIC_AC_LEGS = {{ legs|json_encode|raw }};
   window.KATABATIC_AIRPORTS_URL = {{ airportsUrl|json_encode|raw }};
+  window.KATABATIC_TRAJETOS_COMPLETOS_URL = {{ trajetosCompletosUrl|json_encode|raw }};
   window.KATABATIC_NOW = {{ nowIso|json_encode|raw }};
 </script>
 <script src="/assets/js/pages/aeronave.js" defer></script>

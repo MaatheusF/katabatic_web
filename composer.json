@@ -16,11 +16,12 @@
         "symfony/console": "7.2.*",
         "symfony/dotenv": "7.2.*",
         "symfony/framework-bundle": "7.2.*",
+        "symfony/mime": "*",
         "symfony/password-hasher": "7.2.*",
         "symfony/runtime": "7.2.*",
         "symfony/security-bundle": "7.2.*",
         "symfony/twig-bundle": "7.2.*",
-        "symfony/var-exporter": "*",
+        "symfony/var-exporter": "7.4",
         "symfony/yaml": "7.2.*"
     },
     "require-dev": {

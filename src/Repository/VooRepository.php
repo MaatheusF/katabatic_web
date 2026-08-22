@@ -112,4 +112,55 @@ class VooRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * Quantos voos cada piloto tem no Logbook, todos de uma vez — é o
+     * que alimenta a coluna "Voos" do grid de Pilotos em Solicitações
+     * (`SolicitacoesController::index()`); uma consulta agregada em vez
+     * de um `COUNT` por piloto (mesmo espírito de
+     * `PosicaoAoVivoRepository::findByAeronaves()`, evitar N+1). Piloto
+     * sem nenhum voo não gera linha no `GROUP BY` — quem lê o resultado
+     * trata ausência como 0 (ver `pilotViewModel()`).
+     *
+     * Só conta voos `status = 'valido'` — um voo marcado acidentado
+     * (ver `Voo::marcarAcidentado()`) continua no Logbook pra
+     * auditoria, mas não deveria inflar a contagem de voos do piloto.
+     *
+     * @return array<int, int> pilot_id => contagem
+     */
+    public function countsByPilot(): array
+    {
+        $rows = $this->createQueryBuilder('v')
+            ->select('IDENTITY(v.pilot) AS pilotId', 'COUNT(v.id) AS total')
+            ->andWhere('v.status = :status')
+            ->setParameter('status', Voo::STATUS_VALIDO)
+            ->groupBy('v.pilot')
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['pilotId']] = (int) $row['total'];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Contagem de voos de um piloto só — usado onde não vale a pena
+     * buscar o mapa inteiro (`SolicitacoesController::aprovar()`, que já
+     * tem o `Pilot` em mãos e está tratando um só de cada vez). Mesmo
+     * filtro de `status` que `countsByPilot()` — ver docblock lá.
+     */
+    public function countForPilot(Pilot $pilot): int
+    {
+        return (int) $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->andWhere('v.pilot = :pilot')
+            ->andWhere('v.status = :status')
+            ->setParameter('pilot', $pilot)
+            ->setParameter('status', Voo::STATUS_VALIDO)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

@@ -103,6 +103,17 @@ var CONDLABELS = { ok: 'Boas condições', warn: 'Condições adversas', bad: 'C
 var CONDLABEL_KEYS = { ok: 'portal.cond.good', warn: 'portal.cond.adverse', bad: 'portal.cond.severe' };
 function condLabel(tag) { return L(CONDLABEL_KEYS[tag], CONDLABELS[tag]); }
 
+// Ordem de gravidade das ocorrencias (ver AcarsIngestaoController::store,
+// so 'bad'/'warn' entram em f.ocorrencias hoje - 'ok' cai aqui so por
+// seguranca caso apareca no futuro). Usado pra achar a pior ocorrencia de
+// um voo (ver lbRow) quando ha mais de uma.
+var OCC_SEVERITY = { bad: 2, warn: 1, ok: 0 };
+function occPior(ocorrencias) {
+  return ocorrencias.reduce(function (pior, o) {
+    return (OCC_SEVERITY[o.tag] || 0) > (OCC_SEVERITY[pior.tag] || 0) ? o : pior;
+  });
+}
+
 // minutos -> "52min" ou "2h29" - usado no detalhe por voo (tempo ar/solo)
 // e no painel de estatisticas (somatorios).
 function fmtMin(min) {
@@ -116,6 +127,13 @@ function fmtMin(min) {
 // tabela principal sem poluir - fica escondida logo abaixo da linha do
 // voo, aberta via o botao "▸" (ver wiring do click delegado em lb-body).
 function lbDetailRow(f) {
+  // Ocorrencias (todas, nao so a pior) so aparecem aqui dentro - ver
+  // lbRow pra por que a celula principal mostra so a mais grave.
+  var ocorDetailHtml = f.ocorrencias && f.ocorrencias.length
+    ? '<div class="occ-list">' + f.ocorrencias.map(function (o) {
+        return '<span class="tag tag-' + o.tag + '">' + o.label + '</span>';
+      }).join('') + '</div>'
+    : '<b>—</b>';
   return '<tr class="lb-detail" hidden><td></td><td colspan="8">' +
     '<div class="lb-detail-grid">' +
     '<div><span>' + L('portal.detail.distance', 'Distância') + '</span><b>' + f.dist + ' nm</b></div>' +
@@ -123,6 +141,7 @@ function lbDetailRow(f) {
     '<div><span>' + L('portal.airground', 'Tempo ar / solo') + '</span><b>' + fmtMin(f.tempoArMin) + ' / ' + fmtMin(f.tempoSoloMin) + '</b></div>' +
     '<div><span>' + L('portal.detail.payload', 'Carga / payload') + '</span><b>' + f.carga + '</b></div>' +
     '<div class="lb-detail-metar"><span>' + L('portal.detail.metar', 'METAR na decolagem') + '</span><b class="mono">' + f.metar + '</b></div>' +
+    '<div class="lb-detail-occ"><span>' + L('portal.detail.occurrences', 'Ocorrências') + '</span>' + ocorDetailHtml + '</div>' +
     '</div></td></tr>';
 }
 
@@ -134,12 +153,21 @@ function lbRow(f) {
     ? ' data-flight-id="' + f.flightId + '" tabindex="0"'
     : ' title="' + L('portal.row.notelemetry', 'Sem telemetria registrada para este voo') + '"';
   // Um voo pode ter mais de uma ocorrencia (ex.: overspeed E quique na
-  // mesma perna) - f.ocorrencias e sempre uma lista (pode ser vazia).
-  var ocorHtml = f.ocorrencias && f.ocorrencias.length
-    ? '<div class="occ-list">' + f.ocorrencias.map(function (o) {
-        return '<span class="tag tag-' + o.tag + '">' + o.label + '</span>';
-      }).join('') + '</div>'
-    : '<span class="tag">—</span>';
+  // mesma perna) - f.ocorrencias e sempre uma lista (pode ser vazia). A
+  // celula principal mostra so a mais grave (tag "bad" vence "warn") pra
+  // linha nao crescer pra baixo num voo com varias - um "+N" ao lado
+  // sinaliza que ha mais, com a lista completa no title e na linha de
+  // detalhe (ver lbDetailRow acima).
+  var ocorHtml = '<span class="tag">—</span>';
+  if (f.ocorrencias && f.ocorrencias.length) {
+    var pior = occPior(f.ocorrencias);
+    var outras = f.ocorrencias.filter(function (o) { return o !== pior; }).map(function (o) { return o.label; });
+    ocorHtml = '<div class="occ-summary"><span class="tag tag-' + pior.tag + '">' + pior.label + '</span>' +
+      (outras.length
+        ? '<span class="occ-more" title="' + L('portal.occ.more.title', 'Outras ocorrências') + ': ' + outras.join(', ') + '">+' + outras.length + '</span>'
+        : '') +
+      '</div>';
+  }
   var main = '<tr data-callsign="' + f.callsign + '"' + attrs + '>' +
     '<td class="lb-expand-col"><button class="lb-expand-btn" type="button" aria-label="' + L('portal.row.detailsaria', 'Detalhes do voo') + '" aria-expanded="false">' +
     '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>' +

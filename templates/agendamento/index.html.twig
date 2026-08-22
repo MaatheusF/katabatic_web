@@ -57,12 +57,20 @@
       <div class="grid2">
         <div class="field">
           <label data-i18n="agendamento.origin">Origem</label>
-          <select id="f-origem"><option value="">Selecione…</option></select>
+          <div class="ap-combo">
+            <input type="text" id="f-origem-busca" autocomplete="off" placeholder="ICAO ou cidade…" data-i18n-attr="placeholder:agendamento.airport.placeholder">
+            <input type="hidden" id="f-origem">
+            <div class="ap-combo-list" id="f-origem-lista" hidden></div>
+          </div>
           <p class="hint" id="f-origem-hint"></p>
         </div>
         <div class="field">
           <label data-i18n="agendamento.destination">Destino</label>
-          <select id="f-destino"><option value="">Selecione…</option></select>
+          <div class="ap-combo">
+            <input type="text" id="f-destino-busca" autocomplete="off" placeholder="ICAO ou cidade…" data-i18n-attr="placeholder:agendamento.airport.placeholder">
+            <input type="hidden" id="f-destino">
+            <div class="ap-combo-list" id="f-destino-lista" hidden></div>
+          </div>
         </div>
       </div>
 
@@ -124,7 +132,7 @@
   <!-- ================= CARDS POR AERONAVE ================= -->
   <div id="ag-cards"></div>
 
-  <p class="hint" style="margin-top:6px" data-i18n="agendamento.mockhint">Agendamento é mock nesta sessão do navegador: criar um novo aqui só muda o array em memória desta página — recarregar volta ao estado inicial. Quando existir o feed real de ACARS, um voo que combine matrícula e janela de horário com um agendamento em aberto passa a atualizar esse agendamento em vez de virar uma linha nova e solta no Logbook.</p>
+  <p class="hint" style="margin-top:6px" data-i18n="agendamento.mockhint">Agendar, editar e remover aqui já grava de verdade — persiste entre reloads e é visível pra qualquer piloto logado. O que ainda não existe: quando o feed real do ACARS mandar um voo que combine matrícula e janela de horário com um agendamento em aberto, ele deveria atualizar esse agendamento em vez de virar uma linha nova e solta no Logbook — essa ligação ainda não foi construída.</p>
 
 </div>
 {% endblock %}
@@ -133,7 +141,7 @@
 <script>
   window.KATABATIC_AG_FLEET = {{ fleet|json_encode|raw }};
   window.KATABATIC_AG_AGENDAMENTOS = {{ agendamentos|json_encode|raw }};
-  window.KATABATIC_AIRPORTS_URL = {{ airportsUrl|json_encode|raw }};
+  window.KATABATIC_AEROPORTOS_BUSCA_URL = {{ aeroportosBuscaUrl|json_encode|raw }};
   window.KATABATIC_NOW = {{ nowIso|json_encode|raw }};
   window.KATABATIC_PILOT_NAME = {{ pilot.name|json_encode|raw }};
 </script>
@@ -156,6 +164,10 @@
       'agendamento.optype.label': 'Operation type',
       'agendamento.origin': 'Origin',
       'agendamento.destination': 'Destination',
+      'agendamento.airport.placeholder': 'ICAO or city…',
+      'agendamento.airport.empty': 'No airport found.',
+      'agendamento.airport.local': 'Local',
+      'agendamento.airport.local.title': 'Local/FAA code — not an official ICAO',
       'agendamento.date': 'Date (UTC)',
       'agendamento.windowfrom': 'Window — from (Z)',
       'agendamento.windowuntil': 'Window — until (Z)',
@@ -171,7 +183,11 @@
       'agendamento.type': 'Type',
       'agendamento.sequence': 'Sequence',
       'agendamento.agenda.empty': 'No flights scheduled matching this search.',
-      'agendamento.mockhint': 'Scheduling is mocked in this browser session: creating one here only changes the in-memory array for this page — reloading resets to the initial state. Once the real ACARS feed exists, a flight that matches an aircraft’s registration and time window to an open booking will update that booking instead of becoming a new, disconnected row in the Logbook.',
+      'agendamento.mockhint': 'Booking, editing and removing here already saves for real — it persists across reloads and is visible to any logged-in pilot. What doesn’t exist yet: once the real ACARS feed sends a flight matching an aircraft’s registration and time window to an open booking, it should update that booking instead of becoming a new, disconnected row in the Logbook — that link hasn’t been built yet.',
+      'agendamento.error.generic': 'Could not save — try again.',
+      'agendamento.error.network': 'Something went wrong — check your connection and try again.',
+      'agendamento.removing': 'Removing…',
+      'agendamento.removeerror': 'Error — try again',
       'agendamento.today': 'Today',
       'agendamento.tomorrow': 'Tomorrow',
       'agendamento.chain.departs': 'Departs {icao}',

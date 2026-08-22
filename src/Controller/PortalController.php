@@ -3,8 +3,10 @@
 namespace App\Controller;
 
 use App\Entity\Aeronave;
+use App\Entity\Aeroporto;
 use App\Entity\Voo;
 use App\Repository\AeronaveRepository;
+use App\Repository\AeroportoRepository;
 use App\Repository\PilotRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,12 +23,22 @@ use Symfony\Component\Routing\Attribute\Route;
  * verdade nesta tela. **Atualizado (backend real):** Logbook (`Voo`) e
  * Frota (`Aeronave`) já são backend real - ver "Backend: voos e
  * telemetria" e "Backend: mapa ao vivo e histórico da frota" no README.
- * Bases continua mock (não existe schema de estação/METAR ainda).
+ *
+ * **Atualizado: Bases religada ao catálogo `Aeroporto`.** A lista de
+ * "Estações avançadas" de cada base (`bases().stations`) agora vem de
+ * `AeroportoRepository::findPostosAvancadosDe()` — um aeroporto
+ * cadastrado em `/aeroportos` e marcado como posto avançado de PAFA ou
+ * SCCI aparece aqui sem deploy. Distância (`dist`) é calculada de
+ * verdade (Haversine a partir das coordenadas de PAFA/SCCI no
+ * catálogo), não mais um número fixo. O que continua mock, de
+ * propósito (sem schema de estação/METAR ainda): cabeçalho de cada
+ * base (vento/temperatura/visibilidade/teto) e a cor do indicador
+ * (`dot`) de cada posto avançado — ver docblock de `bases()`.
  */
 class PortalController extends AbstractController
 {
     #[Route('/portal', name: 'app_portal', methods: ['GET'])]
-    public function index(Request $request, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves): Response
+    public function index(Request $request, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves, AeroportoRepository $aeroportos): Response
     {
         $sessionPilot = $request->getSession()->get('pilot');
         if (null === $sessionPilot) {
@@ -49,7 +61,7 @@ class PortalController extends AbstractController
             'fleetSummary' => $this->fleetSummary($fleet),
             'logbook' => $logbook,
             'fleet' => $fleet,
-            'bases' => $this->bases(),
+            'bases' => $this->bases($aeroportos),
             'nowIso' => '2026-08-19T12:00:00Z',
         ]);
     }
@@ -167,34 +179,80 @@ class PortalController extends AbstractController
      * A view Bases nao e filtrada/ordenada no cliente, entao aqui vira
      * loop direto no Twig (nao precisa virar JSON).
      *
+     * `stations` (via `postosAvancados()`) já vem do catálogo real - o
+     * resto (nome/tag/blurb da base e o "boletim" de vento/temperatura/
+     * visibilidade/teto do cabeçalho) continua fixo de propósito: não
+     * existe schema de estação meteorológica nem busca de METAR/TAF
+     * ainda (ver README, "Próximos passos") - diferente do Mapa ao vivo,
+     * que já tem clima real via Open-Meteo pra cada aeroporto do
+     * catálogo, mas só pra popup de aeronave, não pro boletim por base
+     * daqui. Ligar os dois é trabalho futuro, não desta fatia.
+     *
      * @return array{north: array<string, mixed>, south: array<string, mixed>}
      */
-    private function bases(): array
+    private function bases(AeroportoRepository $aeroportos): array
     {
         return [
             'north' => [
                 'icao' => 'PAFA', 'name' => 'Fairbanks, Alasca', 'tag' => 'KBT Norte',
                 'blurb' => 'Interior e Ártico. Suprimento de campos sem estrada e pernas de pesquisa acima do Círculo Polar.',
                 'wind' => '210/09', 'windWarn' => false, 'temp' => '11 °C', 'vis' => '4 800 m', 'visWarn' => true, 'ceil' => '2 100 ft',
-                'stations' => [
-                    ['icao' => 'PABT', 'name' => 'Bettles', 'dist' => '168 nm', 'dot' => 'ok'],
-                    ['icao' => 'PFYU', 'name' => 'Fort Yukon', 'dist' => '122 nm', 'dot' => 'accent'],
-                    ['icao' => 'PAKP', 'name' => 'Anaktuvuk Pass', 'dist' => '228 nm', 'dot' => 'ice'],
-                    ['icao' => 'PASC', 'name' => 'Deadhorse', 'dist' => '373 nm', 'dot' => 'danger'],
-                    ['icao' => 'PAOT', 'name' => 'Kotzebue', 'dist' => '380 nm', 'dot' => 'ok'],
-                ],
+                'stations' => $this->postosAvancados($aeroportos, 'PAFA'),
             ],
             'south' => [
                 'icao' => 'SCCI', 'name' => 'Punta Arenas, Chile', 'tag' => 'KBT Sul',
                 'blurb' => 'Magalhães e Patagônia. Apoio a estações de pesquisa, travessia de fiordes e transporte técnico.',
                 'wind' => '280/41G56', 'windWarn' => true, 'temp' => '3 °C', 'vis' => '9 999 m', 'visWarn' => false, 'ceil' => '2 400 ft',
-                'stations' => [
-                    ['icao' => 'SCNT', 'name' => 'Puerto Natales', 'dist' => '130 nm', 'dot' => 'accent'],
-                    ['icao' => 'SCGZ', 'name' => 'Puerto Williams', 'dist' => '150 nm', 'dot' => 'danger'],
-                    ['icao' => 'SCFM', 'name' => 'Porvenir', 'dist' => '22 nm', 'dot' => 'ok'],
-                    ['icao' => 'SCBA', 'name' => 'Balmaceda', 'dist' => '432 nm', 'dot' => 'ice'],
-                ],
+                'stations' => $this->postosAvancados($aeroportos, 'SCCI'),
             ],
         ];
+    }
+
+    /**
+     * Postos avançados de uma base, prontos pro template (`portal/
+     * index.html.twig`, bloco Bases). Substitui o array fixo que
+     * `bases()` tinha antes desta fatia - ver README, "Backend:
+     * aeroportos e pouso alternativo (diversão)".
+     *
+     * - `dist` é calculado de verdade (`AeroportoRepository::haversineKm()`
+     *   entre a base e o posto, convertido nm = km × 0,539957) a partir
+     *   das coordenadas do catálogo, não mais um número digitado à mão.
+     * - `name` reaproveita `Aeroporto::$cidade` sem o sufixo de país/
+     *   estado (tudo antes da primeira vírgula) - é o mesmo texto que o
+     *   array mock antigo já usava pra essas 9 estações (ex.: "Kotzebue",
+     *   não "Kotzebue, Alasca"); `Aeroporto::$nome` (nome oficial do
+     *   aeroporto, ex. "Ralph Wien Memorial") fica só no popup do mapa.
+     * - `dot` (cor do indicador) fica fixo em 'ok' de propósito: não há
+     *   fonte de clima/condição por posto avançado ainda (ver docblock
+     *   de `bases()`) - antes era um valor mock inventado por estação,
+     *   então um indicador neutro é mais honesto que continuar
+     *   fabricando cor sem dado real por trás.
+     *
+     * @return list<array{icao: string, name: string, dist: string, dot: string}>
+     */
+    private function postosAvancados(AeroportoRepository $aeroportos, string $baseIcao): array
+    {
+        $base = $aeroportos->findOneByIcao($baseIcao);
+        if (null === $base) {
+            // Base ainda não foi importada/cadastrada no catálogo (ex.:
+            // banco novo, `app:importar-aeroportos-legado` não rodou
+            // ainda) - sem coordenada da base não dá pra calcular
+            // distância, então a lista fica vazia em vez de quebrar.
+            return [];
+        }
+
+        return array_map(
+            function (Aeroporto $posto) use ($base): array {
+                $nm = AeroportoRepository::haversineKm($base->getLat(), $base->getLon(), $posto->getLat(), $posto->getLon()) * 0.539957;
+
+                return [
+                    'icao' => $posto->getIcao(),
+                    'name' => trim(explode(',', $posto->getCidade())[0]),
+                    'dist' => sprintf('%d nm', (int) round($nm)),
+                    'dot' => 'ok',
+                ];
+            },
+            $aeroportos->findPostosAvancadosDe($baseIcao)
+        );
     }
 }

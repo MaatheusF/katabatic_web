@@ -16,6 +16,12 @@ use Symfony\Component\Routing\Attribute\Route;
  * Perfil do piloto: nome, e-mail e foto de exibição, mais os dados
  * "de conta" (CID, papel) que ainda não são editáveis por aqui.
  *
+ * **Atualizado: usuário do AvioDeck.** Campo opcional novo
+ * (`Pilot::$aviodeckUsername`) — não é validado contra a API do
+ * AvioDeck (não existe integração de verdade), só guardado e usado
+ * pra montar o link real em "Referências externas" no relatório de
+ * voo (ver `VooController`, `voo/index.html.twig`).
+ *
  * Persistência de verdade a partir daqui - `$this->getUser()` devolve
  * o Pilot autenticado (ver App\Security\LoginFormAuthenticator), e
  * "salvar o perfil" agora é um UPDATE de verdade via Doctrine, não só
@@ -60,6 +66,9 @@ class PerfilController extends AbstractController
 
         $name = trim((string) $request->request->get('name', ''));
         $email = trim((string) $request->request->get('email', ''));
+        // Aceita colar "@usuario" ou "usuario" - o link montado em
+        // VooController sempre soma o @ na hora de exibir.
+        $aviodeckUsername = ltrim(trim((string) $request->request->get('aviodeck', '')), '@');
 
         $errors = [];
         if ('' === $name) {
@@ -104,6 +113,7 @@ class PerfilController extends AbstractController
             $preview['name'] = $name;
             $preview['email'] = $email;
             $preview['photo'] = $photoPath;
+            $preview['aviodeckUsername'] = '' !== $aviodeckUsername ? $aviodeckUsername : null;
 
             return $this->render('perfil/index.html.twig', [
                 'activeView' => null,
@@ -115,6 +125,7 @@ class PerfilController extends AbstractController
         $pilot->setName($name);
         $pilot->setEmail($email);
         $pilot->setPhoto($photoPath);
+        $pilot->setAviodeckUsername('' !== $aviodeckUsername ? $aviodeckUsername : null);
         $em->flush();
 
         // Shim de transição (ver docblock da classe) - mantem o array de
@@ -131,7 +142,7 @@ class PerfilController extends AbstractController
      * formato usado desde a versão mock, incluindo `initials` calculado
      * na hora (ver Pilot::getInitials()).
      *
-     * @return array{initials: string, name: string, cid: string, admin: bool, email: string, photo: ?string}
+     * @return array{initials: string, name: string, cid: string, admin: bool, email: string, photo: ?string, aviodeckUsername: ?string}
      */
     private function pilotViewModel(Pilot $pilot): array
     {
@@ -142,6 +153,7 @@ class PerfilController extends AbstractController
             'admin' => $pilot->isAdmin(),
             'email' => $pilot->getEmail(),
             'photo' => $pilot->getPhoto(),
+            'aviodeckUsername' => $pilot->getAviodeckUsername(),
         ];
     }
 

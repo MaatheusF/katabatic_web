@@ -87,9 +87,21 @@
       </div>
     </div>
 
+    <!-- Integrações -->
+    <div class="card">
+      <div class="card-h"><span class="n">3</span><h3 data-i18n="perfil.integrations.title">Integrações</h3><span class="note" data-i18n="perfil.integrations.note">opcional</span></div>
+      <div class="card-b">
+        <div class="field">
+          <label for="f-aviodeck" data-i18n="perfil.aviodeck">Usuário no AvioDeck</label>
+          <input type="text" id="f-aviodeck" name="aviodeck" value="{{ pilot.aviodeckUsername|default('') }}" placeholder="joao_pilot">
+          <p class="hint" data-i18n="perfil.aviodeck.hint">Sem o @ — é o que vem depois de aviodeck.app/@ no seu perfil. Usado pra montar o link de "Referências externas" no relatório de voo.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Conta -->
     <div class="card">
-      <div class="card-h"><span class="n">3</span><h3 data-i18n="perfil.account.title">Conta</h3><span class="note" data-i18n="perfil.account.note">gerenciado pela VATSIM, não editável aqui</span></div>
+      <div class="card-h"><span class="n">4</span><h3 data-i18n="perfil.account.title">Conta</h3><span class="note" data-i18n="perfil.account.note">gerenciado pela VATSIM, não editável aqui</span></div>
       <div class="card-b">
         <div class="grid2">
           <div class="field">
@@ -132,7 +144,11 @@
       'perfil.error.photo.size': 'The uploaded image is too large — the limit is 3 MB.',
       'perfil.error.photo.savefail': "Couldn't save the uploaded photo — please try again.",
       'perfil.role.admin': 'Administrator',
-      'perfil.role.pilot': 'Pilot'
+      'perfil.role.pilot': 'Pilot',
+      'perfil.integrations.title': 'Integrations',
+      'perfil.integrations.note': 'optional',
+      'perfil.aviodeck': 'AvioDeck username',
+      'perfil.aviodeck.hint': 'No @ — it\'s whatever comes after aviodeck.app/@ on your profile. Used to build the "External references" link on the flight report.'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();

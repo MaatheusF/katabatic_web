@@ -16,11 +16,15 @@ nada disso existe aqui). Serve para tres fins:
 
   2. --record  Grava o voo em CSV com as mesmas colunas do payload (fica no
                disco, sempre - e a rede de seguranca) e, se --server/--tipo/
-               --origem/--destino/--pilot-cid forem passados, manda um UNICO
-               POST pro backend Symfony quando a gravacao termina (Ctrl+C) -
-               ver AcarsIngestaoController e README, "Backend: ingestao
-               ACARS (MVP)". Sem esses argumentos, se comporta exatamente
-               como antes (so grava local).
+               --origem/--destino/--pilot-cid forem passados, manda POSTs
+               pro backend Symfony: um UNICO POST de fechamento quando a
+               gravacao termina (Ctrl+C), e (novo, ACARS fase 3) um POST
+               curto de POSICAO a cada --pos-interval segundos (padrao 12)
+               enquanto grava, pro Mapa ao vivo parar de depender de replay -
+               ver AcarsIngestaoController e README, "Backend: posicao em
+               tempo real (ACARS fase 3)". Sem --server/--tipo/--origem/
+               --destino/--pilot-cid, se comporta exatamente como antes (so
+               grava local, sem nenhum POST).
 
 Requisitos (na maquina que roda o simulador):
     python -m pip install SimConnect
@@ -31,15 +35,15 @@ Uso:
     python katabatic_capture.py --record --callsign KBT118
     python katabatic_capture.py --record --callsign KBT412 --dir D:/voos
 
-    # com envio pro servidor ao final do voo (token via --token ou pela
-    # variavel de ambiente KATABATIC_ACARS_TOKEN, pra nao sobrar no
-    # historico do shell):
+    # com envio pro servidor (fechamento + posicao periodica; token via
+    # --token ou pela variavel de ambiente KATABATIC_ACARS_TOKEN, pra nao
+    # sobrar no historico do shell):
     python katabatic_capture.py --record --callsign KBT118 \\
         --pilot-cid 1234567 --tipo carga --origem PAFA --destino PABT \\
         --server http://localhost:8080
 
-Encerre a gravacao com Ctrl+C. Um Ctrl+C fecha os arquivos direito (e tenta
-o envio, se configurado).
+Encerre a gravacao com Ctrl+C. Um Ctrl+C fecha os arquivos direito, para o
+heartbeat de posicao e tenta o envio de fechamento (se configurado).
 """
 
 import argparse
@@ -51,6 +55,7 @@ import re
 import signal
 import statistics
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -395,12 +400,22 @@ def do_record(reader, args):
 
     rec.event("session_start", {"ident": ident, "callsign": args.callsign})
 
+    pinger = None
     if enviar:
         anunciar_inicio(args.server, token, {
             "pilot_cid": args.pilot_cid,
             "aeronave_reg": tail,
             "started_at": datetime.fromtimestamp(rec.started, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         })
+        # Heartbeat de posicao (ACARS fase 3) - mesmo criterio "enviar" do
+        # inicio/fechamento; --pos-interval 0 desliga so o heartbeat sem
+        # desligar o resto (ver PositionPinger e README, "Backend: posicao
+        # em tempo real (ACARS fase 3)").
+        if args.pos_interval > 0:
+            pinger = PositionPinger(args.server, token, args.pilot_cid, tail, args.pos_interval)
+            pinger.start()
+            print("Heartbeat de posicao a cada %.0fs: %s/api/acars/v1/voos/posicao\n" % (
+                args.pos_interval, args.server.rstrip("/")))
 
     stop = {"flag": False}
 
@@ -452,6 +467,13 @@ def do_record(reader, args):
             buffer_b = {"g": [], "acc_y": []}
 
             self_pos = {"lat": sample_a.get("lat"), "lon": sample_a.get("lon"), "alt_ft": sample_a.get("alt_ft")}
+            if pinger is not None:
+                pinger.update(
+                    lat=sample_a.get("lat"), lon=sample_a.get("lon"), alt_ft=sample_a.get("alt_ft"),
+                    hdg_true=sample_a.get("hdg_true"), gs_kt=sample_a.get("gs_kt"),
+                    ias_kt=sample_a.get("ias_kt"), vs_fpm=sample_a.get("vs_fpm"),
+                    on_ground=sample_a.get("on_ground"),
+                )
             rec.w_samples.writerow(row)
             rec.samples_list.append(dict(row))
             rec.samples += 1
@@ -516,6 +538,10 @@ def do_record(reader, args):
 
         elapsed = time.monotonic() - tick
         time.sleep(max(0.0, 0.2 - elapsed))
+
+    if pinger is not None:
+        print("\nParando o heartbeat de posicao...")
+        pinger.stop()
 
     rec.event("session_end", {})
     duration = int(time.time() - rec.started)
@@ -606,6 +632,75 @@ def anunciar_inicio(server, token, payload):
         print("Segue gravando normalmente - so o Mapa ao vivo nao vai mostrar 'Em voo' em tempo real.")
 
 
+class PositionPinger:
+    """Heartbeat de posicao - POST curto pro Mapa ao vivo a cada N segundos
+    (ACARS fase 3, ver AcarsIngestaoController::posicao() e README,
+    "Backend: posicao em tempo real (ACARS fase 3)").
+
+    Roda numa thread separada, de proposito: nunca pode atrasar o loop
+    principal de captura (que tem seu proprio orcamento de tempo por
+    tick, ver do_record()). So manda a amostra mais RECENTE que o loop
+    principal ja calculou (update()) - sem fila, sem retry: se um ping
+    falhar ou atrasar, o proximo (12s depois, por padrao) resolve
+    sozinho. Mesma filosofia "radical na coleta, conservador no envio"
+    do contrato completo, aplicada aqui a posicao em vez de telemetria
+    inteira.
+    """
+
+    def __init__(self, server, token, pilot_cid, aeronave_reg, interval):
+        self.url = server.rstrip("/") + "/api/acars/v1/voos/posicao"
+        self.token = token
+        self.pilot_cid = pilot_cid
+        self.aeronave_reg = aeronave_reg
+        self.interval = interval
+        self._lock = threading.Lock()
+        self._latest = None
+        self._stop = threading.Event()
+        self._last_error = None   # dedup de mensagem de erro, pra nao poluir o console a cada ping perdido
+        self._thread = threading.Thread(target=self._loop, name="katabatic-pos-pinger", daemon=True)
+
+    def start(self):
+        if self.interval > 0:
+            self._thread.start()
+
+    def update(self, lat, lon, alt_ft, hdg_true, gs_kt, ias_kt, vs_fpm, on_ground):
+        """Chamado pelo loop principal (1 Hz) a cada amostra do Grupo A -
+        so guarda a leitura mais recente pra thread do pinger mandar."""
+        with self._lock:
+            self._latest = {
+                "at": now_iso(), "lat": lat, "lon": lon, "alt_ft": alt_ft,
+                "hdg_true": hdg_true, "gs_kt": gs_kt, "ias_kt": ias_kt,
+                "vs_fpm": vs_fpm, "on_ground": on_ground,
+            }
+
+    def stop(self):
+        self._stop.set()
+        self._thread.join(timeout=2.0)
+
+    def _loop(self):
+        while not self._stop.wait(self.interval):
+            with self._lock:
+                sample = dict(self._latest) if self._latest else None
+            if sample is None or sample.get("lat") is None or sample.get("lon") is None:
+                continue   # ainda sem nenhuma amostra do Grupo A (bem no inicio da gravacao)
+            payload = dict(sample, pilot_cid=self.pilot_cid, aeronave_reg=self.aeronave_reg)
+            try:
+                _post_json(self.url, self.token, payload)
+                if self._last_error is not None:
+                    print("\n  [posicao] servidor voltou a aceitar o heartbeat.")
+                    self._last_error = None
+            except urllib.error.HTTPError as exc:
+                msg = "HTTP %d: %s" % (exc.code, exc.read().decode("utf-8", "ignore"))
+                if msg != self._last_error:
+                    print("\n  [posicao] servidor recusou o heartbeat (%s) - Mapa ao vivo fica sem posicao real ate resolver." % msg)
+                    self._last_error = msg
+            except urllib.error.URLError as exc:
+                msg = "sem conexao (%s)" % exc.reason
+                if msg != self._last_error:
+                    print("\n  [posicao] nao conectou pro heartbeat (%s) - tentando de novo em %.0fs." % (msg, self.interval))
+                    self._last_error = msg
+
+
 def upload_capture(payload, server, token, payload_path):
     """Um unico POST ao final do voo - AcarsIngestaoController.
 
@@ -649,6 +744,8 @@ def main():
     parser.add_argument("--server", default="", help="URL base do backend Symfony, ex.: http://localhost:8080")
     parser.add_argument("--token", default="",
                          help="token do ACARS (senao, le da variavel de ambiente KATABATIC_ACARS_TOKEN)")
+    parser.add_argument("--pos-interval", type=float, default=12.0,
+                         help="segundos entre POSTs de posicao pro Mapa ao vivo (padrao: 12; 0 desliga o heartbeat sem desligar o fechamento)")
     args = parser.parse_args()
 
     if not args.probe and not args.record:

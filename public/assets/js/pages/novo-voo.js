@@ -197,18 +197,117 @@
     return '<div><b>' + val + '</b><span>' + label + '</span></div>';
   }
 
+  /* ---------- registro manual: grava de verdade ----------
+     "Importar telemetria" continua mock (ver docblock de
+     NovoVooController::publicar) - so o modo manual chama o backend. */
+  var DURATION_RE = /^\d{1,3}:[0-5]\d$/;
+
+  // Campos minimos pro backend aceitar (mesma validacao, so que no
+  // cliente, pra nao deixar "Publicar" habilitado sem chance de dar
+  // certo - a validacao de verdade continua sendo a do servidor).
+  function manualFieldsOk() {
+    var call = document.getElementById('f-call').value;
+    var aircraft = document.getElementById('f-aircraft').value;
+    var orig = document.getElementById('f-orig').value.trim();
+    var dest = document.getElementById('f-dest').value.trim();
+    var date = document.getElementById('f-date').value;
+    var time = document.getElementById('f-time').value;
+    var duration = document.getElementById('f-duration').value.trim();
+    return /^\d{1,3}$/.test(call) && aircraft !== '' && orig !== '' && dest !== '' &&
+      date !== '' && time !== '' && DURATION_RE.test(duration);
+  }
+
   /* ---------- habilita "Publicar" ---------- */
   function updatePublishState() {
-    var ok = mode === 'manual' ? true : imported;
+    var ok = mode === 'manual' ? manualFieldsOk() : imported;
     document.getElementById('btn-publish').disabled = !ok;
   }
   updatePublishState();
+
+  ['f-call', 'f-orig', 'f-dest', 'f-date', 'f-time', 'f-duration'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', updatePublishState);
+  });
+  document.getElementById('f-aircraft').addEventListener('change', updatePublishState);
+
+  function showFormError(messages) {
+    var box = document.getElementById('nv-error');
+    box.innerHTML = messages.length > 1
+      ? '<ul>' + messages.map(function (m) { return '<li>' + m + '</li>'; }).join('') + '</ul>'
+      : messages[0];
+    box.style.display = '';
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function hideFormError() {
+    document.getElementById('nv-error').style.display = 'none';
+  }
+
+  function collectManualPayload() {
+    var m = document.getElementById('f-duration').value.trim().match(DURATION_RE) ? document.getElementById('f-duration').value.trim() : '';
+    var ocorrencias = Array.prototype.map.call(
+      document.querySelectorAll('#ocor-chips .chip.on[data-ocor]:not([data-ocor="Nenhuma"])'),
+      function (c) { return c.dataset.ocor; }
+    );
+    var visChip = document.querySelector('#vis-chips .chip.on');
+    var tipoChip = document.querySelector('#tipo-chips .chip.on');
+    return {
+      callsignNum: document.getElementById('f-call').value,
+      tipoOperacao: tipoChip ? tipoChip.dataset.tipo : '',
+      aeronaveReg: AIRCRAFT[+document.getElementById('f-aircraft').value] ? AIRCRAFT[+document.getElementById('f-aircraft').value].reg : '',
+      origem: document.getElementById('f-orig').value.trim(),
+      destino: document.getElementById('f-dest').value.trim(),
+      data: document.getElementById('f-date').value,
+      hora: document.getElementById('f-time').value,
+      duracao: m,
+      condicao: document.getElementById('f-cond').value,
+      ocorrencias: ocorrencias,
+      dificuldade: +document.getElementById('f-diff-manual').value,
+      objetivo: document.getElementById('f-obj').value.trim(),
+      relato: document.getElementById('f-report').value.trim(),
+      simbrief: document.getElementById('f-simbrief').value.trim(),
+      visibilidade: visChip ? visChip.dataset.vis : 'publico'
+    };
+  }
 
   document.getElementById('btn-draft').addEventListener('click', function () {
     alert(L('novovoo.alert.draft', 'Rascunho salvo (mock) — retome depois pelo Logbook.'));
   });
   document.getElementById('btn-publish').addEventListener('click', function () {
-    alert(L('novovoo.alert.publish', 'Voo publicado (mock) — apareceria agora no Logbook.'));
+    if (mode !== 'manual') {
+      // "Importar telemetria" continua mock de proposito (ver docblock
+      // de NovoVooController::publicar) - dar suporte real precisa de
+      // upload de arquivo + parsing de CSV no servidor.
+      alert(L('novovoo.alert.publish', 'Voo publicado (mock) — apareceria agora no Logbook.'));
+      return;
+    }
+    if (!manualFieldsOk()) {
+      showFormError([L('novovoo.publish.required', 'Preencha callsign, aeronave, rota, data/hora e duração para publicar.')]);
+      return;
+    }
+    hideFormError();
+    var btn = this;
+    var originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = L('novovoo.publish.publishing', 'Publicando…');
+    fetch(window.KATABATIC_NOVOVOO_PUBLICAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectManualPayload())
+    })
+      .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+      .then(function (result) {
+        if (!result.ok) {
+          showFormError((result.body && result.body.errors) || [L('novovoo.publish.generr', 'Não foi possível publicar — verifique sua conexão e tente novamente.')]);
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+          return;
+        }
+        window.location.href = window.KATABATIC_PORTAL_URL;
+      })
+      .catch(function () {
+        showFormError([L('novovoo.publish.generr', 'Não foi possível publicar — verifique sua conexão e tente novamente.')]);
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      });
   });
 
   // novo-voo.js nao tinha nenhum tratamento de 'katabatic:langchange'.
