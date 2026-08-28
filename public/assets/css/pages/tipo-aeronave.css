@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Katabatic — tipo-aeronave.css
+   Cadastro do perfil de performance por tipo de aeronave (admin-only).
+   Depende de base.css + app-shell.css carregados antes (rail, bar,
+   botoes, tokens ja vem de la) - mesmo padrao de card/field/grid que
+   aeroporto.css/nova-aeronave.css usam pro formulario, e de
+   table-scroll/tag que aeronave.css usa pra lista.
+   ========================================================================== */
+
+.bar { z-index: 600; }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 28px 28px 60px; }
+
+.ta-error { margin-bottom: 18px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
+
+.ta-intro { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; max-width: 720px; }
+.ta-intro b { color: var(--text); font-weight: 500; }
+
+label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.mono-input { font-family: var(--font-mono); }
+textarea { resize: vertical; font-family: var(--font-body); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+.card:last-child { margin-bottom: 0; }
+.card-h { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 15px; }
+.card-h .note { margin-left: auto; font-size: 12px; color: var(--muted); }
+.card-b { padding: 20px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid2:last-of-type { margin-bottom: 0; }
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* Campo numero + unidade fixa ao lado (lb/gal/ft/gal-h) - deixa claro
+   que unidade o admin precisa usar sem repetir isso no label inteiro. */
+.unit-row { display: flex; align-items: stretch; gap: 0; }
+.unit-row input { border-radius: 7px 0 0 7px; }
+.unit-row .unit { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-left: 0; border-radius: 0 7px 7px 0; background: var(--surface-2); font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.footer-actions { display: flex; align-items: center; gap: 16px; padding: 4px 0 20px; flex-wrap: wrap; }
+.footer-actions .right { margin-left: auto; }
+
+/* ---------- lista ---------- */
+.ta-list-card { padding: 0; }
+.ta-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.table-scroll { max-height: 560px; overflow: auto; }
+.table-scroll thead th { position: sticky; top: 0; z-index: 1; }
+thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 10px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+tbody td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+.sub { color: var(--muted); }
+.empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; white-space: normal; }
+
+@media (max-width: 900px) {
+  .wrap { padding: 18px 16px 60px; }
+  .grid2 { grid-template-columns: 1fr; }
+}

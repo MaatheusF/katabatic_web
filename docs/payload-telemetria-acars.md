@@ -112,7 +112,7 @@ Este grupo **é** o diferencial da Katabatic. É o que o piloto realmente enfren
 | `AMBIENT PRECIP RATE` | millimeters of water | `precip_rate` | **Confirmado.** 30,06 no temporal, 0,0 no tempo bom. Descartar a primeira leitura da sessão, que vem com lixo. Chuva ou neve: cruzar com `oat_c` |
 | `AMBIENT IN CLOUD` | bool | `in_cloud` | |
 | `AMBIENT DENSITY` | slugs per cubic feet | `air_density` | |
-| `STRUCTURAL ICE PCT` | percent over 100 | `ice_pct` | operação extrema: essencial |
+| `STRUCTURAL ICE PCT` | percent | `ice_pct` | operação extrema: essencial. **Corrigido** — pedir na unidade `percent over 100` faz o SimConnect devolver a fração 0.0–1.0, não 0-100; o cliente sempre assumiu 0-100 (limiar de `icing_onset`, peso no índice de dificuldade, exibição). Pedir direto em `percent` resolve na fonte — ver seção 8 |
 | `SURFACE TYPE` | enum | `surface_type` | cascalho, grama, neve — só em solo |
 | `SURFACE CONDITION` | enum | `surface_cond` | molhada, com gelo — só em solo |
 
@@ -132,6 +132,8 @@ Este grupo **é** o diferencial da Katabatic. É o que o piloto realmente enfren
 | `STALL WARNING` | bool | `stall_warning` |
 | `OVERSPEED WARNING` | bool | `overspeed` |
 | `CRASH FLAG` / `CRASH SEQUENCE` | enum | `crash` |
+| `STRUCTURAL DEICE SWITCH` | bool | `state_deice_estrutural` |
+| `WINDSHIELD DEICE SWITCH` | bool | `state_deice_parabrisa` |
 
 ### 3.6 Grupo E — integridade
 
@@ -335,11 +337,27 @@ Resolvido em voo (MSFS 2024, C185F, Aleutas):
 - [x] `SIMULATION RATE` é o nome correto
 - [x] `ATC MODEL` devolve token de localização (`ATCCOM.AC_MODEL C185.0.text`); tipo da aeronave vem da tabela de frota pela matrícula, não do simulador
 - [x] Campos `td_*` são reais e persistentes
+- [x] **`STRUCTURAL ICE PCT` sobe de fato em condição de gelo? Sim — mas a unidade pedida estava errada.**
+  A dúvida original nunca foi "a variável responde", foi "por que ela quase não sai de zero mesmo
+  com gelo visível no para-brisa e uso de anti-ice". Resposta, confirmada contra a documentação
+  oficial do SDK (`Simulation_Variable_Units.htm`): a unidade `percent over 100` devolve uma
+  **fração 0.0–1.0** (1.0 = totalmente gelado), não um número 0-100 como a descrição da própria
+  variável ("100 is fully iced") sugere à primeira vista — pegadinha de nomenclatura do SDK, não
+  bug do simulador. `katabatic_capture.py` pedia nessa unidade; `ice_pct >= 1.0` (limiar do
+  `icing_onset`), o peso `iceMax * 4` no índice de dificuldade e a exibição em `voo.js` sempre
+  assumiram 0-100 direto — resultado, gelo estrutural reportado ~100× menor que o real. Corrigido
+  pedindo direto em `percent` (script já devolve 0-100). Voos gravados antes da correção mantêm o
+  valor errado — sem migração retroativa, só o relato do piloto registra o que aconteceu de
+  verdade nesses casos.
+- [x] **Anti-ice do piloto agora vira evento.** `STRUCTURAL DEICE SWITCH` e
+  `WINDSHIELD DEICE SWITCH` entraram no Grupo D (viram `state_deice_estrutural`/
+  `state_deice_parabrisa` de graça, mesmo mecanismo genérico de trem/flap/freio) — decisão do
+  piloto de ligar o anti-ice fica registrada por si só, independente de quanto o
+  `STRUCTURAL ICE PCT` acumulou.
 
 Ainda em aberto:
 
 - [ ] **`AMBIENT WIND VELOCITY` / `DIRECTION` acompanham o clima?** Não testado com preset de vento forte. Se travarem como a visibilidade, o vento de través também migra para o METAR — e aí o índice fica majoritariamente METAR
-- [ ] `STRUCTURAL ICE PCT` sobe de fato em condição de gelo?
 - [ ] `CRASH FLAG` com detecção de colisão desligada nas opções
 - [ ] Base de aeroportos externa escolhida (OurAirports?)
 - [ ] Limite de G por tipo: tabela manual na frota
@@ -352,7 +370,7 @@ Ainda em aberto:
 | Pico e fator de carga | Simulador (`G FORCE`) |
 | Superfície e condição de pista | Simulador (`SURFACE TYPE` / `CONDITION`) |
 | Precipitação | Simulador (`AMBIENT PRECIP RATE` + `oat_c`) |
-| Gelo | Simulador (`STRUCTURAL ICE PCT`) — a confirmar |
+| Gelo | Simulador (`STRUCTURAL ICE PCT`) — confirmado (ver seção 8) |
 | Visibilidade e teto | **METAR** |
 | Vento de través | Em julgamento — simulador ou METAR |
 | Pista: comprimento, elevação | Base de aeroportos externa |

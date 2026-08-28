@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Katabatic — ferramentas.css
+   Ferramentas do piloto: 7 calculadoras client-side (ver
+   FerramentasController/ferramentas.js). Depende de base.css +
+   app-shell.css carregados antes (rail, bar, botoes, tokens ja vem de
+   la) - mesmo padrao de card/field/grid/chips/tag que as outras telas
+   admin usam.
+   ========================================================================== */
+
+.bar { z-index: 600; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 28px 60px; }
+
+/* Colunas CSS em vez de grid de 2 colunas (reportado em conversa): com
+   `display: grid`, cada LINHA da grade cresce até a altura do maior
+   card dela (ex. o card do conversor+ETA é bem mais alto que o de
+   vento cruzado ao lado) - isso deixava um vão grande embaixo dos
+   cards mais curtos antes da próxima linha começar. `columns` empilha
+   os cards numa coluna até ela encher e só então passa pra próxima
+   (efeito "masonry"), sem depender de pares de mesma altura por linha.
+   `break-inside: avoid` no `.card` (abaixo) evita cortar um card no
+   meio entre as duas colunas. */
+.tools-grid { columns: 2; column-gap: 20px; }
+
+label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+label .opt { text-transform: none; letter-spacing: 0; }
+input[type=text], input[type=number], input[type=time], select {
+  width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+.mono-input { font-family: var(--font-mono); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 20px; }
+.tools-grid .card:last-child { margin-bottom: 0; }
+.card-h { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 15px; }
+.card-b { padding: 20px; }
+
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.unit-row { display: flex; align-items: stretch; gap: 0; }
+.unit-row input { border-radius: 7px 0 0 7px; }
+.unit-row .unit { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-left: 0; border-radius: 0 7px 7px 0; background: var(--surface-2); font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.tool-note { font-size: 12.5px; color: var(--text-2); line-height: 1.55; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 13px; margin-bottom: 16px; }
+.tool-note b { color: var(--text); font-weight: 500; }
+
+/* ---------- resultado (compartilhado pelas 4 calculadoras) ---------- */
+.result:empty { display: none; }
+.result { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px; }
+.result-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.result-label { font-size: 12px; color: var(--muted); }
+.result-value { font-family: var(--font-mono); font-size: 15px; color: var(--text); font-weight: 500; }
+.result-value-lg { font-size: 22px; }
+.result-value .sub { font-family: var(--font-body); font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+
+.tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.tag-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+/* ---------- ETA (dentro do card do conversor) ---------- */
+.eta-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.eta-heading { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+/* ---------- Zulu x hora local das Bases ---------- */
+/* Hora + fuso lado a lado, botão "Agora" alinhado com os inputs (não
+   com o label) - por isso `align-items: end` em vez do padrão stretch,
+   já que o botão não tem label acima igual aos dois campos vizinhos. */
+.zulu-row { display: flex; gap: 14px; align-items: end; margin-bottom: 6px; }
+.zulu-row .field { flex: 1; margin-bottom: 0; }
+.zulu-row .btn { flex: none; white-space: nowrap; }
+
+/* ---------- peso e balanceamento / distancia: aviso "sem dados" ---------- */
+.wb-missing { font-size: 12.5px; color: var(--text-2); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 8px; padding: 10px 13px; line-height: 1.55; }
+.wb-missing a { color: var(--accent); }
+.wb-ref { font-size: 12.5px; color: var(--text-2); margin-bottom: 14px; }
+.wb-ref b { color: var(--text); font-weight: 500; }
+
+@media (max-width: 980px) {
+  .tools-grid { columns: 1; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 18px 16px 60px; }
+  .grid3 { grid-template-columns: 1fr; }
+  .zulu-row { flex-direction: column; align-items: stretch; }
+  .zulu-row .btn { justify-content: center; }
+}

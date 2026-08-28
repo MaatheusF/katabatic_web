@@ -1,24 +1,40 @@
 /* ==========================================================================
    Katabatic — mapa-ao-vivo.js
    Mapa ao vivo (tela cheia): posição de toda a frota agora. Aeronaves "em
-   voo" tem a posição simulada avançando ao longo do arco origem→destino,
-   repetindo em loop a telemetria real gravada em flights.json (não existe
-   feed ao vivo via ACARS ainda - ver comentário no MapaAoVivoController).
-   Aeronaves paradas ficam fixas na base/estação atual. Coordenadas dos
-   aeroportos vêm de airports.json (mesmo padrão de aeronave.js/voo.js).
+   voo" com um heartbeat de posição real do ACARS (ver
+   AcarsIngestaoController::posicao(), README "Backend: posição em tempo
+   real (ACARS fase 3)") mostram essa posição de verdade, atualizada por
+   polling em GET /mapa-ao-vivo/posicoes a cada POLL_MS - com interpolação
+   linear simples entre dois pings pra não "saltar" no mapa. Uma aeronave
+   "Em voo" SEM ping ainda (cliente antigo, ou decolou sem --server) cai no
+   comportamento anterior: posição simulada avançando ao longo do arco
+   origem→destino, repetindo em loop a telemetria real gravada em
+   flights.json - ver updateFlying(). As duas convivem por aeronave, ao
+   mesmo tempo, na mesma tela. Aeronaves paradas ficam fixas na base/
+   estação atual (essas não têm heartbeat - só aeronaves "Em voo" mandam
+   posição). Coordenadas dos aeroportos vêm de airports.json (mesmo padrão
+   de aeronave.js/voo.js).
 
-   Clima em tempo real (novo): duas APIs públicas, gratuitas e sem chave,
+   Limitação conhecida, de propósito: a LISTA de quem está "Em voo" (quais
+   aeronaves aparecem) só atualiza no reload da página, igual antes desta
+   fatia - o polling de /mapa-ao-vivo/posicoes só refina a POSIÇÃO de quem
+   já apareceu na carga inicial, não adiciona/remove aeronave da tela.
+   Resolve sozinho no próximo reload; não é regressão (a tela nunca
+   atualizou essa lista sozinha).
+
+   Clima em tempo real: duas APIs públicas, gratuitas e sem chave,
    chamadas direto do navegador (mesmo padrão de fetch já usado aqui) -
    Open-Meteo pra condição atual por aeroporto (temperatura/vento/
    precipitação/código de tempo) e RainViewer pro radar de precipitação
-   em imagem sobreposta ao mapa. Essa é telemetria de verdade (ao
-   contrário da posição das aeronaves em voo, que é simulada) - mas como
-   os aeroportos da rede ficam em regiões remotas (interior do Alasca,
-   Patagônia), a cobertura de radar pode ser fraca ou inexistente
-   dependendo do lugar; a condição por aeroporto (Open-Meteo) funciona em
-   qualquer coordenada do globo. As duas chamadas falham em silêncio
-   (try/catch + log) se a API estiver fora do ar ou inacessível - o resto
-   do mapa continua funcionando normalmente sem clima.
+   em imagem sobreposta ao mapa. Essa é telemetria de verdade (assim como
+   a posição real das aeronaves com heartbeat, ao contrário do replay
+   simulado das que ainda não têm) - mas como os aeroportos da rede ficam
+   em regiões remotas (interior do Alasca, Patagônia), a cobertura de
+   radar pode ser fraca ou inexistente dependendo do lugar; a condição por
+   aeroporto (Open-Meteo) funciona em qualquer coordenada do globo. As
+   duas chamadas falham em silêncio (try/catch + log) se a API estiver
+   fora do ar ou inacessível - o resto do mapa continua funcionando
+   normalmente sem clima.
    ========================================================================== */
 (function () {
   'use strict';
@@ -34,6 +50,33 @@
   var RADAR = { frames: [], idx: -1, layer: null, timer: null, host: '', ok: null, playing: false };
   var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
   var RADAR_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+
+  // Polling de posição real (ACARS fase 3) - mesma ordem de grandeza do
+  // heartbeat recomendado pro cliente Python (10-15s, ver
+  // katabatic_capture.py --pos-interval e o README). LIVE_STALE_MS é a
+  // janela de tolerância antes de considerar o ping "velho demais" e cair
+  // de volta pro replay simulado (3x o intervalo de polling - tolera 1-2
+  // polls perdidos sem "piscar" entre os dois modos).
+  var POLL_MS = 12000;
+  var LIVE_STALE_MS = POLL_MS * 3;
+
+  // Traducao de texto construido em JS (nao capturado pelo data-i18n do
+  // lang-toggle.js, que so le innerHTML no load) - ver comentario no topo
+  // do arquivo de template sobre a arquitetura de popups/paineis de mapa.
+  function tr(key, ptFallback) {
+    var en = window.KATABATIC_I18N_EN || {};
+    return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+  }
+
+  // Mesmo vocabulario de status usado no Portal (Fleet) e em Aeronave -
+  // reaproveita as MESMAS chaves common.status.* pra ficar identico em
+  // toda tela onde esse status aparece.
+  function statusLabel(pt) {
+    if (pt === 'Em voo') return tr('common.status.inflight', pt);
+    if (pt === 'Disponível') return tr('common.status.available', pt);
+    if (pt === 'Fora de base') return tr('common.status.awayfrombase', pt);
+    return pt;
+  }
 
   /* ---------- geometria (mesmo helper de aeronave.js, com t contínuo) ---------- */
   function curveCtrl(a, b, bend) {
@@ -84,38 +127,78 @@
   function fmtAlt(v) { return v === null || v === undefined ? '—' : Math.round(v).toLocaleString('pt-BR') + ' ft'; }
   function fmtKt(v) { return v === null || v === undefined ? '—' : Math.round(v) + ' kt'; }
 
+  function isLiveFresh(fa) {
+    return !!(fa.liveCurr && (Date.now() - fa.liveCurr.ts) <= LIVE_STALE_MS);
+  }
+
   function flyingPopup(fa) {
+    var live = isLiveFresh(fa);
+    var srcLabel = live ? tr('mapavivo.pos.live', 'Posição real (ACARS)') : tr('mapavivo.pos.sim', 'Posição simulada');
     var html = '<div class="mv-popup"><b>' + fa.data.callsign + ' · ' + fa.data.reg + '</b>' +
       fa.data.origem + ' → ' + fa.data.destino + '<span class="sub">' + fa.data.tipo + ' · ' + fa.data.modelo + '</span>' +
-      '<div class="kv"><span>Altitude</span><b>' + fmtAlt(fa.lastAlt) + '</b><span>Vel. indicada</span><b>' + fmtKt(fa.lastIas) + '</b></div>';
-    if (fa.data.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(fa.data.flightId) + '">Ver relatório real ↗</a>';
+      '<div class="kv"><span>Altitude</span><b>' + fmtAlt(fa.lastAlt) + '</b><span>' + tr('mapavivo.kv.indicated', 'Vel. indicada') + '</span><b>' + fmtKt(fa.lastIas) + '</b></div>' +
+      '<span class="sub">' + srcLabel + '</span>';
+    if (fa.data.flightId) html += '<br><a href="/voo?id=' + encodeURIComponent(fa.data.flightId) + '">' + tr('mapavivo.viewreport', 'Ver relatório real ↗') + '</a>';
     html += '</div>';
     return html;
   }
   function parkedPopup(pa) {
     return '<div class="mv-popup"><b>' + pa.reg + '</b>' + pa.modelo +
-      '<span class="sub">Base ' + pa.base + ' · em ' + pa.pos + '</span>' +
-      '<div class="kv"><span>Status</span><b>' + pa.status + '</b></div>' +
-      '<br><a href="/aeronave/' + encodeURIComponent(pa.reg) + '">Ver histórico ↗</a></div>';
+      '<span class="sub">Base ' + pa.base + ' · ' + tr('mapavivo.popup.at', 'em') + ' ' + pa.pos + '</span>' +
+      '<div class="kv"><span>Status</span><b>' + statusLabel(pa.status) + '</b></div>' +
+      '<br><a href="/aeronave/' + encodeURIComponent(pa.reg) + '">' + tr('mapavivo.popup.viewhistory', 'Ver histórico ↗') + '</a></div>';
   }
 
   /* ---------- construção dos marcadores ---------- */
+  // `a`/`b` (aeroportos de origem/destino resolvidos no catálogo) só
+  // existem pra desenhar o arco tracejado e pra simular posição quando
+  // NÃO há ping real (`updateFlyingSimulated()`) - uma aeronave `live`
+  // não depende deles pra aparecer: a posição real (`fa.lat`/`fa.lon`,
+  // do ACARS) já é suficiente. Antes disto, um voo `live: true` entre
+  // aeroportos fora do catálogo (ex.: reposicionamento pra fora da rede
+  // Katabatic/PAFA/SCCI, como CYQH→CYXY) sumia inteiro do mapa mesmo
+  // com posição real chegando certinho - `if (!a || !b) return null`
+  // matava a aeronave toda por causa de um dado que só a simulação
+  // precisa. Aeronave sem ping E sem os dois aeroportos no catálogo
+  // continua sem aparecer (não tem nem posição real nem arco pra
+  // simular - nada pra mostrar mesmo).
   function buildFlying() {
     FLYING = FLYING_RAW.map(function (fa) {
-      var a = AIRPORTS[fa.origem], b = AIRPORTS[fa.destino];
-      if (!a || !b) return null;
-      var aLL = [a.lat, a.lon], bLL = [b.lat, b.lon];
-      var ctrl = curveCtrl(aLL, bLL, curveBend(aLL, bLL));
-      L.polyline(curvePoints(aLL, bLL, ctrl, 32), { color: 'var(--accent)', weight: 1.6, opacity: .55, dashArray: '2 7' }).addTo(MLAYER);
+      var apOrig = AIRPORTS[fa.origem], apDest = AIRPORTS[fa.destino];
+      var hasArc = !!(apOrig && apDest);
+      var hasLivePos = fa.live && typeof fa.lat === 'number' && typeof fa.lon === 'number';
+      if (!hasArc && !hasLivePos) return null;
 
-      var marker = L.marker(aLL, {
+      var aLL = hasArc ? [apOrig.lat, apOrig.lon] : null;
+      var bLL = hasArc ? [apDest.lat, apDest.lon] : null;
+      var ctrl = hasArc ? curveCtrl(aLL, bLL, curveBend(aLL, bLL)) : null;
+      if (hasArc) {
+        L.polyline(curvePoints(aLL, bLL, ctrl, 32), { color: 'var(--accent)', weight: 1.6, opacity: .55, dashArray: '2 7' }).addTo(MLAYER);
+      }
+
+      var initialLL = hasLivePos ? [fa.lat, fa.lon] : aLL;
+      var marker = L.marker(initialLL, {
         icon: L.divIcon({ className: '', html: flyingMarkerHtml(fa), iconSize: [130, 26], iconAnchor: [13, 13] }),
         zIndexOffset: 600
       }).addTo(MLAYER);
 
       var rec = FLIGHTS_BY_ID[fa.flightId] || null;
-      var obj = { data: fa, F: rec, a: aLL, b: bLL, ctrl: ctrl, marker: marker, lastAlt: null, lastIas: null, lastGs: null };
-      marker.on('click', function () { focusOn(aLL); marker.bindPopup(flyingPopup(obj)).openPopup(); });
+      var obj = {
+        data: fa, F: rec, a: aLL, b: bLL, ctrl: ctrl, hasArc: hasArc, marker: marker,
+        lastAlt: fa.live ? fa.altFt : null, lastIas: fa.live ? fa.iasKt : null, lastGs: fa.live ? fa.gsKt : null,
+        // Posição real (ver applyLivePositions/updateFlying) - já
+        // preenchida desde o load se a carga inicial já veio com
+        // `live: true` (a aeronave já tinha ping quando a página abriu),
+        // pra não esperar o primeiro polling só pra mostrar a posição
+        // certa.
+        livePrev: null, liveCurr: null, lastHdg: null
+      };
+      if (hasLivePos) {
+        var ponto = { lat: fa.lat, lon: fa.lon, hdg: (typeof fa.hdgTrue === 'number' ? fa.hdgTrue : null), ts: Date.now() };
+        obj.livePrev = ponto;
+        obj.liveCurr = ponto;
+      }
+      marker.on('click', function () { focusOn(initialLL); marker.bindPopup(flyingPopup(obj)).openPopup(); });
       return obj;
     }).filter(Boolean);
   }
@@ -145,7 +228,13 @@
 
     Object.keys(AIRPORTS).forEach(function (icao) {
       var ap = AIRPORTS[icao];
-      var dot = L.circleMarker([ap.lat, ap.lon], { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 }).addTo(MLAYER);
+      // ap.isBase vem do catalogo (AeroportoRepository::catalogoArrayFor())
+      // - as seis bases principais da rede ganham uma bolinha maior que
+      // postos avancados/outros aeroportos (pedido do piloto; mesmo
+      // tratamento em aeronave.js pro mapa de historico da frota).
+      var dot = L.circleMarker([ap.lat, ap.lon], ap.isBase
+        ? { radius: 7, color: '#fff', weight: 2, fillColor: '#2C7CA5', fillOpacity: .9 }
+        : { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 }).addTo(MLAYER);
       dot.on('click', function () { dot.bindPopup(airportPopup(icao)).openPopup(); });
       AIRPORT_MARKERS[icao] = { dot: dot, badge: null };
       if (active[icao]) {
@@ -163,13 +252,13 @@
     // categorias que interessam pra essa tela: claro/nublado, névoa,
     // chuva, neve, tempestade. `tag` reaproveita as cores já usadas em
     // tags/dots no resto do app (ok/ice/warn/bad).
-    if (code === 0 || code === 1) return { label: 'Claro', tag: 'ok' };
-    if (code === 2 || code === 3) return { label: 'Nublado', tag: '' };
-    if (code === 45 || code === 48) return { label: 'Névoa', tag: 'ice' };
-    if (code >= 51 && code <= 57) return { label: 'Garoa', tag: 'warn' };
-    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: 'Chuva', tag: 'warn' };
-    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: 'Neve', tag: 'ice' };
-    if (code >= 95) return { label: 'Tempestade', tag: 'bad' };
+    if (code === 0 || code === 1) return { label: tr('mapavivo.wx.clear', 'Claro'), tag: 'ok' };
+    if (code === 2 || code === 3) return { label: tr('mapavivo.wx.cloudy', 'Nublado'), tag: '' };
+    if (code === 45 || code === 48) return { label: tr('mapavivo.wx.fog', 'Névoa'), tag: 'ice' };
+    if (code >= 51 && code <= 57) return { label: tr('mapavivo.wx.drizzle', 'Garoa'), tag: 'warn' };
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: tr('mapavivo.wx.rain', 'Chuva'), tag: 'warn' };
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: tr('mapavivo.wx.snow', 'Neve'), tag: 'ice' };
+    if (code >= 95) return { label: tr('mapavivo.wx.storm', 'Tempestade'), tag: 'bad' };
     return { label: '—', tag: '' };
   }
   function weatherTagColor(tag) {
@@ -179,12 +268,28 @@
   function airportPopup(icao) {
     var ap = AIRPORTS[icao];
     var html = '<div class="mv-popup"><b>' + icao + '</b>' + ap.name + '<span class="sub">' + ap.city + '</span>';
+    // postoAvancadoDe vem do catalogo (App\Entity\Aeroporto, ver
+    // AeroportoRepository::findAllAsCatalogArray()) - so rotulo, nota
+    // extra quando o admin marcou esse ICAO como posto avancado de uma
+    // das duas bases (ver aeronave.js pro mesmo tratamento no mapa de
+    // historico da frota).
+    if (ap.postoAvancadoDe) {
+      html += '<span class="sub">' + tr('mapavivo.airport.posto', 'Posto avançado de') + ' ' + ap.postoAvancadoDe + '</span>';
+    }
+    // icaoOficial idem, ver aeroporto.js/aeronave.js - so aparece se esse
+    // ICAO (quase sempre posto avancado, unico jeito de um codigo sem
+    // ICAO oficial acabar no catalogo pequeno que este mapa consome) veio
+    // do import global sem ICAO real (pistas de bush flying nas regioes
+    // de missao).
+    if (ap.icaoOficial === false) {
+      html += '<span class="sub">' + tr('mapavivo.airport.local', 'Código local — não é ICAO oficial') + '</span>';
+    }
     var w = WEATHER[icao];
     if (w) {
       var info = weatherCodeInfo(w.code);
-      html += '<div class="kv"><span>Condição</span><b>' + info.label + '</b><span>Temperatura</span><b>' + Math.round(w.temp) + ' °C</b>' +
-        '<span>Vento</span><b>' + Math.round(w.wind) + ' kt</b><span>Rajada</span><b>' + (w.gust !== null && w.gust !== undefined ? Math.round(w.gust) + ' kt' : '—') + '</b></div>' +
-        '<span class="sub">Clima em tempo real · Open-Meteo</span>';
+      html += '<div class="kv"><span>' + tr('mapavivo.wx.condition', 'Condição') + '</span><b>' + info.label + '</b><span>' + tr('mapavivo.wx.temperature', 'Temperatura') + '</span><b>' + Math.round(w.temp) + ' °C</b>' +
+        '<span>' + tr('mapavivo.wx.wind', 'Vento') + '</span><b>' + Math.round(w.wind) + ' kt</b><span>' + tr('mapavivo.wx.gust', 'Rajada') + '</span><b>' + (w.gust !== null && w.gust !== undefined ? Math.round(w.gust) + ' kt' : '—') + '</b></div>' +
+        '<span class="sub">' + tr('mapavivo.wx.caption', 'Clima em tempo real · Open-Meteo') + '</span>';
     }
     html += '</div>';
     return html;
@@ -211,7 +316,7 @@
       }
     });
     var el = document.getElementById('mv-wx-updated');
-    if (el) el.textContent = 'Clima atualizado ' + new Date().toISOString().slice(11, 16) + 'Z';
+    if (el) el.textContent = tr('mapavivo.wx.updated', 'Clima atualizado') + ' ' + new Date().toISOString().slice(11, 16) + 'Z';
   }
 
   function loadWeather() {
@@ -292,7 +397,7 @@
     if (RADAR.ok === false) {
       toggle.checked = false;
       toggle.disabled = true;
-      if (label) label.textContent = 'Radar indisponível';
+      if (label) label.textContent = tr('mapavivo.radar.unavailable', 'Radar indisponível');
       if (play) play.disabled = true;
     }
   }
@@ -315,13 +420,24 @@
   // Botão "Animar" é opcional - o radar abre parado no frame mais
   // recente; apertar aqui passa a repetir os últimos ~80 min em loop até
   // pausar de novo (volta pro frame atual ao pausar).
+  // Fatorado do click handler pra tambem poder ser re-chamado no
+  // langchange (o texto do botao muda entre Animar/Pausar E entre
+  // PT/EN, e data-i18n sozinho so sabe voltar pro estado PT/EN
+  // "parado" original - o estado dinamico de reproducao precisa
+  // ser reaplicado por cima depois da troca de idioma).
+  function updateRadarPlayLabel() {
+    var btn = document.getElementById('mv-radar-play');
+    if (!btn) return;
+    btn.textContent = RADAR.playing ? tr('mapavivo.radar.pause', '⏸ Pausar') : tr('mapavivo.radar.play', '▶ Animar');
+    btn.setAttribute('aria-pressed', String(RADAR.playing));
+  }
+
   function wireRadarPlay() {
     var btn = document.getElementById('mv-radar-play');
     if (!btn) return;
     btn.addEventListener('click', function () {
       RADAR.playing = !RADAR.playing;
-      btn.textContent = RADAR.playing ? '⏸ Pausar' : '▶ Animar';
-      btn.setAttribute('aria-pressed', String(RADAR.playing));
+      updateRadarPlayLabel();
       if (!RADAR.playing && RADAR.frames.length) {
         RADAR.idx = RADAR.frames.length - 1;
         showRadarFrame();
@@ -345,17 +461,17 @@
     return '<div class="mv-row" data-focus="parked-' + pa.reg + '">' +
       '<i class="dot dot-ground ' + dotCls + '"></i>' +
       '<div class="mv-row-body"><div class="mv-row-title">' + pa.reg + '</div>' +
-      '<div class="mv-row-sub">' + pa.status + ' · ' + pa.pos + '</div></div>' +
+      '<div class="mv-row-sub">' + statusLabel(pa.status) + ' · ' + pa.pos + '</div></div>' +
       '<div class="mv-row-metric">' + pa.base + '</div>' +
       '</div>';
   }
 
   function renderPanel() {
-    document.getElementById('mv-flying-list').innerHTML = FLYING.map(flyingRow).join('') || '<p class="mv-note">Nenhuma aeronave em voo agora.</p>';
+    document.getElementById('mv-flying-list').innerHTML = FLYING.map(flyingRow).join('') || '<p class="mv-note">' + tr('mapavivo.flying.empty', 'Nenhuma aeronave em voo agora.') + '</p>';
     document.getElementById('mv-parked-list').innerHTML = PARKED.map(parkedRow).join('');
     document.getElementById('mv-count-flying').textContent = FLYING.length;
     document.getElementById('mv-count-parked').textContent = PARKED.length;
-    document.getElementById('mv-fleet-count').textContent = (FLYING.length + PARKED.length) + ' aeronaves';
+    document.getElementById('mv-fleet-count').textContent = (FLYING.length + PARKED.length) + ' ' + tr('mapavivo.fleet.noun', 'aeronaves');
 
     document.getElementById('mv-flying-list').querySelectorAll('.mv-row').forEach(function (row, i) {
       row.addEventListener('click', function () {
@@ -377,29 +493,99 @@
     el.innerHTML = '<b>' + fmtAlt(fa.lastAlt) + '</b>' + fmtKt(fa.lastIas);
   }
 
-  /* ---------- loop de posição (repete a gravação real em loop) ---------- */
+  /* ---------- posição: real (ACARS) quando existe, senão replay simulado ---------- */
+  function placeMarker(fa, ll, hdg) {
+    fa.marker.setLatLng(ll);
+    var el = fa.marker.getElement();
+    if (el) {
+      var svg = el.querySelector('.mv-plane svg');
+      if (svg) svg.style.transform = 'rotate(' + hdg.toFixed(0) + 'deg)';
+    }
+  }
+
+  // Interpola linearmente entre o ping anterior e o mais recente ao longo
+  // da janela entre os dois (normalmente ~POLL_MS) - evita o marcador
+  // "saltar" de um ponto pro outro a cada polling. Depois que o tempo da
+  // janela passa (nenhum ping novo chegou ainda), fica parado no último
+  // ponto conhecido até o próximo polling atualizar `liveCurr`.
+  function updateFlyingLive(fa, now) {
+    var prev = fa.livePrev, curr = fa.liveCurr;
+    var span = curr.ts - prev.ts;
+    var t = span > 0 ? Math.min(1, Math.max(0, (now - prev.ts) / span)) : 1;
+    var lat = prev.lat + (curr.lat - prev.lat) * t;
+    var lon = prev.lon + (curr.lon - prev.lon) * t;
+
+    var hdg;
+    if (Math.abs(curr.lat - prev.lat) > 1e-6 || Math.abs(curr.lon - prev.lon) > 1e-6) {
+      hdg = bearing([prev.lat, prev.lon], [curr.lat, curr.lon]);
+    } else if (typeof curr.hdg === 'number') {
+      hdg = curr.hdg;          // parado/quase parado: usa a proa reportada, não dá pra derivar do deslocamento
+    } else {
+      hdg = fa.lastHdg || 0;
+    }
+    fa.lastHdg = hdg;
+    placeMarker(fa, [lat, lon], hdg);
+    updateSideMetric(fa);
+  }
+
+  function updateFlyingSimulated(fa, now) {
+    var dur = (fa.F && fa.F.dur) ? fa.F.dur : 300;
+    var elapsed = (now / 1000) % dur;
+    var t = elapsed / dur;
+    var p1 = bezierAt(fa.a, fa.b, fa.ctrl, t);
+    var p2 = bezierAt(fa.a, fa.b, fa.ctrl, Math.min(0.999, t + 0.004));
+    placeMarker(fa, p1, bearing(p1, p2));
+
+    if (fa.F && fa.F.prof && fa.F.prof.length) {
+      var idx = Math.min(fa.F.prof.length - 1, Math.floor(elapsed));
+      var row = fa.F.prof[idx];
+      if (row) { fa.lastAlt = row[1]; fa.lastIas = row[2]; fa.lastGs = row[6]; }
+    }
+    updateSideMetric(fa);
+  }
+
   function updateFlying(now) {
     FLYING.forEach(function (fa) {
-      var dur = (fa.F && fa.F.dur) ? fa.F.dur : 300;
-      var elapsed = (now / 1000) % dur;
-      var t = elapsed / dur;
-      var p1 = bezierAt(fa.a, fa.b, fa.ctrl, t);
-      var p2 = bezierAt(fa.a, fa.b, fa.ctrl, Math.min(0.999, t + 0.004));
-      var hdg = bearing(p1, p2);
+      if (isLiveFresh(fa)) updateFlyingLive(fa, now);
+      else if (fa.hasArc) updateFlyingSimulated(fa, now);
+      // Sem ping fresco E sem os dois aeroportos no catálogo pra simular
+      // (ver comentário de buildFlying()): não dá pra mover o marcador
+      // de nenhum jeito - fica parado na última posição real conhecida
+      // em vez de quebrar tentando usar `fa.a`/`fa.b`/`fa.ctrl` nulos.
+      else updateSideMetric(fa);
+    });
+  }
 
-      fa.marker.setLatLng(p1);
-      var el = fa.marker.getElement();
-      if (el) {
-        var svg = el.querySelector('.mv-plane svg');
-        if (svg) svg.style.transform = 'rotate(' + hdg.toFixed(0) + 'deg)';
-      }
+  /* ---------- polling de posição real (ACARS fase 3) ---------- */
+  // Só REFINA a posição de quem já está em FLYING (carregado no load) -
+  // não adiciona/remove aeronave da tela; ver comentário no topo do
+  // arquivo sobre essa limitação deliberada.
+  function applyLivePositions(list) {
+    var byReg = {};
+    (list || []).forEach(function (item) { byReg[item.reg] = item; });
 
-      if (fa.F && fa.F.prof && fa.F.prof.length) {
-        var idx = Math.min(fa.F.prof.length - 1, Math.floor(elapsed));
-        var row = fa.F.prof[idx];
-        if (row) { fa.lastAlt = row[1]; fa.lastIas = row[2]; fa.lastGs = row[6]; }
-      }
-      updateSideMetric(fa);
+    FLYING.forEach(function (fa) {
+      var item = byReg[fa.data.reg];
+      if (!item || !item.live || typeof item.lat !== 'number' || typeof item.lon !== 'number') return;
+
+      var now = Date.now();
+      fa.livePrev = fa.liveCurr || { lat: item.lat, lon: item.lon, hdg: item.hdgTrue, ts: now };
+      fa.liveCurr = { lat: item.lat, lon: item.lon, hdg: (typeof item.hdgTrue === 'number' ? item.hdgTrue : null), ts: now };
+      if (typeof item.altFt === 'number') fa.lastAlt = item.altFt;
+      if (typeof item.iasKt === 'number') fa.lastIas = item.iasKt;
+      if (typeof item.gsKt === 'number') fa.lastGs = item.gsKt;
+    });
+  }
+
+  function pollPositions() {
+    fetch(posicoesUrl).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(applyLivePositions).catch(function (err) {
+      // Falha aqui não quebra a tela - quem tinha posição real vira
+      // "velha" sozinho depois de LIVE_STALE_MS (ver isLiveFresh) e cai
+      // de volta pro replay simulado até o próximo polling funcionar.
+      console.warn('Katabatic: falha ao buscar posições ao vivo (fallback pro replay simulado).', err);
     });
   }
 
@@ -417,10 +603,16 @@
 
   /* ---------- mapa ---------- */
   function initMap() {
-    if (!window.L) { document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">Mapa indisponível</p>'; return; }
-    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
+    if (!window.L) { document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">' + tr('mapavivo.map.unavailable', 'Mapa indisponível') + '</p>'; return; }
+    // CARTO passou a exigir API key ate pro tile gratuito - sem isso
+    // desenha uma marca d'agua "API KEY REQUIRED" por cima do mapa (ver
+    // MapaAoVivoController::index()/README). window.KATABATIC_CARTO_API_KEY
+    // vem do env CARTO_API_KEY via Twig; encodeURIComponent('') se nao
+    // estiver configurada nao quebra a URL, so mantem a marca d'agua.
+    var CARTO_KEY = encodeURIComponent(window.KATABATIC_CARTO_API_KEY || '');
+    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
-    MAP = L.map('mv-map', { scrollWheelZoom: false, minZoom: 2, maxZoom: 12 });
+    MAP = L.map('mv-map', { scrollWheelZoom: true, minZoom: 2, maxZoom: 12 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 12, detectRetina: true }).addTo(MAP);
     new MutationObserver(function () { base.setUrl(TL[th()]); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     MLAYER = L.layerGroup().addTo(MAP);
@@ -431,13 +623,23 @@
     renderPanel();
 
     var bounds = [];
-    FLYING.forEach(function (fa) { bounds.push(fa.a, fa.b); });
+    FLYING.forEach(function (fa) {
+      if (fa.hasArc) { bounds.push(fa.a, fa.b); }
+      else if (fa.liveCurr) { bounds.push([fa.liveCurr.lat, fa.liveCurr.lon]); }
+    });
     PARKED.forEach(function (pa) { if (pa._ll) bounds.push(pa._ll); });
     if (bounds.length) MAP.fitBounds(L.latLngBounds(bounds).pad(0.35)); else MAP.setView([20, -50], 3);
 
     setTimeout(function () { MAP.invalidateSize(); }, 0);
     tick();
     setInterval(tick, 1000);
+
+    // Posição real (ACARS fase 3): primeiro polling já na abertura (a
+    // carga inicial via window.KATABATIC_MV_FLYING pode estar
+    // ligeiramente desatualizada se a página ficou aberta em background),
+    // depois a cada POLL_MS - ver comentário no topo do arquivo.
+    pollPositions();
+    setInterval(pollPositions, POLL_MS);
 
     // Clima em tempo real: primeira carga já na abertura da tela, depois
     // Open-Meteo a cada 12 min (condição muda devagar) e RainViewer a
@@ -453,6 +655,7 @@
   /* ---------- carregamento de dados ---------- */
   var airportsUrl = window.KATABATIC_AIRPORTS_URL || '/assets/data/airports.json';
   var flightsUrl = window.KATABATIC_FLIGHTS_URL || '/assets/data/flights.json';
+  var posicoesUrl = window.KATABATIC_MV_POSICOES_URL || '/mapa-ao-vivo/posicoes';
 
   Promise.all([
     fetch(airportsUrl).then(function (r) { return r.json(); }),
@@ -463,11 +666,46 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMap); else initMap();
   }).catch(function (err) {
     console.error('Katabatic: falha ao carregar dados do mapa ao vivo.', err);
-    document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">Não foi possível carregar os dados do mapa.</p>';
+    document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">' + tr('mapavivo.fetch.error', 'Não foi possível carregar os dados do mapa.') + '</p>';
   });
 
   document.addEventListener('katabatic:langchange', function () {
     var el = document.getElementById('title');
     if (el) el.textContent = document.documentElement.lang === 'en' ? 'Live map' : 'Mapa ao vivo';
+
+    // Painel lateral (lista + contagens + vazio), badges/legenda de clima
+    // e os dois textos dinamicos do radar (label indisponivel, botao
+    // animar/pausar) sao todos reconstruidos fora do data-i18n (ver
+    // cabecalho do arquivo) - reaplica todos aqui pra nao ficarem presos
+    // no idioma em que renderizaram pela ultima vez. As funcoes que
+    // constroem os MARCADORES do mapa (buildFlying/buildParked) nao tem
+    // texto traduzivel (so callsign/matricula), entao nao precisam
+    // rodar de novo - so os popups, que sao reconstruidos aqui embaixo.
+    renderPanel();
+    if (Object.keys(WEATHER).length) applyWeatherToMap();
+    setRadarToggleAvailability();
+    updateRadarPlayLabel();
+
+    // Popups ja abertos ficam com o conteudo antigo ate fechar/reabrir -
+    // as funcoes builder (flyingPopup/parkedPopup/airportPopup) ja sao
+    // language-aware (chamam tr() na hora), entao a proxima abertura sai
+    // certa mesmo sem isso; isso aqui so evita um popup ABERTO agora
+    // ficar preso no idioma antigo até ser fechado.
+    FLYING.forEach(function (fa) {
+      if (fa.marker && fa.marker.isPopupOpen && fa.marker.isPopupOpen()) {
+        fa.marker.setPopupContent(flyingPopup(fa));
+      }
+    });
+    PARKED.forEach(function (pa) {
+      if (pa._marker && pa._marker.isPopupOpen && pa._marker.isPopupOpen()) {
+        pa._marker.setPopupContent(parkedPopup(pa));
+      }
+    });
+    Object.keys(AIRPORT_MARKERS).forEach(function (icao) {
+      var dot = AIRPORT_MARKERS[icao].dot;
+      if (dot && dot.isPopupOpen && dot.isPopupOpen()) {
+        dot.setPopupContent(airportPopup(icao));
+      }
+    });
   });
 })();

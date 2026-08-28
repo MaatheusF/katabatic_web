@@ -2,6 +2,15 @@
    Dados de rede (NET) e dicionario (I18N) ainda sao mock — entram via API
    quando o backend estiver ligado (ver docs/mockups-originais). */
 
+/* Helper padrao pra texto dinamico gerado por este script (popups,
+   stamp do radar, prompt da chave OWM etc.) - o data-i18n/data-i18n-attr
+   do lang-toggle.js so cobre HTML/atributos ja presentes no DOM no load,
+   entao qualquer coisa montada em JS precisa ler o dicionario na mao. */
+function tr(key, ptFallback) {
+  var en = window.KATABATIC_I18N_EN || {};
+  return (window.katabaticLang && window.katabaticLang() === 'en' && en[key]) ? en[key] : ptFallback;
+}
+
 /* ---------- mapa ----------
    Base: OpenStreetMap servido pela CARTO (light_all / dark_all), sem chave de API.
    Radar: RainViewer, API publica, tambem sem chave. */
@@ -31,14 +40,21 @@ var NET = {
   }
 };
 
+function katabaticRenderMapUnavailable(mapEl) {
+  mapEl.innerHTML =
+    '<p style="color:#5F7885;font-family:var(--font-mono);font-size:12px;text-align:center;padding-top:140px">' +
+    tr('map.err.noLeaflet', 'Mapa indisponível — sem conexão com o CDN do Leaflet.') + '</p>';
+}
+
 function katabaticInitMap() {
   var mapEl = document.getElementById('map');
   if (!mapEl) return;
 
   if (!window.L) {
-    mapEl.innerHTML =
-      '<p style="color:#5F7885;font-family:var(--font-mono);font-size:12px;text-align:center;padding-top:140px">' +
-      'Mapa indisponível — sem conexão com o CDN do Leaflet.</p>';
+    katabaticRenderMapUnavailable(mapEl);
+    document.addEventListener('katabatic:langchange', function () {
+      if (!window.L) katabaticRenderMapUnavailable(mapEl);
+    });
     return;
   }
 
@@ -60,7 +76,12 @@ function katabaticInitMap() {
   var radar = null;
 
   var WX = { calm: '#8FA3AD', gust: '#FF8A1F', ice: '#5AA9D6', fog: '#A78BFA', storm: '#E4574A' };
-  var WX_LABEL = { calm: 'CALMO', gust: 'RAJADA', ice: 'GELO', fog: 'NEBLINA', storm: 'TEMPESTADE' };
+  var WX_LABEL_PT = { calm: 'CALMO', gust: 'RAJADA', ice: 'GELO', fog: 'NEBLINA', storm: 'TEMPESTADE' };
+  function wxLabel(key) {
+    var pt = WX_LABEL_PT[key] || WX_LABEL_PT.calm;
+    var dictKey = 'map.wx.' + key;
+    return tr(dictKey, pt);
+  }
 
   function dot(cls, size, color) {
     var style = color ? ' style="background:' + color + ';box-shadow:0 0 0 3px ' + color + '33"' : '';
@@ -112,7 +133,7 @@ function katabaticInitMap() {
       }).addTo(overlay);
       L.marker(st.ll, { icon: dot('mk-stn', 10, color) })
         .bindPopup('<b>' + st.icao + '</b> ' + st.name +
-          '<br><span>' + WX_LABEL[st.wx] + ' &middot; dificuldade prevista ' + st.diff + '</span>')
+          '<br><span>' + wxLabel(st.wx) + ' &middot; ' + tr('map.popup.diff', 'dificuldade prevista') + ' ' + st.diff + '</span>')
         .addTo(overlay);
     });
 
@@ -146,15 +167,39 @@ function katabaticInitMap() {
   var RADAR_MAX_ZOOM = 8;
   var radarTime = '';
 
+  /* stampState guarda so o "tipo" da mensagem exibida no rodape do mapa;
+     o texto de verdade e montado por renderStamp() a partir do idioma
+     atual, pra poder ser remontado quando o usuario troca de idioma sem
+     precisar recalcular o resto do estado do radar/modelo. */
+  var stampState = null; // null | 'hidden' | 'time' | 'unavailable' | 'model'
+
+  function renderStamp() {
+    if (!stamp) return;
+    if (stampState === 'hidden') {
+      stamp.textContent = tr('map.radar.hiddenAbove', 'radar oculto acima do zoom') + ' ' + RADAR_MAX_ZOOM;
+    } else if (stampState === 'time') {
+      stamp.textContent = radarTime;
+    } else if (stampState === 'unavailable') {
+      stamp.textContent = tr('map.radar.unavailable', 'radar indisponivel');
+    } else if (stampState === 'model') {
+      stamp.textContent = tr('map.model.updates', 'modelo · atualiza a cada 3h');
+    } else {
+      stamp.textContent = '';
+    }
+  }
+  document.addEventListener('katabatic:langchange', renderStamp);
+
   function syncRadar() {
     if (!radar) return;
     var tooClose = map.getZoom() > RADAR_MAX_ZOOM;
     if (tooClose && map.hasLayer(radar)) {
       map.removeLayer(radar);
-      stamp.textContent = 'radar oculto acima do zoom ' + RADAR_MAX_ZOOM;
+      stampState = 'hidden';
+      renderStamp();
     } else if (!tooClose && !map.hasLayer(radar)) {
       map.addLayer(radar);
-      stamp.textContent = radarTime;
+      stampState = 'time';
+      renderStamp();
     }
   }
   map.on('zoomend', syncRadar);
@@ -164,7 +209,8 @@ function katabaticInitMap() {
       if (map.hasLayer(radar)) map.removeLayer(radar);
       radar = null; radarTime = '';
       radarBtn.setAttribute('aria-pressed', 'false');
-      stamp.textContent = '';
+      stampState = null;
+      renderStamp();
       return;
     }
     if (owm) { toggleOff(owm, owmBtn); owm = null; }
@@ -180,10 +226,14 @@ function katabaticInitMap() {
         }).addTo(map);
         radarBtn.setAttribute('aria-pressed', 'true');
         radarTime = 'radar ' + new Date(last.time * 1000).toISOString().slice(11, 16) + 'Z';
-        stamp.textContent = radarTime;
+        stampState = 'time';
+        renderStamp();
         syncRadar();
       })
-      .catch(function () { stamp.textContent = 'radar indisponivel'; });
+      .catch(function () {
+        stampState = 'unavailable';
+        renderStamp();
+      });
   });
 
   /* camada de modelo (OpenWeather Weather Maps 1.0)
@@ -202,11 +252,12 @@ function katabaticInitMap() {
     if (owm) {
       toggleOff(owm, owmBtn);
       owm = null;
-      stamp.textContent = '';
+      stampState = null;
+      renderStamp();
       return;
     }
     if (!OWM_KEY) {
-      OWM_KEY = (window.prompt('Chave da API OpenWeather (grátis em openweathermap.org/appid):') || '').trim();
+      OWM_KEY = (window.prompt(tr('map.owm.prompt', 'Chave da API OpenWeather (grátis em openweathermap.org/appid):')) || '').trim();
       if (!OWM_KEY) return;
     }
     if (radar) { toggleOff(radar, radarBtn); radar = null; }
@@ -216,7 +267,8 @@ function katabaticInitMap() {
       { opacity: .6, maxZoom: 15, maxNativeZoom: 12, zIndex: 350, attribution: 'Weather data &copy; <a href="https://openweathermap.org">OpenWeather</a>' }
     ).addTo(map);
     owmBtn.setAttribute('aria-pressed', 'true');
-    stamp.textContent = 'modelo · atualiza a cada 3h';
+    stampState = 'model';
+    renderStamp();
   });
 
   setTimeout(function () { map.invalidateSize(); }, 0);
@@ -241,12 +293,18 @@ window.KATABATIC_I18N_EN = {
     'hero.badge': 'Virtual airline · MSFS 2024 · VATSIM',
     'hero.lead': 'We fly cargo and people between gravel, ice and wind — from the Alaskan interior to southern Patagonia. And we fly into the storms everyone else deviates around.',
     'hero.cta1': 'See the operation', 'hero.cta2': 'Fly with us',
-    'hero.shot': 'Replace with a sim capture — 2560×1100',
     'board.pafa': 'Fairbanks, Alaska', 'board.scci': 'Punta Arenas, Chile',
     'board.wind': 'Wind', 'board.temp': 'Temp', 'board.vis': 'Visib.', 'board.ceil': 'Ceiling',
     'map.eyebrow': 'Network', 'map.title': 'Where we are right now',
     'map.lead': 'Two independent networks, 13,000 km apart. Aircraft appear here while the ACARS is transmitting.',
     'map.live': '2 airborne', 'map.radar': 'Radar', 'map.model': 'Model',
+    'map.err.noLeaflet': 'Map unavailable — no connection to the Leaflet CDN.',
+    'map.wx.calm': 'CALM', 'map.wx.gust': 'GUSTS', 'map.wx.ice': 'ICING', 'map.wx.fog': 'FOG', 'map.wx.storm': 'STORM',
+    'map.popup.diff': 'expected difficulty',
+    'map.radar.hiddenAbove': 'radar hidden above zoom',
+    'map.radar.unavailable': 'radar unavailable',
+    'map.model.updates': 'model · updates every 3h',
+    'map.owm.prompt': 'OpenWeather API key (free at openweathermap.org/appid):',
     'lg.net': 'Network', 'lg.base': 'Base', 'lg.stn': 'Forward station',
     'lg.wx': 'Conditions at destination', 'lg.calm': 'Calm', 'lg.gust': 'Gusts',
     'lg.ice': 'Icing', 'lg.fog': 'Fog', 'lg.storm': 'Storm',
@@ -260,7 +318,6 @@ window.KATABATIC_I18N_EN = {
     'about.noteBody': 'Katabatic is a virtual airline. We do not move real cargo or people: every flight happens in Microsoft Flight Simulator 2024, with air traffic control provided by real people on the VATSIM network. The routes, the weather and the aircraft are real — the operation is simulated.',
     'fig.flights': 'Flights in the last 90 days', 'fig.vatsim': 'Flown on the VATSIM network',
     'fig.fleet': 'Aircraft in the fleet', 'fig.bases': 'Operating bases',
-    'cap.cockpit': 'Your capture here · KBT412 over the icefield',
     'bases.eyebrow': 'Bases', 'bases.title': 'Two ends of the continent',
     'bases.lead': 'Each base has its own locally registered fleet, its mission profile and its hard season. Between them, 13,000 km and one repositioning flight per season.',
     'bases.north.tag': 'KBT North · N-registered',
@@ -271,8 +328,7 @@ window.KATABATIC_I18N_EN = {
     'bases.south.title': 'Punta Arenas — Magallanes and Patagonia',
     'bases.south.body': 'Support for research stations, fjord crossings and technical crew transport. This is where the katabatic wind behind our name really shows up: gusts rolling down the range that rewrite the approach in the last 500 feet.',
     'bases.field': 'Airfield', 'bases.dest': 'Regular destinations', 'bases.leg': 'Average leg', 'bases.based': 'Based aircraft',
-    'cap.north': 'Your capture here · N208KB at Bettles',
-    'cap.south': 'Your capture here · CC-KBA on final for SCNT',
+    'cap.north': 'N208KB at Bettles',
     'fleet.eyebrow': 'Fleet', 'fleet.title': 'Six aircraft, two flags',
     'fleet.lead': 'Chilean registry in the south, US registry in the north. All turboprop, all able to work short unpaved strips.',
     'ops.eyebrow': 'Recent operations', 'ops.title': 'Every flight becomes a report',
@@ -282,7 +338,6 @@ window.KATABATIC_I18N_EN = {
     'crew.eyebrow': 'Crew', 'crew.title': 'Entry by assessment',
     'crew.lead': 'Katabatic does not recruit in bulk. Three assessment flights under your own callsign, judged by the same data that produces the public reports — nobody is approved by eye, and nobody is rejected by opinion.',
     'crew.cta1': 'Start assessment', 'crew.cta2': 'Operations manual',
-    'cap.crew': 'Your capture here · monthly group flight',
     'crew.c1': '<strong>Active VATSIM account.</strong> The assessment and every flight happen on the network.',
     'crew.c2': '<strong>Three legs with the ACARS.</strong> One at each base and one of your choosing.',
     'crew.c3': '<strong>No slew, no time acceleration.</strong> Detected automatically; invalidates the flight.',

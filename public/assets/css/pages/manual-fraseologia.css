@@ -1,0 +1,80 @@
+/* ==========================================================================
+   Katabatic — manual-fraseologia.css
+   Manual de Fraseologia VATSIM: documento de referência com sumário
+   fixo ao lado. Depende de base.css + app-shell.css carregados antes -
+   página autocontida, sem componentes compartilhados com outras telas.
+   ========================================================================== */
+
+.bar { z-index: 600; }
+.bar h1 { font-size: 18px; font-weight: 500; letter-spacing: 0; }
+.bar .back { display: flex; align-items: center; gap: 6px; color: var(--text-2); text-decoration: none; font-size: 13px; }
+.bar .back:hover { color: var(--text); }
+.bar .sep { color: var(--muted); }
+.bar .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+html { scroll-behavior: smooth; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 24px 28px 80px; }
+
+.m-layout { display: grid; grid-template-columns: 1fr 220px; gap: 28px; align-items: start; }
+
+.m-hero { margin-bottom: 20px; }
+.m-tag { display: inline-block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); margin-bottom: 10px; }
+.m-hero h2 { font-size: 21px; font-weight: 500; margin-bottom: 8px; }
+.m-hero p { font-size: 14px; color: var(--text-2); line-height: 1.6; max-width: 720px; }
+
+.m-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; margin-bottom: 16px; scroll-margin-top: 20px; }
+.m-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+.m-card p { font-size: 13.5px; color: var(--text-2); line-height: 1.65; }
+.m-card p + .m-call, .m-card p + p { margin-top: 10px; }
+
+.m-golden { margin-top: 12px; padding-left: 18px; }
+.m-golden li { font-size: 13.5px; color: var(--text-2); line-height: 1.65; margin-bottom: 6px; }
+.m-golden li:last-child { margin-bottom: 0; }
+.m-golden b { color: var(--text); font-weight: 500; }
+
+.m-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.m-table thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.m-table tbody td { padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--text-2); }
+.m-table tbody tr:last-child td { border-bottom: 0; }
+
+.m-transcript { list-style: none; padding: 0; margin: 14px 0 0; counter-reset: m-step; }
+.m-transcript li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; padding: 9px 0; border-bottom: 1px solid var(--border); counter-increment: m-step; }
+.m-transcript li:last-child { border-bottom: 0; }
+.m-transcript li::before {
+  content: counter(m-step); flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 10px; display: grid; place-items: center;
+}
+.m-tt { flex: none; width: 130px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.m-tx { flex: 1 1 320px; font-family: var(--font-mono); font-size: 12.5px; color: var(--text); line-height: 1.5; }
+
+.m-call {
+  display: flex; align-items: center; gap: 12px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; margin-top: 10px;
+}
+.m-call span { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); line-height: 1.55; }
+.m-call-em { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); background: color-mix(in srgb, var(--danger) 8%, var(--surface-2)); }
+.m-copy {
+  flex: none; margin-left: auto; font-family: var(--font-mono); font-size: 11px; padding: 6px 11px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; white-space: nowrap;
+}
+.m-copy:hover { border-color: var(--accent); color: var(--accent); }
+.m-copy[data-copied="1"] { border-color: var(--ok); color: var(--ok); }
+
+.m-note { margin-top: 10px; font-size: 13px; }
+.m-footnote { font-size: 12px; color: var(--muted); line-height: 1.6; max-width: 720px; margin-top: 8px; }
+
+.m-toc {
+  position: sticky; top: 20px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px;
+}
+.m-toc span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.m-toc a { font-size: 13px; color: var(--text-2); text-decoration: none; padding: 5px 0; border-radius: 4px; }
+.m-toc a:hover { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .wrap { padding: 16px; }
+  .m-layout { grid-template-columns: 1fr; }
+  .m-toc { position: static; }
+  .m-tables { grid-template-columns: 1fr; }
+}

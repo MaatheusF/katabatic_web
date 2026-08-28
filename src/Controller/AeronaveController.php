@@ -2,44 +2,77 @@
 
 namespace App\Controller;
 
+use App\Entity\Voo;
+use App\Repository\AeronaveRepository;
+use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Historico de aeronave: todas as pernas voadas por uma matricula da
- * frota num periodo, plotadas num mapa (traçado + origem/destino de
- * cada perna) e listadas ao lado. Acessada a partir do card/linha da
- * aeronave na view Frota do Portal (ver PortalController::fleet).
+ * Histórico de aeronave: todas as pernas voadas por uma matrícula da
+ * frota, plotadas num mapa (traçado + origem/destino de cada perna) e
+ * listadas ao lado. Acessada a partir do card/linha da aeronave na
+ * view Frota do Portal (ver PortalController::fleetViewModel()).
  *
- * A frota aqui e a mesma do Portal/Novo voo (mock, mesmos 6 registros)
- * - so reformatada com o essencial pro cabecalho desta tela. O
- * historico de pernas e mock tambem (ver aircraftLegs()): o Logbook de
- * verdade so tem 6 linhas hoje, poucas pra mostrar uma tela de "todas
- * as pernas de uma aeronave" de forma convincente, entao esta tela usa
- * um historico mais longo (varios meses) gerado deterministicamente
- * aqui. Quando o Logbook virar tabela de verdade, isso vira uma
- * consulta filtrada por matricula.
+ * **Atualizado (backend real):** a aeronave vem de
+ * `App\Entity\Aeronave` (404 se a matrícula não existir na frota) e as
+ * pernas vêm de `VooRepository::findAllByAeronaveReg()` — todo voo já
+ * registrado com essa matrícula, de qualquer piloto, mais recente
+ * primeiro. Antes desta fatia, esta tela gerava um histórico sintético
+ * de ~17 pernas por matrícula (ver git log) só pra ter volume
+ * suficiente pra demonstrar filtro de período; agora mostra o volume
+ * real do Logbook, que hoje é pequeno (1-2 pernas por aeronave) porque
+ * só existem 11 voos gravados no total — cresce conforme o Logbook
+ * cresce, sem precisar gerar nada artificialmente.
+ *
+ * **Atualizado: trajeto real no mapa, não uma linha reta/curva entre
+ * aeroportos.** `legViewModel()` manda o `track` gravado de verdade
+ * (`Voo::getTelemetria()['track']`, decimado — ver `trackPoints()`)
+ * pra toda perna que tem telemetria ACARS; `aeronave.js` desenha
+ * exatamente essas coordenadas em vez de uma curva estimada entre
+ * `origem`/`destino`. Perna sem telemetria (histórico só narrativo,
+ * ver `Voo::hasTelemetria()`) continua sem trajeto real pra mostrar —
+ * cai no fallback antigo (curva estimada entre os dois aeroportos,
+ * só quando ambos existem em `airports.json`).
+ *
+ * **Atualizado: resolução completa sob demanda.** O `track` acima vem
+ * sempre decimado (`TRACK_MAX_PONTOS`) pro carregamento inicial da
+ * tela não pesar com um histórico grande. `trajetosCompletos()` abaixo
+ * é um endpoint à parte — `GET /aeronave/{reg}/trajetos-completos` —
+ * que devolve o `track` **sem decimar** de toda perna com telemetria
+ * da aeronave; `aeronave.js` só chama isso quando o piloto desliga o
+ * toggle "Mostrar todas as posições" (opt-in, com estado de
+ * carregamento — ver docblock de `trajetosCompletos()` pra por quê
+ * não vem tudo de cara).
+ *
+ * **CARTO API key.** Igual a `MapaAoVivoController`/`VooController`:
+ * injeta `CARTO_API_KEY` via `#[Autowire]` e manda pro template como
+ * `cartoApiKey`, que expõe `window.KATABATIC_CARTO_API_KEY` pro
+ * `aeronave.js` montar a URL do tile com `?key=...` — sem isso essa
+ * tela (a única das três que ainda não tinha sido corrigida) continuava
+ * mostrando a marca d'água "API KEY REQUIRED" por cima do mapa (ver
+ * README, "Mapa base (CARTO)").
  */
 class AeronaveController extends AbstractController
 {
     #[Route('/aeronave/{reg}', name: 'app_aeronave', methods: ['GET'])]
-    public function index(Request $request, string $reg): Response
-    {
+    public function index(
+        Request $request,
+        string $reg,
+        AeronaveRepository $aeronaves,
+        VooRepository $voos,
+        #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey,
+    ): Response {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
             return $this->redirectToRoute('app_login');
         }
 
-        $fleet = $this->fleet();
-        $aircraft = null;
-        foreach ($fleet as $a) {
-            if ($a['reg'] === $reg) {
-                $aircraft = $a;
-                break;
-            }
-        }
+        $aircraft = $aeronaves->findOneByReg($reg);
         if (null === $aircraft) {
             throw $this->createNotFoundException('Aeronave não encontrada na frota.');
         }
@@ -47,127 +80,147 @@ class AeronaveController extends AbstractController
         return $this->render('aeronave/index.html.twig', [
             'activeView' => 'frota',
             'pilot' => $pilot,
-            'aircraft' => $aircraft,
-            'legs' => $this->aircraftLegs($reg),
-            'airportsUrl' => '/assets/data/airports.json',
+            'aircraft' => [
+                'reg' => $aircraft->getReg(),
+                'tipo' => $aircraft->getTipo(),
+                'base' => $aircraft->getBase(),
+                'status' => $aircraft->getStatusEfetivo(),
+                'statusTag' => $aircraft->getStatusTag(),
+                'horas' => $aircraft->getHoras(),
+            ],
+            'legs' => array_map(fn (Voo $v) => $this->legViewModel($v), $voos->findAllByAeronaveReg($reg)),
+            'airportsUrl' => $this->generateUrl('app_aeroportos_catalogo'),
+            'trajetosCompletosUrl' => $this->generateUrl('app_aeronave_trajetos_completos', ['reg' => $reg]),
             'nowIso' => '2026-08-19T12:00:00Z',
+            'cartoApiKey' => $cartoApiKey,
         ]);
     }
 
     /**
-     * Mesma frota mock do Portal (PortalController::fleet), so com os
-     * campos que o cabecalho desta tela usa.
+     * `track` sem decimar de toda perna com telemetria da aeronave —
+     * ver docblock da classe. Endpoint à parte (não vem junto de
+     * `index()`) de propósito: um histórico grande, sem decimação,
+     * pode ser um payload considerável (voo de 1h+ a 1 Hz = milhares de
+     * pontos, multiplicado por dezenas de pernas) — só vale pagar esse
+     * custo quando o piloto realmente pede resolução completa (toggle
+     * "Mostrar todas as posições" em `aeronave.js`), não em todo
+     * carregamento da tela.
      *
-     * @return list<array{reg: string, tipo: string, base: string, status: string, statusTag: string, horas: int}>
+     * Devolve um objeto `{ codigo: [[lat, lon], ...] }` — uma chave por
+     * voo com telemetria, não filtrado por período/tipo/acidentado
+     * (esse filtro já é feito no cliente, em cima do mesmo `LEGS` que
+     * `index()` mandou; `aeronave.js` só troca qual `track` usa pra
+     * cada perna já filtrada, não refaz a filtragem aqui).
      */
-    private function fleet(): array
+    #[Route('/aeronave/{reg}/trajetos-completos', name: 'app_aeronave_trajetos_completos', methods: ['GET'])]
+    public function trajetosCompletos(Request $request, string $reg, AeronaveRepository $aeronaves, VooRepository $voos): JsonResponse
     {
-        return [
-            ['reg' => 'CC-KBA', 'tipo' => 'DHC-6 Twin Otter 300', 'base' => 'SCCI', 'status' => 'Em voo', 'statusTag' => 'warn', 'horas' => 318],
-            ['reg' => 'CC-KBC', 'tipo' => 'Cessna 208B Grand Caravan', 'base' => 'SCCI', 'status' => 'Disponível', 'statusTag' => 'ok', 'horas' => 204],
-            ['reg' => 'CC-KBD', 'tipo' => 'Pilatus PC-6 Porter', 'base' => 'SCCI', 'status' => 'Fora de base', 'statusTag' => 'bad', 'horas' => 96],
-            ['reg' => 'N208KB', 'tipo' => 'Cessna 208B Grand Caravan', 'base' => 'PAFA', 'status' => 'Em voo', 'statusTag' => 'warn', 'horas' => 412],
-            ['reg' => 'N412KB', 'tipo' => 'DHC-2 Beaver', 'base' => 'PAFA', 'status' => 'Disponível', 'statusTag' => 'ok', 'horas' => 147],
-            ['reg' => 'N67KB', 'tipo' => 'Beechcraft King Air 350', 'base' => 'PAFA', 'status' => 'Disponível', 'statusTag' => 'ok', 'horas' => 89],
-        ];
+        $pilot = $request->getSession()->get('pilot');
+        if (null === $pilot) {
+            return $this->json([], 401);
+        }
+
+        $aircraft = $aeronaves->findOneByReg($reg);
+        if (null === $aircraft) {
+            return $this->json(['error' => 'Aeronave não encontrada na frota.'], 404);
+        }
+
+        $out = [];
+        foreach ($voos->findAllByAeronaveReg($reg) as $v) {
+            $codigo = $v->getCodigo();
+            if (null === $codigo) {
+                continue;
+            }
+            $pontos = $this->trackPoints($v, null);
+            if (null !== $pontos) {
+                $out[$codigo] = $pontos;
+            }
+        }
+
+        return $this->json($out);
     }
 
     /**
-     * Gera um historico deterministico de pernas para a matricula pedida:
-     * alterna entre a base da aeronave e as estacoes da sua rede (norte
-     * ou sul), voltando no tempo a partir de 2026-08-19 (mesmo "agora"
-     * mock do Portal) em offsets crescentes - recente/semana/mes/
-     * trimestre/semestre - pra dar o que filtrar no seletor de periodo.
-     *
-     * A perna mais recente das 3 matriculas que tem voo de teste real
-     * gravado (N208KB, CC-KBA, N67KB - ver PortalController::logbook)
-     * repete exatamente callsign/rota/data daquela linha do Logbook e
-     * carrega `flightId`, pra abrir /voo?id=... com telemetria de
-     * verdade. O traçado no mapa desta tela, porem, sempre usa a linha
-     * reta entre as coordenadas ICAO (ver airports.json) mesmo nessas 3
-     * pernas - a telemetria real gravada nos testes fica geografiaamente
-     * em outro lugar (ver README), plotar o traçado de verdade ali
-     * quebraria o enquadramento do mapa com o resto do historico.
-     *
-     * @return list<array{data: string, hora: string, callsign: string, tipo: string, origem: string, destino: string, tempo: string, tempoMin: int, dif: int, flightId: ?string}>
+     * @return array{data: string, hora: string, callsign: string, tipo: string, origem: string, destino: string, destinoReal: ?string, tempo: string, tempoMin: int, dif: int, flightId: ?string, acidentado: bool, track: ?list<array{0: float, 1: float}>}
      */
-    private function aircraftLegs(string $reg): array
+    private function legViewModel(Voo $v): array
     {
-        $networks = [
-            'CC-KBA' => ['base' => 'SCCI', 'estacoes' => ['SCNT', 'SCGZ', 'SCFM', 'SCBA'], 'callsignPrefix' => '4', 'tipo' => 'Pesquisa'],
-            'CC-KBC' => ['base' => 'SCCI', 'estacoes' => ['SCFM', 'SCBA', 'SCNT', 'SCGZ'], 'callsignPrefix' => '1', 'tipo' => 'Carga'],
-            'CC-KBD' => ['base' => 'SCCI', 'estacoes' => ['SCBA', 'SCFM', 'SCNT'], 'callsignPrefix' => '9', 'tipo' => 'Reposicionamento'],
-            'N208KB' => ['base' => 'PAFA', 'estacoes' => ['PABT', 'PFYU', 'PAKP', 'PASC'], 'callsignPrefix' => '1', 'tipo' => 'Carga'],
-            'N412KB' => ['base' => 'PAFA', 'estacoes' => ['PFYU', 'PABT', 'PAOT'], 'callsignPrefix' => '2', 'tipo' => 'Pessoal'],
-            'N67KB' => ['base' => 'PAFA', 'estacoes' => ['PASC', 'PAOT', 'PAKP', 'PABT'], 'callsignPrefix' => '2', 'tipo' => 'Pessoal'],
+        $tempoMin = $v->getTempoMin();
+        $tempo = sprintf('%d:%02d', intdiv($tempoMin, 60), $tempoMin % 60);
+
+        return [
+            'data' => $v->getStartedAt()->format('Y-m-d'),
+            'hora' => $v->getStartedAt()->format('H:i').'Z',
+            'callsign' => $v->getCallsign(),
+            'tipo' => $v->getTipoOperacao(),
+            'origem' => $v->getOrigem(),
+            'destino' => $v->getDestino(),
+            // Ver App\Entity\Voo::$destinoReal - null na grande maioria
+            // (pousou onde o plano dizia); preenchido só quando
+            // AcarsIngestaoController::ingerir() detectou pouso
+            // alternativo. aeronave.js mostra um selo quando presente.
+            'destinoReal' => $v->getDestinoReal(),
+            'tempo' => $tempo,
+            'tempoMin' => $tempoMin,
+            'dif' => $v->getDificuldade(),
+            'flightId' => $v->getCodigo(),
+            // Ver App\Entity\Voo::$status - aeronave.js decide, com o
+            // filtro "Mostrar acidentadas", se essa perna aparece na
+            // lista/mapa (ver README, "Marcar voo como acidentado").
+            'acidentado' => $v->isAcidentado(),
+            'track' => $this->trackPoints($v),
         ];
-        if (!isset($networks[$reg])) {
-            return [];
-        }
-        $net = $networks[$reg];
+    }
 
-        // Ligacoes reais entre 3 matriculas e voos de teste gravados -
-        // so a perna mais recente de cada uma usa esses dados exatos.
-        $realMatch = [
-            'N208KB' => ['callsign' => 'KBT118', 'destino' => 'PABT', 'tempo' => '0:52', 'tempoMin' => 52, 'dif' => 81, 'flightId' => '20260819_033457_KBT118'],
-            'CC-KBA' => ['callsign' => 'KBT412', 'destino' => 'SCNT', 'tempo' => '1:04', 'tempoMin' => 64, 'dif' => 74, 'flightId' => '20260819_032837_KBT118'],
-            'N67KB' => ['callsign' => 'KBT207', 'destino' => 'PASC', 'tempo' => '1:48', 'tempoMin' => 108, 'dif' => 29, 'flightId' => '20260819_032200_KBT118'],
-        ];
+    private const TRACK_MAX_PONTOS = 180;
 
-        // Offsets em dias a partir de 2026-08-19 - espacamento cresce
-        // quanto mais antigo, pra dar cobertura nas faixas de 7/30/90/
-        // 180 dias e "todo o periodo" do filtro.
-        $offsets = [0, 3, 6, 9, 13, 17, 22, 28, 35, 44, 55, 68, 84, 103, 126, 152, 181];
-        $ref = new \DateTimeImmutable('2026-08-19T00:00:00Z');
-        $horas = ['08:15Z', '10:40Z', '13:05Z', '15:30Z', '17:50Z', '20:10Z', '03:20Z', '06:00Z'];
-        $tempos = [['0:41', 41], ['0:58', 58], ['1:12', 72], ['1:35', 95], ['0:33', 33], ['1:50', 110]];
-        $difs = [24, 38, 45, 52, 58, 63, 69, 75, 33, 47];
-
-        $legs = [];
-        $estCount = count($net['estacoes']);
-        foreach ($offsets as $i => $daysAgo) {
-            $data = $ref->modify("-{$daysAgo} days")->format('Y-m-d');
-            $numero = $net['callsignPrefix'] . str_pad((string) (($i * 37 + 3) % 90 + 10), 2, '0', STR_PAD_LEFT);
-            $callsign = 'KBT' . $numero;
-            $origem = $net['base'];
-            $destino = $net['estacoes'][$i % $estCount];
-            $hora = $horas[$i % count($horas)];
-            [$tempo, $tempoMin] = $tempos[$i % count($tempos)];
-            $dif = $difs[$i % count($difs)];
-            $flightId = null;
-
-            if (0 === $daysAgo && isset($realMatch[$reg])) {
-                $m = $realMatch[$reg];
-                $callsign = $m['callsign'];
-                $destino = $m['destino'];
-                $tempo = $m['tempo'];
-                $tempoMin = $m['tempoMin'];
-                $dif = $m['dif'];
-                $flightId = $m['flightId'];
-            }
-
-            // Pernas em dias impares "voltam" da estacao pra base, pra o
-            // historico nao ficar so saidas - metade das linhas inverte
-            // origem/destino (exceto a mais recente, que fica como voo
-            // de ida igual ao Logbook, pra bater com a linha real).
-            if (0 !== $daysAgo && 1 === $i % 2) {
-                [$origem, $destino] = [$destino, $origem];
-            }
-
-            $legs[] = [
-                'data' => $data,
-                'hora' => $hora,
-                'callsign' => $callsign,
-                'tipo' => $net['tipo'],
-                'origem' => $origem,
-                'destino' => $destino,
-                'tempo' => $tempo,
-                'tempoMin' => $tempoMin,
-                'dif' => $dif,
-                'flightId' => $flightId,
-            ];
+    /**
+     * Trajeto real gravado pelo ACARS — [lat, lon] por amostra, sem os
+     * outros campos (tempo, altitude, etc.) que
+     * `Voo::getTelemetria()['track']` carrega e essa tela não usa.
+     * `null` quando o voo não tem telemetria (histórico só narrativo,
+     * ver `Voo::hasTelemetria()`) — `aeronave.js` cai no fallback de
+     * curva estimada entre `origem`/`destino` nesse caso.
+     *
+     * Decima pra no máximo `$max` pontos por perna (amostra 1 Hz real
+     * vira ~180 pontos mesmo num voo de 1h+) — sem isso, um histórico
+     * com muitos voos longos manda um payload enorme só pra desenhar
+     * uma linha que visualmente não precisa de 1 ponto por segundo.
+     * Sempre inclui a última amostra mesmo quando ela não cai
+     * exatamente no passo da decimação, senão o traçado "encolhe" antes
+     * do pouso de verdade. `$max = null` desliga a decimação
+     * inteiramente — usado só por `trajetosCompletos()`, ver docblock
+     * de lá pra por quê isso é opt-in e não o padrão.
+     *
+     * @return list<array{0: float, 1: float}>|null
+     */
+    private function trackPoints(Voo $v, ?int $max = self::TRACK_MAX_PONTOS): ?array
+    {
+        if (!$v->hasTelemetria()) {
+            return null;
         }
 
-        return $legs;
+        $track = $v->getTelemetria()['track'] ?? null;
+        if (!is_array($track) || count($track) < 2) {
+            return null;
+        }
+
+        $total = count($track);
+        $step = null === $max ? 1 : max(1, (int) ceil($total / $max));
+
+        $pontos = [];
+        foreach ($track as $i => $amostra) {
+            if (null !== $max && 0 !== $i % $step && $i !== $total - 1) {
+                continue;
+            }
+            if (!isset($amostra[1], $amostra[2]) || !is_numeric($amostra[1]) || !is_numeric($amostra[2])) {
+                continue;
+            }
+            // 5 casas decimais (~1,1 m de precisão) - sobra pro mapa, não
+            // vale o payload extra da precisão de float completa.
+            $pontos[] = [round((float) $amostra[1], 5), round((float) $amostra[2], 5)];
+        }
+
+        return $pontos ?: null;
     }
 }

@@ -18,11 +18,11 @@
   <span class="sep">/</span>
   <h1 class="mono">{{ aircraft.reg }}</h1>
   <div class="right">
-    <div class="lang" role="group" aria-label="Idioma">
+    <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:a11y.language">
       <button type="button" data-lang="pt" aria-pressed="true">PT</button>
       <button type="button" data-lang="en" aria-pressed="false">EN</button>
     </div>
-    <button class="icon-btn" id="theme" aria-label="Tema">
+    <button class="icon-btn" id="theme" aria-label="Tema" data-i18n-attr="aria-label:a11y.theme">
       <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
@@ -37,41 +37,50 @@
     <div>
       <div class="rt mono">{{ aircraft.reg }}</div>
       <p class="meta">{{ aircraft.tipo }}</p>
-      <p class="meta">Base {{ aircraft.base }} · {{ aircraft.horas }} h totais na frota</p>
+      <p class="meta"><span data-i18n="aeronave.base.prefix">Base</span> {{ aircraft.base }} · {{ aircraft.horas }} <span data-i18n="aeronave.base.suffix">h totais na frota</span></p>
     </div>
-    <span class="tag tag-{{ aircraft.statusTag }}" style="margin-left:auto">{{ aircraft.status }}</span>
+    <span class="tag tag-{{ aircraft.statusTag }}" style="margin-left:auto" data-i18n="{{ aircraft.status == 'Em voo' ? 'common.status.inflight' : (aircraft.status == 'Disponível' ? 'common.status.available' : (aircraft.status == 'Fora de base' ? 'common.status.awayfrombase' : '')) }}">{{ aircraft.status }}</span>
   </div>
 
   <div class="summary" id="ac-summary">
-    <div><b class="mono" id="sum-legs">—</b><span>Pernas no período</span></div>
-    <div><b class="mono" id="sum-airports">—</b><span>Aeroportos visitados</span></div>
-    <div><b class="mono" id="sum-hours">—</b><span>Horas voadas</span></div>
-    <div><b class="mono" id="sum-span">—</b><span>Perna mais antiga</span></div>
+    <div><b class="mono" id="sum-legs">—</b><span data-i18n="aeronave.stat.legs">Pernas no período</span></div>
+    <div><b class="mono" id="sum-airports">—</b><span data-i18n="aeronave.stat.airports">Aeroportos visitados</span></div>
+    <div><b class="mono" id="sum-hours">—</b><span data-i18n="aeronave.stat.hours">Horas voadas</span></div>
+    <div><b class="mono" id="sum-span">—</b><span data-i18n="aeronave.stat.oldest">Perna mais antiga</span></div>
   </div>
 
   <div class="filters">
     <select id="periodo" class="lbsel">
-      <option value="0">Todo o período</option>
-      <option value="7">Últimos 7 dias</option>
-      <option value="30" selected>Últimos 30 dias</option>
-      <option value="90">Últimos 90 dias</option>
-      <option value="180">Últimos 180 dias</option>
+      <option value="0" data-i18n="common.period.all">Todo o período</option>
+      <option value="7" data-i18n="common.period.7d">Últimos 7 dias</option>
+      <option value="30" selected data-i18n="common.period.30d">Últimos 30 dias</option>
+      <option value="90" data-i18n="common.period.90d">Últimos 90 dias</option>
+      <option value="180" data-i18n="common.period.180d">Últimos 180 dias</option>
     </select>
     <div class="daterange">
-      <label>De <input type="date" id="ac-de"></label>
-      <label>Até <input type="date" id="ac-ate"></label>
-      <button class="btn" id="ac-date-clear" type="button" title="Limpar datas">Limpar</button>
+      <label><span data-i18n="aeronave.date.from">De</span> <input type="date" id="ac-de"></label>
+      <label><span data-i18n="aeronave.date.to">Até</span> <input type="date" id="ac-ate"></label>
+      <button class="btn" id="ac-date-clear" type="button" title="Limpar datas" data-i18n="aeronave.clear" data-i18n-attr="title:aeronave.clear.title">Limpar</button>
     </div>
     <div class="chips" id="tipo-chips">
-      <button class="chip on" data-tipo="Todos" type="button">Todos</button>
-      <button class="chip" data-tipo="Carga" type="button">Carga</button>
-      <button class="chip" data-tipo="Pessoal" type="button">Pessoal</button>
-      <button class="chip" data-tipo="Pesquisa" type="button">Pesquisa</button>
-      <button class="chip" data-tipo="Reposicionamento" type="button">Reposicionamento</button>
+      <button class="chip on" data-tipo="Todos" type="button" data-i18n="common.all">Todos</button>
+      <button class="chip" data-tipo="Carga" type="button" data-i18n="common.optype.cargo">Carga</button>
+      <button class="chip" data-tipo="Pessoal" type="button" data-i18n="common.optype.personal">Pessoal</button>
+      <button class="chip" data-tipo="Pesquisa" type="button" data-i18n="common.optype.research">Pesquisa</button>
+      <button class="chip" data-tipo="Reposicionamento" type="button" data-i18n="common.optype.repositioning">Reposicionamento</button>
     </div>
-    <label class="labeltoggle right">
+    <label class="labeltoggle">
+      <input type="checkbox" id="ac-show-acidentadas" checked>
+      <span data-i18n="aeronave.filter.showcrashed">Mostrar acidentadas</span>
+    </label>
+    <label class="labeltoggle" title="Por padrão, cada perna mostra até 180 posições no mapa; marque para carregar o trajeto completo (todas as posições gravadas)." data-i18n-attr="title:aeronave.filter.fullres.title">
+      <input type="checkbox" id="ac-fullres">
+      <span data-i18n="aeronave.filter.fullres">Mostrar todas as posições</span>
+      <span class="status" id="ac-fullres-status"></span>
+    </label>
+    <label class="labeltoggle right" title="Quando desmarcado, os labels só aparecem ao passar o mouse sobre a rota/aeroporto." data-i18n-attr="title:aeronave.map.labels.title">
       <input type="checkbox" id="ac-labels" checked>
-      <span>Labels no mapa</span>
+      <span data-i18n="aeronave.map.labels">Labels sempre visíveis</span>
     </label>
   </div>
 
@@ -79,21 +88,21 @@
     <div class="card ac-map-card">
       <div id="ac-map"></div>
       <div class="legend-line">
-        <span id="ac-map-note">cor e espessura = mais recente (forte) → mais antiga (fraca)</span>
+        <span id="ac-map-note" data-i18n="aeronave.map.legendnote">espessura = mais recente (mais grossa) → mais antiga (mais fina)</span>
         <span style="margin-left:auto" id="ac-map-count"></span>
       </div>
     </div>
 
     <div class="card ac-legs-card">
-      <div class="card-h"><h3>Pernas</h3><span class="note" id="ac-legs-count"></span></div>
+      <div class="card-h"><h3 data-i18n="aeronave.legs.heading">Pernas</h3><span class="note" id="ac-legs-count"></span></div>
       <div class="table-scroll" id="ac-legs-scroll">
         <table id="ac-legs-table">
           <thead>
-            <tr><th>Data</th><th>Voo</th><th>Rota</th><th class="num">Tempo</th></tr>
+            <tr><th data-i18n="common.date">Data</th><th data-i18n="aeronave.th.flight">Voo</th><th data-i18n="common.route">Rota</th><th class="num" data-i18n="common.time">Tempo</th></tr>
           </thead>
           <tbody id="ac-legs-body"></tbody>
         </table>
-        <div class="empty" id="ac-legs-empty" style="display:none">Nenhuma perna nesse período.</div>
+        <div class="empty" id="ac-legs-empty" style="display:none" data-i18n="aeronave.legs.empty">Nenhuma perna nesse período.</div>
       </div>
     </div>
   </div>
@@ -103,9 +112,52 @@
 
 {% block page_javascripts %}
 <script>
+  (function () {
+    var d = {
+      'aeronave.base.prefix': 'Base',
+      'aeronave.base.suffix': 'total fleet hours',
+      'aeronave.stat.legs': 'Legs in period',
+      'aeronave.stat.airports': 'Airports visited',
+      'aeronave.stat.hours': 'Hours flown',
+      'aeronave.stat.oldest': 'Oldest leg',
+      'aeronave.date.from': 'From',
+      'aeronave.date.to': 'To',
+      'aeronave.clear': 'Clear',
+      'aeronave.clear.title': 'Clear dates',
+      'aeronave.map.labels': 'Always show labels',
+      'aeronave.map.labels.title': 'When unchecked, labels only appear when you hover over the route/airport.',
+      'aeronave.filter.showcrashed': 'Show crashed legs',
+      'aeronave.leg.crashed': 'Crashed',
+      'aeronave.map.legendnote': 'thickness = most recent (thicker) → oldest (thinner)',
+      'aeronave.legs.heading': 'Legs',
+      'aeronave.th.flight': 'Flight',
+      'aeronave.legs.empty': 'No legs in this period.',
+      'aeronave.leg.report.title': 'Open real flight report',
+      'aeronave.leg.highlight.title': 'Highlight this leg on the map',
+      'aeronave.leg.noun': 'leg',
+      'aeronave.airports.noun': 'airports',
+      'aeronave.airport.visit.noun': 'landing/takeoff',
+      'aeronave.map.noknownlegs': 'No legs with a recognized airport in this period.',
+      'aeronave.leg.viewreport': 'View real report ↗',
+      'aeronave.leg.circuit': 'Circuit at',
+      'aeronave.leg.estimated': 'estimated track',
+      'aeronave.map.unavailable': 'Map unavailable',
+      'aeronave.filter.fullres': 'Show all positions',
+      'aeronave.filter.fullres.title': 'By default, each leg shows up to 180 positions on the map; check to load the full track (every recorded position).',
+      'aeronave.fullres.loading': 'Loading…',
+      'aeronave.fullres.error': 'Failed to load.',
+      'aeronave.leg.diversion.badge': 'Diverted',
+      'aeronave.leg.diversion': 'landed at',
+      'aeronave.airport.posto': 'Forward post of',
+      'aeronave.airport.local': 'Local code — not an official ICAO'
+    };
+    for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
+  })();
   window.KATABATIC_AC_LEGS = {{ legs|json_encode|raw }};
   window.KATABATIC_AIRPORTS_URL = {{ airportsUrl|json_encode|raw }};
+  window.KATABATIC_TRAJETOS_COMPLETOS_URL = {{ trajetosCompletosUrl|json_encode|raw }};
   window.KATABATIC_NOW = {{ nowIso|json_encode|raw }};
+  window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};
 </script>
 <script src="/assets/js/pages/aeronave.js" defer></script>
 {% endblock %}

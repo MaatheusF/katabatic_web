@@ -7,13 +7,13 @@
 .hero { position: relative; background: var(--shot-bg); border-bottom: 1px solid var(--border); }
 .hero-media { position: absolute; inset: 0; }
 .hero-media svg { width: 100%; height: 100%; }
+.hero-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hero-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,18,22,.5) 0%, rgba(11,18,22,.78) 55%, rgba(11,18,22,.94) 100%); }
 .hero-inner { position: relative; padding: 104px 0 72px; color: #E8F0F3; }
 .badge { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; border: 1px solid rgba(255,255,255,.28); border-radius: 100px; padding: 6px 14px; color: #B9CBD4; }
 .hero h1 { font-size: clamp(44px, 7vw, 84px); letter-spacing: -.03em; margin: 24px 0 20px; color: #fff; }
 .hero-lead { font-size: 18px; color: #B9CBD4; max-width: 52ch; }
 .hero-cta { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
-.hero-shot-note { position: absolute; right: 24px; bottom: 18px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #4E6672; }
 
 /* ---------- quadro de bases ---------- */
 .board { background: var(--surface); border-bottom: 1px solid var(--border); }

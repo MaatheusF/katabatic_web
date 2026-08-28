@@ -24,11 +24,20 @@ table { border-collapse: collapse; width: 100%; }
 .rail a.on { color: #fff; background: var(--rail-active); border-left-color: var(--accent); }
 .rail a svg { width: 17px; height: 17px; flex: none; opacity: .85; }
 .rail-foot { margin-top: auto; padding: 16px 20px 0; border-top: 1px solid #1C2A32; }
-.pilot { display: flex; align-items: center; gap: 10px; }
-.pilot-badge { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; }
+/* Relogio Zulu (UTC), logo acima do card de perfil (pedido em
+   conversa) - ver _rail.html.twig/app-shell.js. `font-variant-numeric:
+   tabular-nums` (via .mono) evita o texto "tremer" de largura a cada
+   tick do segundo, já que os dígitos trocam toda hora. */
+.rail-clock { display: flex; align-items: baseline; gap: 7px; margin-bottom: 14px; }
+.rail-clock-time { font-size: 13px; color: #E6EEF2; }
+.rail-clock-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; color: #55707C; }
+.pilot { display: flex; align-items: center; gap: 10px; border-radius: 8px; margin: -4px; padding: 4px; }
+.pilot:hover { background: var(--rail-active); }
+.pilot-badge { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; flex: none; overflow: hidden; }
+.pilot-badge-img img { width: 100%; height: 100%; object-fit: cover; }
 .pilot b { display: block; font-size: 13px; color: #E6EEF2; font-weight: 500; }
 .pilot span { font-family: var(--font-mono); font-size: 11px; color: #55707C; }
-.rail-logout { display: inline-block; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #55707C; }
+.rail-logout { display: inline-block; margin-top: 12px; font-size: 14px; color: #55707C; }
 .rail-logout:hover { color: #E6EEF2; }
 
 .main { min-width: 0; }
@@ -48,6 +57,12 @@ table { border-collapse: collapse; width: 100%; }
 .btn:hover { border-color: var(--accent); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+.flash { display: flex; align-items: center; gap: 10px; margin: 18px 28px 0; padding: 11px 16px; border-radius: 8px; font-size: 13.5px; }
+.flash svg { flex: none; }
+.flash-success { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--border)); }
+.flash-close { margin-left: auto; flex: none; background: none; border: 0; color: inherit; opacity: .6; font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.flash-close:hover { opacity: 1; }
+
 .view { display: none; padding: 26px 28px 60px; }
 .view.on { display: block; }
 /* .wrap nao entra aqui: cada tela usa um layout de .wrap diferente
@@ -56,9 +71,11 @@ table { border-collapse: collapse; width: 100%; }
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
   .rail { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 8px; align-items: center; }
+  /* .rail-clock não precisa entrar aqui: já está dentro de .rail-foot, que some inteiro. */
   .rail-brand, .rail-group, .rail-foot { display: none; }
   .rail a { border-left: 0; border-bottom: 2px solid transparent; white-space: nowrap; }
   .rail a.on { border-left: 0; border-bottom-color: var(--accent); }
   .view { padding: 18px 16px 50px; }
   .bar { padding: 0 16px; }
+  .flash { margin: 14px 16px 0; }
 }

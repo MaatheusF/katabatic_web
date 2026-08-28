@@ -6,6 +6,8 @@
 
 .bar { z-index: 600; }
 
+.novaaeronave-error { margin-bottom: 18px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
+
 label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
 input[type=text], input[type=number], select, textarea {
   width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--text); background: var(--surface-2);
@@ -26,6 +28,7 @@ input[readonly] { color: var(--text-2); background: var(--bg); cursor: default; 
 .card-b { padding: 20px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; }
+.grid4 { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 16px; }
 .field { margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -59,6 +62,6 @@ input[readonly] { color: var(--text-2); background: var(--bg); cursor: default; 
 
 @media (max-width: 900px) {
   .wrap { padding: 18px 16px 70px; }
-  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
   .photo-row { grid-template-columns: repeat(2, 1fr); }
 }

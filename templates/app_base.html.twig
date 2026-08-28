@@ -12,6 +12,18 @@
   {% include 'partials/_rail.html.twig' %}
 
   <div class="main">
+    {# Cada mensagem de flash precisa de uma chave i18n propria (o
+       data-i18n so sabe traduzir o texto que ele mesmo captura no load,
+       nao interpreta o conteudo) - por enquanto so existe uma, do Perfil;
+       ao adicionar uma nova tela que usa addFlash, mapeie o texto exato
+       pra uma chave nova aqui em vez de reusar "flash.perfil.updated". #}
+    {% for message in app.flashes('success') %}
+    <div class="flash flash-success">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      <span data-i18n="flash.perfil.updated">{{ message }}</span>
+      <button type="button" class="flash-close" data-i18n-attr="aria-label:flash.close" aria-label="Fechar">×</button>
+    </div>
+    {% endfor %}
     {% block bar %}{% endblock %}
     {% block content %}{% endblock %}
   </div>
@@ -19,22 +31,62 @@
 {% endblock %}
 
 {% block javascripts %}
-{# Dicionario EN da casca comum (rail + barra + botoes de acao) das
-   telas logadas. Cada tela ainda so tem o essencial traduzido (rail,
-   titulos da barra, CTAs) - conteudo profundo (tabelas, formularios,
-   graficos) continua so em PT por enquanto. Ver lang-toggle.js, que le
-   isto (carrega por ultimo em base.html.twig). #}
+{# Dicionario EN da casca comum (rail + barra + botoes de acao + flash)
+   das telas logadas. Cada tela ainda define seu proprio dicionario
+   (bloco page_javascripts) pra cobrir titulos/formularios/graficos
+   especificos dela - ver lang-toggle.js pra como os dois se combinam
+   (chave de pagina sobrescreve chave global se repetida), e o cabecalho
+   daquele arquivo pra `data-i18n` (innerHTML) vs `data-i18n-attr`
+   (atributos como aria-label/placeholder/title). #}
 <script>
   window.KATABATIC_I18N_EN = {
+    'flash.perfil.updated': 'Profile updated successfully.',
+    'flash.close': 'Close',
+    /* Vocabulario reaproveitado por varias telas (Portal, Aeronave,
+       Agendamento, Solicitações, Mapa ao vivo, Novo voo...) - fica aqui
+       em vez de repetido em cada dicionario de pagina, pra manter a
+       MESMA traducao em todo canto que a mesma palavra aparece (ex.:
+       "Em voo" tem que virar sempre "In flight", nunca ora "Flying" ora
+       "In flight" dependendo da tela). */
+    'common.all': 'All',
+    'common.date': 'Date',
+    'common.route': 'Route',
+    'common.aircraft': 'Aircraft',
+    'common.time': 'Time',
+    'common.hours': 'Hours',
+    'common.actions': 'Actions',
+    'common.edit': 'Edit',
+    'common.remove': 'Remove',
+    'common.search': 'Search',
+    'common.optional': '(optional)',
+    'common.status.inflight': 'In flight',
+    'common.status.available': 'Available',
+    'common.status.awayfrombase': 'Away from base',
+    'common.optype.cargo': 'Cargo',
+    'common.optype.personal': 'Personal',
+    'common.optype.research': 'Research',
+    'common.optype.repositioning': 'Repositioning',
+    'common.period.all': 'All time',
+    'common.period.7d': 'Last 7 days',
+    'common.period.30d': 'Last 30 days',
+    'common.period.90d': 'Last 90 days',
+    'common.period.180d': 'Last 180 days',
     'rail.group': 'Operations',
     'rail.logbook': 'Logbook',
     'rail.frota': 'Fleet',
     'rail.bases': 'Bases',
+    'rail.pousos': 'Landings',
+    'rail.condicoes': 'Extreme conditions',
     'rail.mapaVivo': 'Live map',
+    'rail.agendamentos': 'Scheduling',
+    'rail.manuais': 'Manuals',
+    'rail.ferramentas': 'Pilot tools',
     'mapavivo.live': 'LIVE',
     'rail.adminGroup': 'Admin',
     'rail.solicitacoes': 'Applications',
     'rail.pilotos': 'Pilots',
+    'rail.aeroportos': 'Airports',
+    'rail.tiposAeronave': 'Aircraft types',
     'rail.logout': 'Log out',
     'nav.newflight': 'New flight',
     'portal.newaircraft': '+ New aircraft',
@@ -44,8 +96,22 @@
     'novovoo.savedraft': 'Save draft',
     'novovoo.publish': 'Publish flight',
     'voo.share': 'Share',
+    'voo.crash.badge': 'Crashed',
     'voo.report.edit': 'Edit',
-    'voo.report.save': 'Save report'
+    'voo.report.save': 'Save report',
+    'perfil.title': 'Profile',
+    'perfil.photo.title': 'Display photo',
+    'perfil.photo.note': 'JPG, PNG or WEBP · max. 3 MB',
+    'perfil.photo.choose': 'Choose photo…',
+    'perfil.photo.hint': 'No new file selected — current photo is kept.',
+    'perfil.personal.title': 'Personal info',
+    'perfil.name': 'Name',
+    'perfil.email': 'E-mail',
+    'perfil.account.title': 'Account',
+    'perfil.account.note': 'managed by VATSIM, not editable here',
+    'perfil.cid': 'VATSIM CID',
+    'perfil.role': 'Role',
+    'perfil.save': 'Save changes'
   };
 </script>
 <script src="/assets/js/app-shell.js" defer></script>

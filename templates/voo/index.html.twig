@@ -18,17 +18,17 @@
   <span class="sep">/</span>
   <h1 id="h-call">—</h1>
   <div class="right">
-    <div class="lang" role="group" aria-label="Idioma">
+    <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:a11y.language">
       <button type="button" data-lang="pt" aria-pressed="true">PT</button>
       <button type="button" data-lang="en" aria-pressed="false">EN</button>
     </div>
-    <button class="icon-btn" id="prevf" aria-label="Voo anterior" title="Voo anterior">
+    <button class="icon-btn" id="prevf" aria-label="Voo anterior" title="Voo anterior" data-i18n-attr="aria-label:voo.nav.prev;title:voo.nav.prev">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
-    <button class="icon-btn" id="nextf" aria-label="Próximo voo" title="Próximo voo">
+    <button class="icon-btn" id="nextf" aria-label="Próximo voo" title="Próximo voo" data-i18n-attr="aria-label:voo.nav.next;title:voo.nav.next">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </button>
-    <button class="icon-btn" id="theme" aria-label="Tema">
+    <button class="icon-btn" id="theme" aria-label="Tema" data-i18n-attr="aria-label:a11y.theme">
       <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     </button>
@@ -42,34 +42,34 @@
   <div>
     <div class="hero">
       <div>
-        <div class="rt">UEEE <i></i> UEEE</div>
+        <div class="rt" id="h-route"><span id="h-route-text">UEEE <i></i> UEEE</span><span class="tag tag-bad" id="crash-badge" style="display:none" data-i18n="voo.crash.badge">Acidentado</span><span class="tag tag-warn" id="diversion-badge" style="display:none"></span></div>
         <p class="meta" id="h-meta"></p>
-        <p class="meta">C185F Skywagon · N104KT · voo local de avaliação</p>
+        <p class="meta" id="h-meta2"></p>
       </div>
-      <div class="score"><span>Dificuldade</span><b id="score">--</b><em id="score-lbl"></em></div>
+      <div class="score"><span data-i18n="voo.difficulty">Dificuldade</span><b id="score">--</b><em id="score-lbl"></em></div>
     </div>
 
     <div class="kpis" id="kpis"></div>
 
     <div class="card">
-      <div class="card-h"><h3>Fases do voo</h3><span class="note" id="ph-note"></span></div>
+      <div class="card-h"><h3 data-i18n="voo.phases.title">Fases do voo</h3><span class="note" id="ph-note"></span></div>
       <div class="card-b">
         <div class="phases" id="phases"></div>
         <div class="ph-legend">
-          <span><i style="background:#7C8F98"></i>solo</span>
-          <span><i style="background:#2F7D50"></i>subida</span>
-          <span><i style="background:#2C7CA5"></i>cruzeiro</span>
-          <span><i style="background:#B85400"></i>descida</span>
+          <span><i style="background:#7C8F98"></i><span data-i18n="voo.phase.ground">solo</span></span>
+          <span><i style="background:#2F7D50"></i><span data-i18n="voo.phase.climb">subida</span></span>
+          <span><i style="background:#2C7CA5"></i><span data-i18n="voo.phase.cruise">cruzeiro</span></span>
+          <span><i style="background:#B85400"></i><span data-i18n="voo.phase.descent">descida</span></span>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Trajetória</h3>
+      <div class="card-h"><h3 data-i18n="voo.track.title">Trajetória</h3>
         <div class="layers">
-          <button class="lb on" data-layer="turb">Turbulência</button>
-          <button class="lb" data-layer="wx">Clima</button>
-          <button class="lb" data-layer="alt">Altitude</button>
+          <button class="lb on" data-layer="turb" data-i18n="voo.turbulence">Turbulência</button>
+          <button class="lb" data-layer="wx" data-i18n="voo.weather">Clima</button>
+          <button class="lb" data-layer="alt" data-i18n="voo.altitude">Altitude</button>
         </div>
         <span class="note" id="map-note"></span></div>
       <div id="map"></div>
@@ -77,7 +77,7 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Debrief</h3><span class="note">passe o cursor · o ponto acompanha no mapa</span></div>
+      <div class="card-h"><h3 data-i18n="voo.debrief.title">Debrief</h3><span class="note" data-i18n="voo.hover.note">passe o cursor · o ponto acompanha no mapa</span></div>
       <div class="card-b">
         <div class="readout" id="readout"></div>
         <div id="charts"></div>
@@ -85,23 +85,24 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Relatório de missão</h3></div>
+      <div class="card-h"><h3 data-i18n="voo.report.title">Relatório de missão</h3></div>
       <div class="card-b report-b">
         <div class="obs-block">
-          <span class="obs-tag">Resumo automático · gerado da telemetria</span>
+          <span class="obs-tag" data-i18n="voo.report.autosummary">Resumo automático · gerado da telemetria</span>
           <div id="obs"></div>
         </div>
         <div class="obs-block">
           <div class="obs-block-head">
-            <span class="obs-tag">Relato do piloto</span>
+            <span class="obs-tag" data-i18n="voo.report.pilotreport">Relato do piloto</span>
             <button class="btn btn-sm" id="report-edit" data-i18n="voo.report.edit">Editar</button>
           </div>
           <div class="report-view" id="report-view">
             <p class="obs" id="report-view-text"></p>
           </div>
           <div class="report-edit-wrap" id="report-edit-wrap" style="display:none">
-            <textarea id="pilot-obs" class="report-ta" placeholder="O que o sensor não mede: por que desviou, como foi a decisão em voo, o que valeu registrar sobre essa missão…"></textarea>
+            <textarea id="pilot-obs" class="report-ta" placeholder="O que o sensor não mede: por que desviou, como foi a decisão em voo, o que valeu registrar sobre essa missão…" data-i18n-attr="placeholder:voo.report.placeholder"></textarea>
             <div class="report-foot">
+              <span class="report-error" id="report-error" style="display:none"></span>
               <span class="report-count" id="report-count">0 caracteres</span>
               <button class="btn" id="report-cancel" data-i18n="common.cancel">Cancelar</button>
               <button class="btn btn-primary" id="report-save" data-i18n="voo.report.save">Salvar relato</button>
@@ -110,32 +111,99 @@
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.photos.title">Fotos do voo</h3><span class="note" id="photos-count"></span></div>
+      <div class="card-b">
+        <p class="obs" id="photos-empty" data-i18n="voo.photos.empty">Nenhuma foto anexada a este voo ainda.</p>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div class="photo-upload">
+          <label class="btn btn-sm" for="photo-input" data-i18n="voo.photos.add">Adicionar fotos</label>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
+          <span class="photo-hint" data-i18n="voo.photos.hint">JPEG, PNG ou WEBP · até 8 MB cada · até 12 fotos por voo</span>
+        </div>
+        <span class="report-error" id="photos-error" style="display:none"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.danger.title">Marcar este voo como acidentado</h3></div>
+      <div class="card-b">
+        <p class="obs" data-i18n="voo.danger.desc">Voo registrado por engano — acidente no meio do trajeto, sessão corrompida, ou qualquer outro motivo pra essa perna não valer? Marcar como acidentado deixa o voo no Logbook (com um selo, pra histórico) mas tira ele das horas/estatísticas, e devolve a aeronave pra origem dessa perna, como se ela nunca tivesse partido. Só é possível marcar o voo <b>mais recente</b> de cada aeronave — se voos mais novos dela já foram registrados, marque-os primeiro, na ordem inversa. Esta ação não pode ser desfeita.</p>
+        <span class="report-error" id="delete-error" style="display:none"></span>
+        <p class="obs" id="delete-already" style="display:none" data-i18n="voo.danger.already">Este voo já está marcado como acidentado.</p>
+        <button class="btn btn-danger" id="delete-flight" type="button" data-armed="0" data-i18n="voo.danger.button">Marcar como acidentado</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="voo.purge.title">Excluir este voo permanentemente</h3></div>
+      <div class="card-b">
+        <p class="obs" data-i18n="voo.purge.desc">Diferente de marcar como acidentado, isto apaga o voo de vez — telemetria inteira incluída, sem deixar rastro no Logbook. Use pra gravação de teste, duplicata ou qualquer voo que simplesmente não devia existir, marcado como acidentado ou não. Mesma regra: só é possível excluir o voo <b>mais recente</b> de cada aeronave. Esta ação não pode ser desfeita.</p>
+        <span class="report-error" id="purge-error" style="display:none"></span>
+        <button class="btn btn-danger" id="purge-flight" type="button" data-armed="0" data-i18n="voo.purge.button">Excluir permanentemente</button>
+      </div>
+    </div>
   </div>
 
   <div>
     <div class="card">
-      <div class="card-h"><h3>Pouso</h3><span class="note" id="land-note"></span></div>
+      <div class="card-h"><h3 data-i18n="voo.landing.title">Pouso</h3><span class="note" id="land-note"></span></div>
       <div class="card-b" id="land"></div>
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Composição do índice</h3></div>
+      <div class="card-h"><h3 data-i18n="voo.parcels.title">Composição do índice</h3></div>
       <div class="card-b" id="parcels"></div>
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Registro de eventos</h3><span class="note" id="ev-count"></span></div>
+      <div class="card-h"><h3 data-i18n="voo.events.title">Registro de eventos</h3><span class="note" id="ev-count"></span></div>
       <div class="card-b" id="events"></div>
     </div>
 
     <div class="card">
-      <div class="card-h"><h3>Referências externas</h3></div>
+      <div class="card-h"><h3 data-i18n="voo.links.title">Referências externas</h3></div>
       <div class="card-b links">
-        <a href="#" target="_blank" rel="noopener"><span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px">Plano de voo · OFP</span></span><span class="ext">↗</span></a>
-        <a href="#" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px">Voo no logbook pessoal</span></span><span class="ext">↗</span></a>
-        <a href="#" target="_blank" rel="noopener"><span class="ic">VS</span><span><b>VATSIM</b><br><span style="font-size:12px">Sessão online · CID {{ pilot.cid }}</span></span><span class="ext">↗</span></a>
-        <a href="#"><span class="ic">↓</span><span><b>Telemetria</b><br><span style="font-size:12px">CSV bruto</span></span><span class="ext">CSV</span></a>
-        <a href="#"><span class="ic">↓</span><span><b>Traço GPX</b><br><span style="font-size:12px">Abrir no Google Earth</span></span><span class="ext">GPX</span></a>
+        <div class="link-row" id="simbrief-row">
+          <a class="link-view" id="simbrief-view" href="#" target="_blank" rel="noopener" style="display:none">
+            <span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px" data-i18n="voo.links.simbrief">Plano de voo · OFP</span></span><span class="ext">↗</span>
+          </a>
+          <div class="link-empty" id="simbrief-empty">
+            <span class="ic">SB</span><span><b>SimBrief</b><br><span style="font-size:12px" data-i18n="voo.links.simbrief.empty">Nenhum link salvo pra este voo</span></span>
+            <button type="button" class="btn btn-sm" id="simbrief-add" data-i18n="voo.links.simbrief.add">Adicionar</button>
+          </div>
+          <button type="button" class="link-edit-btn" id="simbrief-edit" style="display:none" data-i18n-attr="title:voo.links.simbrief.edit" title="Editar">✎</button>
+        </div>
+        <div class="link-edit-wrap" id="simbrief-edit-wrap" style="display:none">
+          <input type="url" id="simbrief-input" placeholder="https://www.simbrief.com/…" data-i18n-attr="placeholder:voo.links.simbrief.placeholder">
+          <button type="button" class="btn btn-sm btn-primary" id="simbrief-save" data-i18n="voo.links.simbrief.save">Salvar</button>
+          <button type="button" class="btn btn-sm" id="simbrief-cancel" data-i18n="common.cancel">Cancelar</button>
+          <span class="report-error" id="simbrief-error" style="display:none"></span>
+        </div>
+
+        <div class="link-row" id="planovoo-row">
+          <a class="link-view" id="planovoo-view" href="#" target="_blank" rel="noopener" style="display:none">
+            <span class="ic">PDF</span><span><b data-i18n="voo.links.planovoo">Plano de voo (PDF)</b><br><span style="font-size:12px" id="planovoo-nome"></span></span><span class="ext">↗</span>
+          </a>
+          <div class="link-empty" id="planovoo-empty">
+            <span class="ic">PDF</span><span><b data-i18n="voo.links.planovoo">Plano de voo (PDF)</b><br><span style="font-size:12px" data-i18n="voo.links.planovoo.empty">Nenhum PDF anexado a este voo</span></span>
+            <label class="btn btn-sm" for="planovoo-input" data-i18n="voo.links.planovoo.add">Anexar</label>
+          </div>
+          <button type="button" class="link-edit-btn" id="planovoo-remove" style="display:none" data-i18n-attr="title:voo.links.planovoo.remove" title="Remover">🗑</button>
+          <input type="file" id="planovoo-input" accept="application/pdf" style="display:none">
+        </div>
+        <span class="report-error" id="planovoo-error" style="display:none"></span>
+
+        {% if pilot.aviodeckUsername %}
+        <a href="https://aviodeck.app/@{{ pilot.aviodeckUsername }}" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck">Perfil do piloto</span></span><span class="ext">↗</span></a>
+        {% else %}
+        <a href="{{ path('app_perfil') }}"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck.empty">Configure seu usuário no perfil</span></span><span class="ext">＋</span></a>
+        {% endif %}
+
+        <a href="https://stats.vatsim.net/stats/{{ pilot.cid }}" target="_blank" rel="noopener"><span class="ic">VS</span><span><b>VATSIM</b><br><span style="font-size:12px" data-i18n="voo.links.vatsim">Estatísticas · CID {{ pilot.cid }}</span></span><span class="ext">↗</span></a>
+        <a href="#" id="csv-link"><span class="ic">↓</span><span><b>Telemetria</b><br><span style="font-size:12px" data-i18n="voo.links.csv">CSV bruto</span></span><span class="ext">CSV</span></a>
+        <a href="#" id="gpx-link"><span class="ic">↓</span><span><b>Traço GPX</b><br><span style="font-size:12px" data-i18n="voo.links.gpx">Baixar arquivo GPX</span></span><span class="ext">GPX</span></a>
       </div>
     </div>
   </div>
@@ -145,6 +213,170 @@
 {% block page_javascripts %}
 <script>
   window.KATABATIC_FLIGHTS_URL = {{ flightsUrl|json_encode|raw }};
+  window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};
+</script>
+{# Dicionario EN desta tela: cobre tanto os data-i18n estaticos do
+   template acima quanto as chaves lidas via L() dentro de voo.js pra
+   traduzir o conteudo montado dinamicamente (KPIs, graficos, leitura ao
+   passar o mouse, card de pouso, mapa) - ver o helper L() e o listener
+   de 'katabatic:langchange' no topo/fim daquele arquivo. Mesmo objeto
+   global do app_base.html.twig (so soma chaves, nunca reatribui). #}
+<script>
+  (function () {
+    var d = {
+      'voo.difficulty': 'Difficulty',
+      'voo.nav.prev': 'Previous flight',
+      'voo.nav.next': 'Next flight',
+      'voo.phases.title': 'Flight phases',
+      'voo.phase.ground': 'ground',
+      'voo.phase.climb': 'climb',
+      'voo.phase.cruise': 'cruise',
+      'voo.phase.descent': 'descent',
+      'voo.phases.segments': 'segments',
+      'voo.phases.air': 'airborne',
+      'voo.track.title': 'Track',
+      'voo.turbulence': 'Turbulence',
+      'voo.weather': 'Weather',
+      'voo.altitude': 'Altitude',
+      'voo.debrief.title': 'Debrief',
+      'voo.hover.note': 'hover to inspect · point follows on the map',
+      'voo.report.title': 'Mission report',
+      'voo.report.autosummary': 'Auto-generated summary · from telemetry',
+      'voo.report.pilotreport': 'Pilot report',
+      'voo.report.placeholder': 'What the sensor doesn\'t measure: why you diverged, how the in-flight decision went, what was worth noting about this mission…',
+      'voo.report.empty': 'No report recorded for this flight.',
+      'voo.report.saving': 'Saving…',
+      'voo.report.error': 'Could not save — try again.',
+      'voo.photos.title': 'Flight photos',
+      'voo.photos.empty': 'No photos attached to this flight yet.',
+      'voo.photos.add': 'Add photos',
+      'voo.photos.hint': 'JPEG, PNG or WEBP · up to 8 MB each · up to 12 photos per flight',
+      'voo.photos.remove': 'Remove',
+      'voo.photos.remove.confirm': 'Remove this photo? This cannot be undone.',
+      'voo.photos.error': 'Could not process — try again.',
+      'voo.landing.title': 'Landing',
+      'voo.parcels.title': 'Index breakdown',
+      'voo.events.title': 'Event log',
+      'voo.links.title': 'External references',
+      'voo.links.simbrief': 'Flight plan · OFP',
+      'voo.links.simbrief.empty': 'No link saved for this flight',
+      'voo.links.simbrief.add': 'Add',
+      'voo.links.simbrief.edit': 'Edit',
+      'voo.links.simbrief.placeholder': 'https://www.simbrief.com/…',
+      'voo.links.simbrief.save': 'Save',
+      'voo.links.simbrief.error': 'Paste a simbrief.com link — the same one SimBrief gave you when you generated the plan.',
+      'voo.links.simbrief.saveerror': 'Could not save — try again.',
+      'voo.links.planovoo': 'Flight plan (PDF)',
+      'voo.links.planovoo.empty': 'No PDF attached to this flight',
+      'voo.links.planovoo.add': 'Attach',
+      'voo.links.planovoo.remove': 'Remove',
+      'voo.links.planovoo.remove.confirm': 'Remove this flight plan PDF? This cannot be undone.',
+      'voo.links.planovoo.error': 'Could not attach — try again.',
+      'voo.links.aviodeck': 'Pilot profile',
+      'voo.links.aviodeck.empty': 'Set up your username in your profile',
+      'voo.links.vatsim': 'Stats · CID {{ pilot.cid }}',
+      'voo.links.csv': 'Raw telemetry',
+      'voo.links.gpx': 'Download GPX file',
+
+      'voo.kpi.duration': 'Duration',
+      'voo.kpi.airtime': 'Time airborne',
+      'voo.kpi.distance': 'Distance',
+      'voo.kpi.gsavg': 'Avg GS',
+      'voo.kpi.altmax': 'Max altitude',
+      'voo.kpi.iasmax': 'Max IAS',
+      'voo.kpi.vsmax': 'Max VS',
+      'voo.kpi.vsmin': 'Min VS',
+      'voo.kpi.gmax': 'Peak G',
+      'voo.kpi.gmin': 'Min G',
+      'voo.kpi.wind': 'Avg wind / gust',
+      'voo.fuel': 'Fuel',
+      'voo.kpi.cloudtime': 'Time in cloud',
+      'voo.kpi.tempmin': 'Min temp',
+      'voo.kpi.temprange': 'Range (temp)',
+      'voo.kpi.precipmax': 'Max precip',
+      'voo.kpi.icing': 'Icing',
+      'voo.kpi.exceedances': 'Exceedances',
+      'voo.kpi.weight': 'Takeoff weight',
+      'voo.kpi.mtowmargin': 'Margin to MTOW',
+      'voo.kpi.mtowmargin.over': 'took off above the registered MTOW',
+      'voo.kpi.landingweight': 'Landing weight',
+      'voo.kpi.landingweight.mtowmargin': 'Margin to MTOW at landing',
+      'voo.kpi.landingweight.mtowmargin.hint': 'reference only: MTOW is a takeoff limit, not a landing one',
+      'voo.kpi.wind.pista': 'crosswind computed against the registered real runway heading',
+      'voo.score.severe': 'severe',
+      'voo.score.demanding': 'demanding',
+      'voo.score.routine': 'routine',
+
+      'voo.chart.speed': 'Speed',
+      'voo.chart.vspeed': 'Vertical speed',
+      'voo.chart.loadfactor': 'Load factor',
+      'voo.chart.temperature': 'Temperature',
+      'voo.chart.wind': 'Wind',
+      'voo.chart.weight': 'Weight',
+
+      'voo.readout.time': 'time',
+      'voo.readout.onground': 'on ground (yes/no)',
+      'voo.readout.wind': 'wind',
+      'voo.readout.precip': 'precip',
+      'voo.readout.icing': 'icing',
+      'voo.readout.fuel': 'fuel',
+      'voo.readout.yes': 'yes',
+      'voo.readout.no': 'no',
+
+      'voo.landing.empty': 'No touchdown recorded — session ended airborne.',
+      'voo.landing.smooth': 'Smooth',
+      'voo.landing.normal': 'Normal',
+      'voo.landing.firm': 'Firm',
+      'voo.landing.hard': 'Hard',
+      'voo.landing.touchdownrate': 'Touchdown rate',
+      'voo.landing.pitch': 'Pitch',
+      'voo.landing.bank': 'Bank',
+      'voo.landing.heading': 'Heading',
+      'voo.landing.surface': 'Surface',
+      'voo.landing.surface.cond': 'Condition',
+      'voo.landing.classifiedas': 'Touchdown classified as',
+      'voo.landing.bounce': 'bounce',
+      'voo.landing.aftercontact': 'after touchdown',
+
+      'voo.map.note.turb': 'color = measured turbulence',
+      'voo.map.note.alt': 'color = altitude',
+      'voo.map.note.wx': 'color = weather at time of passage',
+      'voo.map.noprecip': 'no precipitation',
+      'voo.legend.calm': 'calm',
+      'voo.legend.moderate': 'moderate',
+      'voo.legend.severe': 'severe',
+      'voo.legend.low': 'low',
+      'voo.legend.medium': 'medium',
+      'voo.legend.high': 'high',
+      'voo.legend.dry': 'dry',
+      'voo.legend.incloud': 'in cloud',
+      'voo.legend.precip': 'precipitation',
+      'voo.legend.heavy': 'heavy',
+      'voo.map.start': 'Start',
+      'voo.map.end': 'End',
+      'voo.map.touchdown': 'Touchdown',
+      'voo.map.unavailable': 'Map unavailable',
+
+      'voo.error.load': 'Could not load telemetry for this flight.',
+
+      'voo.diversion.badge': 'Landed at',
+      'voo.danger.title': 'Mark this flight as crashed',
+      'voo.danger.desc': 'Flight logged by mistake — a crash mid-route, a corrupted session, or any other reason this leg shouldn’t count? Marking it as crashed keeps the flight in the Logbook (flagged, for the record) but drops it from hours/stats, and sends the aircraft back to this leg’s origin, as if it never departed. You can only mark the aircraft’s <b>most recent</b> flight — if newer ones exist, mark those first, in reverse order. This action cannot be undone.',
+      'voo.danger.already': 'This flight is already marked as crashed.',
+      'voo.danger.button': 'Mark as crashed',
+      'voo.danger.confirm': 'Confirm?',
+      'voo.danger.deleting': 'Marking…',
+      'voo.danger.error': 'Could not mark — try again.',
+
+      'voo.purge.title': 'Permanently delete this flight',
+      'voo.purge.desc': 'Unlike marking as crashed, this deletes the flight for good — telemetry included, no trace left in the Logbook. Use it for a test recording, a duplicate, or any flight that simply shouldn’t exist, crashed or not. Same rule: you can only delete the aircraft’s <b>most recent</b> flight. This action cannot be undone.',
+      'voo.purge.button': 'Delete permanently',
+      'voo.purge.confirm': 'Confirm?',
+      'voo.purge.deleting': 'Deleting…',
+      'voo.purge.error': 'Could not delete — try again.'
+    };
+    for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
+  })();
 </script>
 <script src="/assets/js/pages/voo.js" defer></script>
 {% endblock %}

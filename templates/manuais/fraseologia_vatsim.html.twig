@@ -1,0 +1,303 @@
+{% extends 'app_base.html.twig' %}
+
+{% block title %}Fraseologia VATSIM — Katabatic{% endblock %}
+{% block meta_description %}Manual de fraseologia UNICOM em inglês para a Katabatic na VATSIM, por etapa do voo.{% endblock %}
+
+{% block page_stylesheets %}
+<link rel="stylesheet" href="/assets/css/pages/manual-fraseologia.css">
+{% endblock %}
+
+{% block bar %}
+<div class="bar">
+  <a class="back" href="{{ path('app_manuais') }}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><span data-i18n="rail.manuais">Manuais</span></a>
+  <span class="sep">/</span>
+  <h1 id="title" data-i18n="manuais.frase.title">Fraseologia VATSIM</h1>
+  <div class="right">
+    <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:a11y.language">
+      <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="icon-btn" id="theme" aria-label="Alternar tema" data-i18n-attr="aria-label:a11y.theme">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="m-layout">
+    <div class="m-main">
+
+      <div class="m-hero">
+        <span class="m-tag" data-i18n="manuais.frase.tag">Comunicação</span>
+        <h2>UNICOM Self-Announce Phraseology</h2>
+        <p data-i18n="manuais.frase.intro">Fraseologia padrão em inglês pras comunicações UNICOM na VATSIM — a maior parte da rede Katabatic opera em pistas sem torre (as estações avançadas do Ártico e da Patagônia, e boa parte do tempo em PAFA/SCCI também), então esse é o tipo de chamada que você mais vai usar no dia a dia.</p>
+      </div>
+
+      <div class="m-card m-rules-card" id="regras">
+        <h3 data-i18n="manuais.frase.rules.heading">Como funciona o UNICOM</h3>
+        <p data-i18n="manuais.frase.rules.p">UNICOM (ou CTAF, o termo mais técnico) é a frequência que pilotos usam pra se anunciar quando <b>não existe ATC controlando aquele aeroporto</b> — não é um controlador respondendo, é você avisando sua posição e intenção pra qualquer outro tráfego que esteja ouvindo na mesma frequência. Sintonize a frequência publicada do aeroporto (ou <b>122.800</b>, a UNICOM genérica mais comum, quando não houver uma específica) e mantenha a escuta o tempo todo, mesmo sem transmitir.</p>
+        <ul class="m-golden">
+          <li data-i18n="manuais.frase.rules.listen"><b>Escute antes de transmitir.</b> Se alguém já está falando, espere terminar.</li>
+          <li data-i18n="manuais.frase.rules.name"><b>Diga o nome do aeroporto no início e no fim da chamada.</b> Em regiões com várias pistas próximas na mesma frequência (bem comum no Alasca e na Patagônia), isso evita confundir tráfegos de aeroportos diferentes.</li>
+          <li data-i18n="manuais.frase.rules.concise"><b>Seja conciso.</b> Callsign, posição/intenção, e nada mais — chamadas longas ocupam a frequência e são mais fáceis de entender errado.</li>
+          <li data-i18n="manuais.frase.rules.numbers"><b>Pronuncie números no padrão aeronáutico:</b> <span class="mono">tree</span> (3), <span class="mono">fife</span> (5), <span class="mono">niner</span> (9) — e altitudes/frequências dígito por dígito, não como número composto.</li>
+          <li data-i18n="manuais.frase.rules.noresponse"><b>Sem resposta não é problema.</b> Ao contrário de uma torre, ninguém é obrigado a responder sua chamada — o objetivo é só dar ciência do seu tráfego pra quem estiver por perto.</li>
+        </ul>
+      </div>
+
+      <div class="m-card" id="alfabeto">
+        <h3 data-i18n="manuais.frase.alfabeto.heading">Alfabeto fonético e números</h3>
+        <div class="m-tables">
+          <table class="m-table">
+            <thead><tr><th colspan="2" data-i18n="manuais.frase.alfabeto.table1">Alfabeto fonético (NATO/ICAO)</th></tr></thead>
+            <tbody>
+              <tr><td>A — Alpha</td><td>N — November</td></tr>
+              <tr><td>B — Bravo</td><td>O — Oscar</td></tr>
+              <tr><td>C — Charlie</td><td>P — Papa</td></tr>
+              <tr><td>D — Delta</td><td>Q — Quebec</td></tr>
+              <tr><td>E — Echo</td><td>R — Romeo</td></tr>
+              <tr><td>F — Foxtrot</td><td>S — Sierra</td></tr>
+              <tr><td>G — Golf</td><td>T — Tango</td></tr>
+              <tr><td>H — Hotel</td><td>U — Uniform</td></tr>
+              <tr><td>I — India</td><td>V — Victor</td></tr>
+              <tr><td>J — Juliett</td><td>W — Whiskey</td></tr>
+              <tr><td>K — Kilo</td><td>X — X-ray</td></tr>
+              <tr><td>L — Lima</td><td>Y — Yankee</td></tr>
+              <tr><td>M — Mike</td><td>Z — Zulu</td></tr>
+            </tbody>
+          </table>
+          <table class="m-table">
+            <thead><tr><th colspan="2" data-i18n="manuais.frase.alfabeto.table2">Números</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>Zero</td></tr>
+              <tr><td>1</td><td>One</td></tr>
+              <tr><td>2</td><td>Two</td></tr>
+              <tr><td>3</td><td>Tree</td></tr>
+              <tr><td>4</td><td>Fower</td></tr>
+              <tr><td>5</td><td>Fife</td></tr>
+              <tr><td>6</td><td>Six</td></tr>
+              <tr><td>7</td><td>Seven</td></tr>
+              <tr><td>8</td><td>Ait</td></tr>
+              <tr><td>9</td><td>Niner</td></tr>
+              <tr><td>.</td><td>"Decimal" (freq.)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="radio-check">
+        <h3 data-i18n="manuais.frase.phase.radiocheck.heading">1. Radio check</h3>
+        <p data-i18n="manuais.frase.phase.radiocheck.p">Antes de ligar o motor ou logo depois, confirme que sua frequência está certa. Normalmente ninguém responde numa UNICOM — isso é esperado, não é um problema.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], radio check, [Airport].">
+          <span>“[Airport] traffic, [Callsign], radio check, [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="taxi">
+        <h3 data-i18n="manuais.frase.phase.taxi.heading">2. Táxi</h3>
+        <p data-i18n="manuais.frase.phase.taxi.p">Avise antes de sair do pátio/rampa, informando de onde saiu e pra onde vai.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], taxiing from the ramp to runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], taxiing from the ramp to runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="before-departure">
+        <h3 data-i18n="manuais.frase.phase.beforedeparture.heading">3. Antes da decolagem</h3>
+        <p data-i18n="manuais.frase.phase.beforedeparture.p">No holding point ou entrando na pista, anuncie a intenção antes de decolar de fato.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], departing runway [XX], [departing to the north / left closed traffic / straight-out departure], [Airport].">
+          <span>“[Airport] traffic, [Callsign], departing runway [XX], [departing to the north / left closed traffic / straight-out departure], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="takeoff">
+        <h3 data-i18n="manuais.frase.phase.takeoff.heading">4. Decolagem</h3>
+        <p data-i18n="manuais.frase.phase.takeoff.p">Opcional, mas recomendado em pistas movimentadas ou com pouca visibilidade cruzada — avisa que você está de fato rolando naquele instante.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], rolling runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], rolling runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="en-route">
+        <h3 data-i18n="manuais.frase.phase.enroute.heading">5. Em rota</h3>
+        <p data-i18n="manuais.frase.phase.enroute.p">Continue monitorando 122.800 (ou a frequência local) entre aeródromos. Se for passar perto de um campo sem pousar, um anúncio de trânsito ajuda quem estiver operando por lá.</p>
+        <div class="m-call" data-call="[Fix/Airport] traffic, [Callsign], [altitude], [distance] [direction] of [Fix/Airport], en route to [destination], [Fix/Airport].">
+          <span>“[Fix/Airport] traffic, [Callsign], [altitude], [distance] [direction] of [Fix/Airport], en route to [destination], [Fix/Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], transiting [altitude], [direction] to [direction], [Airport].">
+          <span>“[Airport] traffic, [Callsign], transiting [altitude], [direction] to [direction], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="inbound">
+        <h3 data-i18n="manuais.frase.phase.inbound.heading">6. Aproximação / chamada de inbound</h3>
+        <p data-i18n="manuais.frase.phase.inbound.p">Normalmente feita uns 10 nm antes do campo, informando distância, direção e intenção de pouso.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], [X] miles [direction], inbound for landing, runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], [X] miles [direction], inbound for landing, runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="pattern">
+        <h3 data-i18n="manuais.frase.phase.pattern.heading">7. Entrando no circuito de tráfego</h3>
+        <p data-i18n="manuais.frase.phase.pattern.p">Uma chamada por perna do circuito — perna do vento (downwind), base e final — mantém todo mundo ciente de onde você está.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], entering [left/right] downwind runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], entering [left/right] downwind runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], turning base runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], turning base runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], final runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], final runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+        <p class="m-note" data-i18n="manuais.frase.phase.pattern.note">Pra final direta (sem entrar no circuito), inclua a distância: <span class="mono">“[Airport] traffic, [Callsign], [X] mile final, straight-in, runway [XX], [Airport].”</span></p>
+      </div>
+
+      <div class="m-card m-phase" id="landing">
+        <h3 data-i18n="manuais.frase.phase.landing.heading">8. Pouso e saída de pista</h3>
+        <p data-i18n="manuais.frase.phase.landing.p">Depois de livrar a pista, um último anúncio fecha o ciclo — importante em pistas curtas das estações avançadas, onde o próximo pouso pode vir logo atrás.</p>
+        <div class="m-call" data-call="[Airport] traffic, [Callsign], clear of runway [XX], [Airport].">
+          <span>“[Airport] traffic, [Callsign], clear of runway [XX], [Airport].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <div class="m-card m-phase" id="exemplo">
+        <h3 data-i18n="manuais.frase.exemplo.heading">Exemplo completo — PFYU → PAKP</h3>
+        <p data-i18n="manuais.frase.exemplo.p">Juntando os pedaços: uma perna curta e realista pra ver a fraseologia inteira em sequência, do radio check ao "clear of runway" no destino. <b>Katabatic 128</b> (DHC-2 Beaver, N412KB) sai de Fort Yukon (PFYU) com carga leve pra Anaktuvuk Pass (PAKP), céu claro e vento fraco — a mesma perna que aparece no Logbook. O callsign <span class="mono">KBT128</span> é lido dígito por dígito: <i>"Katabatic one two eight"</i>.</p>
+        <ol class="m-transcript">
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.radiocheck">Radio check</span><span class="m-tx">“Fort Yukon traffic, Katabatic one two eight, radio check, Fort Yukon.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.taxi">Táxi</span><span class="m-tx">“Fort Yukon traffic, Katabatic one two eight, taxiing from the ramp to runway two one, Fort Yukon.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.beforedeparture">Antes da decolagem</span><span class="m-tx">“Fort Yukon traffic, Katabatic one two eight, departing runway two one, straight-out departure to the northwest, Fort Yukon.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.takeoff">Decolagem</span><span class="m-tx">“Fort Yukon traffic, Katabatic one two eight, rolling runway two one, Fort Yukon.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.enroute">Em rota</span><span class="m-tx">“Fort Yukon traffic, Katabatic one two eight, three thousand five hundred, five miles northwest of Fort Yukon, en route to Anaktuvuk Pass, Fort Yukon.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.aproximacao">Aproximação</span><span class="m-tx">“Anaktuvuk Pass traffic, Katabatic one two eight, ten miles south, inbound for landing, runway zero five, Anaktuvuk Pass.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.circuitovento">Circuito — vento</span><span class="m-tx">“Anaktuvuk Pass traffic, Katabatic one two eight, entering left downwind runway zero five, Anaktuvuk Pass.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.circuitobase">Circuito — base</span><span class="m-tx">“Anaktuvuk Pass traffic, Katabatic one two eight, turning base runway zero five, Anaktuvuk Pass.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.circuitofinal">Circuito — final</span><span class="m-tx">“Anaktuvuk Pass traffic, Katabatic one two eight, final runway zero five, Anaktuvuk Pass.”</span></li>
+          <li><span class="m-tt" data-i18n="manuais.frase.tt.pouso">Pouso</span><span class="m-tx">“Anaktuvuk Pass traffic, Katabatic one two eight, clear of runway zero five, Anaktuvuk Pass.”</span></li>
+        </ol>
+        <p class="m-note" data-i18n="manuais.frase.exemplo.note">Repare que <b>números viram palavras por extenso</b> na fala (pista "two one", não "21") mesmo os templates acima usando dígitos por escrito — é assim que se fala em voz alta. Altitude é a exceção: "three thousand five hundred" em vez de dígito por dígito, só rumos/pistas/frequências é que são sempre um dígito de cada vez.</p>
+      </div>
+
+      <div class="m-card m-phase" id="emergency">
+        <h3 data-i18n="manuais.frase.phase.emergency.heading">9. Emergência</h3>
+        <p data-i18n="manuais.frase.phase.emergency.p">Fora do padrão UNICOM normal — usada em qualquer frequência (VATSIM UNICOM, ATC ou guarda) quando há risco real. <b>Mayday</b> é pra perigo grave e iminente; <b>Pan-Pan</b> é pra urgência que ainda não é risco de vida.</p>
+        <div class="m-call m-call-em" data-call="Mayday, Mayday, Mayday, [Callsign], [nature of emergency], [position], [altitude], [souls on board], [intentions].">
+          <span>“Mayday, Mayday, Mayday, [Callsign], [nature of emergency], [position], [altitude], [souls on board], [intentions].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+        <div class="m-call m-call-em" data-call="Pan-Pan, Pan-Pan, Pan-Pan, [Callsign], [nature of urgency], [position], [altitude], [intentions].">
+          <span>“Pan-Pan, Pan-Pan, Pan-Pan, [Callsign], [nature of urgency], [position], [altitude], [intentions].”</span>
+          <button class="m-copy" type="button" data-i18n="manuais.frase.copy">Copiar</button>
+        </div>
+      </div>
+
+      <p class="m-footnote" data-i18n="manuais.frase.footnote">Este manual reflete a prática padrão de autoanúncio em UNICOM/CTAF usada na VATSIM e cobre o essencial pro dia a dia da Katabatic — não substitui a documentação oficial da VATSIM nem o AIM/AC 90-66 pra quem quiser se aprofundar.</p>
+
+    </div>
+
+    <nav class="m-toc">
+      <span data-i18n="manuais.frase.toc.title">Nesta página</span>
+      <a href="#regras" data-i18n="manuais.frase.toc.regras">Como funciona o UNICOM</a>
+      <a href="#alfabeto" data-i18n="manuais.frase.toc.alfabeto">Alfabeto e números</a>
+      <a href="#radio-check" data-i18n="manuais.frase.toc.radiocheck">1. Radio check</a>
+      <a href="#taxi" data-i18n="manuais.frase.toc.taxi">2. Táxi</a>
+      <a href="#before-departure" data-i18n="manuais.frase.toc.beforedeparture">3. Antes da decolagem</a>
+      <a href="#takeoff" data-i18n="manuais.frase.toc.takeoff">4. Decolagem</a>
+      <a href="#en-route" data-i18n="manuais.frase.toc.enroute">5. Em rota</a>
+      <a href="#inbound" data-i18n="manuais.frase.toc.inbound">6. Aproximação</a>
+      <a href="#pattern" data-i18n="manuais.frase.toc.pattern">7. Circuito de tráfego</a>
+      <a href="#landing" data-i18n="manuais.frase.toc.landing">8. Pouso</a>
+      <a href="#exemplo" data-i18n="manuais.frase.toc.exemplo">Exemplo completo</a>
+      <a href="#emergency" data-i18n="manuais.frase.toc.emergency">9. Emergência</a>
+    </nav>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_javascripts %}
+<script>
+  (function () {
+    var d = {
+      'manuais.frase.title': 'VATSIM Phraseology',
+      'manuais.frase.tag': 'Communication',
+      'manuais.frase.intro': 'Standard English phraseology for UNICOM communications on VATSIM — most of the Katabatic network operates at towerless fields (the advanced stations in the Arctic and Patagonia, and a good part of the time at PAFA/SCCI too), so this is the type of call you\'ll use most day to day.',
+      'manuais.frase.rules.heading': 'How UNICOM works',
+      'manuais.frase.rules.p': 'UNICOM (or CTAF, the more technical term) is the frequency pilots use to announce themselves when <b>there\'s no ATC controlling that airport</b> — it\'s not a controller responding, it\'s you letting any other traffic listening on the same frequency know your position and intentions. Tune the airport\'s published frequency (or <b>122.800</b>, the most common generic UNICOM, when there isn\'t a specific one) and keep listening the whole time, even when not transmitting.',
+      'manuais.frase.rules.listen': '<b>Listen before you transmit.</b> If someone is already talking, wait for them to finish.',
+      'manuais.frase.rules.name': '<b>Say the airport name at the start and end of the call.</b> In regions with several nearby airports on the same frequency (common in Alaska and Patagonia), this avoids mixing up traffic from different fields.',
+      'manuais.frase.rules.concise': '<b>Be concise.</b> Callsign, position/intention, and nothing else — long calls tie up the frequency and are easier to misunderstand.',
+      'manuais.frase.rules.numbers': '<b>Pronounce numbers the aviation-standard way:</b> <span class="mono">tree</span> (3), <span class="mono">fife</span> (5), <span class="mono">niner</span> (9) — and altitudes/frequencies digit by digit, not as a compound number.',
+      'manuais.frase.rules.noresponse': '<b>No response is fine.</b> Unlike a tower, no one is required to answer your call — the point is just to make anyone nearby aware of your traffic.',
+      'manuais.frase.alfabeto.heading': 'Phonetic alphabet and numbers',
+      'manuais.frase.alfabeto.table1': 'Phonetic alphabet (NATO/ICAO)',
+      'manuais.frase.alfabeto.table2': 'Numbers',
+      'manuais.frase.copy': 'Copy',
+      'manuais.frase.phase.radiocheck.heading': '1. Radio check',
+      'manuais.frase.phase.radiocheck.p': 'Before starting the engine or shortly after, confirm your frequency is correct. Usually no one answers on a UNICOM — that\'s expected, not a problem.',
+      'manuais.frase.phase.taxi.heading': '2. Taxi',
+      'manuais.frase.phase.taxi.p': 'Announce before leaving the ramp, stating where you\'re coming from and where you\'re headed.',
+      'manuais.frase.phase.beforedeparture.heading': '3. Before departure',
+      'manuais.frase.phase.beforedeparture.p': 'At the holding point or entering the runway, announce your intention before actually taking off.',
+      'manuais.frase.phase.takeoff.heading': '4. Takeoff',
+      'manuais.frase.phase.takeoff.p': 'Optional, but recommended at busy fields or with limited cross visibility — it lets others know you\'re actually rolling at that moment.',
+      'manuais.frase.phase.enroute.heading': '5. En route',
+      'manuais.frase.phase.enroute.p': 'Keep monitoring 122.800 (or the local frequency) between airfields. If you\'ll pass near a field without landing, a transiting call helps anyone operating there.',
+      'manuais.frase.phase.inbound.heading': '6. Approach / inbound call',
+      'manuais.frase.phase.inbound.p': 'Usually made about 10 nm out, stating distance, direction, and intention to land.',
+      'manuais.frase.phase.pattern.heading': '7. Entering the traffic pattern',
+      'manuais.frase.phase.pattern.p': 'One call per pattern leg — downwind, base, and final — keeps everyone aware of where you are.',
+      'manuais.frase.phase.pattern.note': 'For a straight-in final (skipping the pattern), include the distance: <span class="mono">“[Airport] traffic, [Callsign], [X] mile final, straight-in, runway [XX], [Airport].”</span>',
+      'manuais.frase.phase.landing.heading': '8. Landing and runway exit',
+      'manuais.frase.phase.landing.p': 'After clearing the runway, one last call closes the loop — important on the short strips at the advanced stations, where the next landing may follow right behind you.',
+      'manuais.frase.exemplo.heading': 'Full example — PFYU → PAKP',
+      'manuais.frase.exemplo.p': 'Putting the pieces together: a short, realistic leg to see the full phraseology in sequence, from radio check to "clear of runway" at the destination. <b>Katabatic 128</b> (DHC-2 Beaver, N412KB) departs Fort Yukon (PFYU) with a light load for Anaktuvuk Pass (PAKP), clear skies and light wind — the same leg that appears in the Logbook. The callsign <span class="mono">KBT128</span> is read digit by digit: <i>"Katabatic one two eight"</i>.',
+      'manuais.frase.tt.radiocheck': 'Radio check',
+      'manuais.frase.tt.taxi': 'Taxi',
+      'manuais.frase.tt.beforedeparture': 'Before departure',
+      'manuais.frase.tt.takeoff': 'Takeoff',
+      'manuais.frase.tt.enroute': 'En route',
+      'manuais.frase.tt.aproximacao': 'Approach',
+      'manuais.frase.tt.circuitovento': 'Pattern — downwind',
+      'manuais.frase.tt.circuitobase': 'Pattern — base',
+      'manuais.frase.tt.circuitofinal': 'Pattern — final',
+      'manuais.frase.tt.pouso': 'Landing',
+      'manuais.frase.exemplo.note': 'Notice that <b>numbers become spelled-out words</b> when spoken (runway "two one", not "21") even though the templates above use digits in writing — that\'s how it\'s said out loud. Altitude is the exception: "three thousand five hundred" instead of digit by digit — only headings/runways/frequencies are always spoken one digit at a time.',
+      'manuais.frase.phase.emergency.heading': '9. Emergency',
+      'manuais.frase.phase.emergency.p': 'Outside the normal UNICOM pattern — used on any frequency (VATSIM UNICOM, ATC, or guard) when there\'s a real risk. <b>Mayday</b> is for serious, imminent danger; <b>Pan-Pan</b> is for urgency that isn\'t yet life-threatening.',
+      'manuais.frase.footnote': 'This manual reflects the standard UNICOM/CTAF self-announce practice used on VATSIM and covers the essentials for day-to-day Katabatic operations — it does not replace official VATSIM documentation or the AIM/AC 90-66 for anyone who wants to go deeper.',
+      'manuais.frase.toc.title': 'On this page',
+      'manuais.frase.toc.regras': 'How UNICOM works',
+      'manuais.frase.toc.alfabeto': 'Alphabet and numbers',
+      'manuais.frase.toc.radiocheck': '1. Radio check',
+      'manuais.frase.toc.taxi': '2. Taxi',
+      'manuais.frase.toc.beforedeparture': '3. Before departure',
+      'manuais.frase.toc.takeoff': '4. Takeoff',
+      'manuais.frase.toc.enroute': '5. En route',
+      'manuais.frase.toc.inbound': '6. Approach',
+      'manuais.frase.toc.pattern': '7. Traffic pattern',
+      'manuais.frase.toc.landing': '8. Landing',
+      'manuais.frase.toc.exemplo': 'Full example',
+      'manuais.frase.toc.emergency': '9. Emergency',
+      'manual.copy.copied': 'Copied!',
+      'manual.copy.manual': 'Copy manually'
+    };
+    for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
+  })();
+</script>
+<script src="/assets/js/pages/manual-fraseologia.js" defer></script>
+{% endblock %}

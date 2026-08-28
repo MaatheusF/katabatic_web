@@ -3,84 +3,58 @@
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 /**
- * Login da area do piloto.
+ * Login da área do piloto.
  *
- * MOCK: nao ha Security component, User entity nem hash de senha ainda -
- * so um "banco" de pilotos fixo em PHP e a sessao guardando quem esta
- * logado. Serve pra validar o fluxo (Home -> Login -> Portal) e a UX de
- * erro antes de trocar isso pelo Security real do Symfony (authenticator
- * + Doctrine User + password hasher), quando o schema do banco existir.
+ * Autenticação de verdade a partir daqui - ver App\Security\
+ * LoginFormAuthenticator (o autenticador que faz a validação real
+ * contra a tabela `pilot`) e config/packages/security.yaml (comentário
+ * no topo explica a estratégia de transição: o resto do site ainda lê
+ * a sessão como antes, só o login em si que passou a ser real).
+ *
+ * GET e POST em /login são a MESMA rota (`app_login`) - convenção
+ * padrão do Security do Symfony pra login por formulário: o POST nunca
+ * chega até aqui, o LoginFormAuthenticator responde antes (ver
+ * `supports()` nele). Este controller só cuida do GET (mostrar a
+ * página, com o erro da tentativa anterior se houver).
  */
 class LoginController extends AbstractController
 {
-    #[Route('/login', name: 'app_login', methods: ['GET'])]
-    public function show(Request $request): Response
+    #[Route('/login', name: 'app_login', methods: ['GET', 'POST'])]
+    public function show(AuthenticationUtils $authenticationUtils): Response
     {
-        if ($request->getSession()->get('pilot')) {
+        if ($this->getUser()) {
             return $this->redirectToRoute('app_portal');
         }
 
+        // getLastAuthenticationError() traz a AuthenticationException que
+        // o LoginFormAuthenticator guardou na sessão (ver
+        // onAuthenticationFailure lá) - não expomos a mensagem dela direto
+        // pro usuário (poderia vazar detalhe interno), só usamos como flag
+        // "houve erro" e mostramos nosso próprio texto amigável.
+        $error = $authenticationUtils->getLastAuthenticationError();
+
         return $this->render('login/index.html.twig', [
-            'error' => null,
-            'cid' => '',
+            'error' => $error ? 'CID ou senha inválidos.' : null,
+            'cid' => $authenticationUtils->getLastUsername(),
         ]);
     }
 
-    #[Route('/login', name: 'app_login_submit', methods: ['POST'])]
-    public function authenticate(Request $request): Response
-    {
-        $cid = trim((string) $request->request->get('cid', ''));
-        $password = (string) $request->request->get('password', '');
-
-        $pilot = $this->findMockPilot($cid, $password);
-
-        if (null === $pilot) {
-            return $this->render('login/index.html.twig', [
-                'error' => 'CID ou senha inválidos. No modo mock, use o CID 1234567 com qualquer senha.',
-                'cid' => $cid,
-            ]);
-        }
-
-        $request->getSession()->set('pilot', $pilot);
-
-        return $this->redirectToRoute('app_portal');
-    }
-
-    #[Route('/logout', name: 'app_logout', methods: ['GET', 'POST'])]
-    public function logout(Request $request): Response
-    {
-        $request->getSession()->invalidate();
-
-        return $this->redirectToRoute('app_home');
-    }
-
     /**
-     * "Base de pilotos" mock. Quando o schema do banco existir isso vira
-     * PilotRepository::findByCid() + password_verify() contra o hash.
-     *
-     * `admin` e um flag mock simples pra restringir a tela de
-     * Solicitações/Pilotos (ver SolicitacoesController) - o unico piloto
-     * mock existente e admin, pra dar pra testar a tela sem precisar
-     * simular dois logins diferentes. Quando o schema do banco existir
-     * isso vira uma coluna/papel de verdade (ver README).
-     *
-     * @return array{initials: string, name: string, cid: string, admin: bool}|null
+     * Corpo vazio de propósito: a rota é interceptada pelo listener de
+     * logout do firewall (`logout.path: app_logout` em security.yaml)
+     * antes de chegar aqui - ele já invalida a sessão inteira (o que
+     * também limpa o array 'pilot' do shim de transição) e redireciona.
+     * A rota ainda precisa existir pra `path('app_logout')` funcionar
+     * nos templates (rail etc.) e pro firewall ter um path pra casar.
      */
-    private function findMockPilot(string $cid, string $password): ?array
+    #[Route('/logout', name: 'app_logout', methods: ['GET', 'POST'])]
+    public function logout(): void
     {
-        if ('' === $cid || '' === $password) {
-            return null;
-        }
-
-        $mockPilots = [
-            '1234567' => ['initials' => 'KB', 'name' => 'Comandante', 'cid' => '1234567', 'admin' => true],
-        ];
-
-        return $mockPilots[$cid] ?? null;
+        throw new \LogicException('Esta rota deveria ter sido interceptada pelo listener de logout do firewall.');
     }
 }

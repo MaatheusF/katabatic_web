@@ -11,6 +11,8 @@
 .adesao-head h1 { font-size: 22px; margin-bottom: 8px; }
 .adesao-head p { font-size: 14px; color: var(--text-2); line-height: 1.55; }
 
+.adesao-error { margin-bottom: 18px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
+
 label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
 label .opt { text-transform: none; letter-spacing: 0; color: var(--muted); font-family: var(--font-body); }
 input[type=text], input[type=email], select, textarea {
