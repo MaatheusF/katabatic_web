@@ -11,6 +11,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractLoginFormAuthenticator;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\CsrfTokenBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordCredentials;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
@@ -57,10 +58,27 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
                     // texto amigável na tela, não usa esta mensagem direto.
                     throw new CustomUserMessageAuthenticationException('CID ou senha inválidos.');
                 }
+                // Piloto desativado pelo grid de Solicitações (ver
+                // SolicitacoesController::alternarStatus()) - mesma
+                // mensagem genérica de "não encontrado" acima, de
+                // propósito: não revela pro piloto barrado que a conta
+                // existe mas foi desativada (evita virar canal de
+                // confirmação de CID válido).
+                if (!$pilot->isActive()) {
+                    throw new CustomUserMessageAuthenticationException('CID ou senha inválidos.');
+                }
 
                 return $pilot;
             }),
-            new PasswordCredentials($password)
+            new PasswordCredentials($password),
+            // CSRF: symfony/security-csrf já vinha instalado (transitivo
+            // via security-bundle), só não era usado em lugar nenhum -
+            // este badge é validado automaticamente pelo listener do
+            // próprio componente de Security (CsrfProtectionListener),
+            // não precisa de nenhuma checagem manual aqui. O id
+            // 'authenticate' é o mesmo que `csrf_token('authenticate')`
+            // gera no formulário (ver templates/login/index.html.twig).
+            [new CsrfTokenBadge('authenticate', $request->request->get('_csrf_token'))]
         );
     }
 

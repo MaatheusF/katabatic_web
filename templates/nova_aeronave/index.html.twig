@@ -71,6 +71,10 @@
         <div class="chips" id="base-chips">
           <button class="chip on" data-base="PAFA" type="button">PAFA · Fairbanks</button>
           <button class="chip" data-base="SCCI" type="button">SCCI · Punta Arenas</button>
+          <button class="chip" data-base="SLLP" type="button">SLLP · La Paz</button>
+          <button class="chip" data-base="VNKT" type="button">VNKT · Catmandu</button>
+          <button class="chip" data-base="WAJW" type="button">WAJW · Wamena</button>
+          <button class="chip" data-base="VQPR" type="button">VQPR · Paro</button>
         </div>
       </div>
     </div>
@@ -80,11 +84,16 @@
   <div class="card">
     <div class="card-h"><span class="n">2</span><h3 data-i18n="novaaeronave.limits.title">Limites operacionais</h3><span class="note" data-i18n="novaaeronave.limits.note">usados no índice de dificuldade</span></div>
     <div class="card-b">
-      <div class="grid3">
+      <div class="grid4">
         <div class="field">
           <label data-i18n="novaaeronave.glimit">Limite de fator de carga (G)</label>
           <input type="number" class="mono-input" id="f-glimit" step="0.1" placeholder="3.8">
           <p class="hint" data-i18n="novaaeronave.glimit.hint">Positivo. Usado para marcar excedência (<b>overG</b>) nos voos importados.</p>
+        </div>
+        <div class="field">
+          <label data-i18n="novaaeronave.glimit.neg">Limite de G negativo</label>
+          <input type="number" class="mono-input" id="f-glimit-neg" step="0.1" placeholder="-1.5">
+          <p class="hint" data-i18n="novaaeronave.glimit.neg.hint">Negativo. Mesma lógica do limite positivo, pro outro lado.</p>
         </div>
         <div class="field">
           <label><span data-i18n="novaaeronave.vslimit">VS máx. de pouso</span> <span style="text-transform:none;letter-spacing:0">(fpm)</span></label>
@@ -100,7 +109,7 @@
 
   <!-- Fotos -->
   <div class="card">
-    <div class="card-h"><span class="n">3</span><h3 data-i18n="novaaeronave.photos.title">Fotos</h3><span class="note" data-i18n="novaaeronave.photos.note">opcional agora, dá pra completar depois</span></div>
+    <div class="card-h"><span class="n">3</span><h3 data-i18n="novaaeronave.photos.title">Fotos</h3><span class="note" data-i18n="novaaeronave.photos.note">upload ainda não disponível nesta tela</span></div>
     <div class="card-b">
       <div class="photo-row">
         <div class="photo-slot main">
@@ -123,7 +132,7 @@
 
   <!-- Observações -->
   <div class="card" style="margin-top:20px">
-    <div class="card-h"><span class="n">4</span><h3 data-i18n="novaaeronave.obs.title">Observações</h3><span class="note" data-i18n="novaaeronave.obs.note">interno, não aparece no site público</span></div>
+    <div class="card-h"><span class="n">4</span><h3 data-i18n="novaaeronave.obs.title">Observações</h3><span class="note" data-i18n="novaaeronave.obs.note">visível na Frota do Portal, só pra piloto logado</span></div>
     <div class="card-b">
       <textarea id="f-obs" rows="3" placeholder="Manutenção pendente, particularidades do addon, histórico…" data-i18n-attr="placeholder:novaaeronave.obs.placeholder"></textarea>
     </div>
@@ -164,16 +173,18 @@
       'novaaeronave.limits.note': 'used in the difficulty index',
       'novaaeronave.glimit': 'Load factor limit (G)',
       'novaaeronave.glimit.hint': 'Positive. Used to flag exceedance (<b>overG</b>) on imported flights.',
+      'novaaeronave.glimit.neg': 'Negative G limit',
+      'novaaeronave.glimit.neg.hint': 'Negative. Same logic as the positive limit, mirrored.',
       'novaaeronave.vslimit': 'Max. landing VS',
       'novaaeronave.hours': 'Current hours',
       'novaaeronave.photos.title': 'Photos',
-      'novaaeronave.photos.note': 'optional now, can complete later',
+      'novaaeronave.photos.note': 'upload not available on this screen yet',
       'novaaeronave.photo.main': 'Main photo',
       'novaaeronave.photo.add': 'Add',
       'novaaeronave.photo.guidance': 'Prefer shots from the sim itself, on the ramp, with consistent framing across aircraft — that\'s what makes it look like a fleet, not a loose photo album.',
       'novaaeronave.sim.note': 'Before the first flight with this aircraft, set the <b>ATC ID</b> in the sim to exactly match <code id="sim-tail">CC-KBE</code>. That\'s the value ACARS uses to find the aircraft in the fleet — if it\'s different, the flight arrives with no aircraft linked.',
       'novaaeronave.obs.title': 'Notes',
-      'novaaeronave.obs.note': 'internal, not shown on the public site',
+      'novaaeronave.obs.note': 'visible in the Portal Fleet tab, logged-in pilots only',
       'novaaeronave.obs.placeholder': 'Pending maintenance, addon quirks, history…',
       'novaaeronave.save.saving': 'Saving…',
       'novaaeronave.error.generic': 'Could not save the aircraft — check your connection and try again.'

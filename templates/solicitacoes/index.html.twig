@@ -81,7 +81,7 @@
       <table id="pil-table">
         <thead>
           <tr>
-            <th data-i18n="solicitacoes.pilot">Piloto</th><th>CID</th><th>Base</th><th data-i18n="solicitacoes.role">Papel</th><th data-i18n="solicitacoes.joined">Adesão</th><th class="num" data-i18n="solicitacoes.flights">Voos</th><th>Status</th>
+            <th data-i18n="solicitacoes.pilot">Piloto</th><th>CID</th><th>Base</th><th data-i18n="solicitacoes.role">Papel</th><th data-i18n="solicitacoes.joined">Adesão</th><th class="num" data-i18n="solicitacoes.flights">Voos</th><th>Status</th><th data-i18n="common.actions">Ações</th>
           </tr>
         </thead>
         <tbody id="pil-body"></tbody>
@@ -97,6 +97,14 @@
 <script>
   window.KATABATIC_SOLICITACOES = {{ solicitacoes|json_encode|raw }};
   window.KATABATIC_PILOTOS = {{ pilotos|json_encode|raw }};
+  {# CID do piloto logado — solicitacoes.js usa isso pra não desenhar o
+     botão de desativar na própria linha (mesmo guard que o backend já
+     faz em SolicitacoesController::alternarStatus(), aqui só evita
+     mostrar uma ação que o servidor ia recusar de qualquer forma). #}
+  window.KATABATIC_CURRENT_CID = {{ pilot.cid|json_encode|raw }};
+  {# aprovar/rejeitar/alternarStatus mandam isto de volta no cabeçalho
+     X-CSRF-Token - validado em SolicitacoesController::ensureAdmin(). #}
+  window.KATABATIC_CSRF_TOKEN = {{ csrf_token('solicitacoes')|json_encode|raw }};
 </script>
 {# Dicionario EN especifico desta tela - mesclado no dicionario global
    (nunca reatribuido por cima). Cobre os textos estaticos do template
@@ -144,7 +152,10 @@
       'solicitacoes.pilot.status.active': 'Active',
       'solicitacoes.pilot.status.inactive': 'Inactive',
       'solicitacoes.pilots.count.one': ' pilot',
-      'solicitacoes.pilots.count.many': ' pilots'
+      'solicitacoes.pilots.count.many': ' pilots',
+      'solicitacoes.pilot.deactivate': 'Deactivate',
+      'solicitacoes.pilot.activate': 'Activate',
+      'solicitacoes.pilot.deactivate.confirm': 'Deactivate {name}? They won\'t be able to log in until reactivated.'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();

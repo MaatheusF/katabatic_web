@@ -358,6 +358,36 @@ class Voo
         return $this;
     }
 
+    /**
+     * PDF do plano de voo (OFP, tipicamente exportado do SimBrief)
+     * anexado pelo piloto a este voo — diferente de `$simbriefLink`
+     * acima (aquele é só um link pra fora; este é o arquivo de verdade,
+     * servido direto por esta aplicação, ver
+     * `VooController::adicionarPlanoVoo()` e `App\Service\
+     * PlanoVooUploader`). Um só por voo (não é galeria, como
+     * `$fotos`): anexar um novo substitui o anterior. Mora dentro de
+     * `dados`, mesma pasta em disco que as fotos
+     * (`public/uploads/voos/{codigo}/`), então `VooController::excluir()`
+     * já limpa o arquivo de graça junto com a galeria, sem código
+     * extra.
+     *
+     * @return array{arquivo: string, nomeOriginal: ?string, enviadoEm: string}|null
+     */
+    public function getPlanoVooPdf(): ?array
+    {
+        return $this->dados['planoVooPdf'] ?? null;
+    }
+
+    /**
+     * @param array{arquivo: string, nomeOriginal: ?string, enviadoEm: string}|null $planoVooPdf
+     */
+    public function setPlanoVooPdf(?array $planoVooPdf): static
+    {
+        $this->dados['planoVooPdf'] = $planoVooPdf;
+
+        return $this;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

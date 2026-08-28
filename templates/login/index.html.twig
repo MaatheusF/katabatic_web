@@ -40,6 +40,7 @@
     {% endif %}
 
     <form method="post" action="{{ path('app_login') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
       <div class="login-field">
         <label for="cid" data-i18n="login.cid">CID VATSIM</label>
         <input type="text" id="cid" name="cid" inputmode="numeric" placeholder="1234567" value="{{ cid|default('') }}" required autofocus>

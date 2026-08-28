@@ -78,9 +78,9 @@
       <span data-i18n="aeronave.filter.fullres">Mostrar todas as posições</span>
       <span class="status" id="ac-fullres-status"></span>
     </label>
-    <label class="labeltoggle right">
+    <label class="labeltoggle right" title="Quando desmarcado, os labels só aparecem ao passar o mouse sobre a rota/aeroporto." data-i18n-attr="title:aeronave.map.labels.title">
       <input type="checkbox" id="ac-labels" checked>
-      <span data-i18n="aeronave.map.labels">Labels no mapa</span>
+      <span data-i18n="aeronave.map.labels">Labels sempre visíveis</span>
     </label>
   </div>
 
@@ -88,7 +88,7 @@
     <div class="card ac-map-card">
       <div id="ac-map"></div>
       <div class="legend-line">
-        <span id="ac-map-note" data-i18n="aeronave.map.legendnote">cor e espessura = mais recente (forte) → mais antiga (fraca)</span>
+        <span id="ac-map-note" data-i18n="aeronave.map.legendnote">espessura = mais recente (mais grossa) → mais antiga (mais fina)</span>
         <span style="margin-left:auto" id="ac-map-count"></span>
       </div>
     </div>
@@ -124,10 +124,11 @@
       'aeronave.date.to': 'To',
       'aeronave.clear': 'Clear',
       'aeronave.clear.title': 'Clear dates',
-      'aeronave.map.labels': 'Map labels',
+      'aeronave.map.labels': 'Always show labels',
+      'aeronave.map.labels.title': 'When unchecked, labels only appear when you hover over the route/airport.',
       'aeronave.filter.showcrashed': 'Show crashed legs',
       'aeronave.leg.crashed': 'Crashed',
-      'aeronave.map.legendnote': 'color and thickness = most recent (strong) → oldest (faint)',
+      'aeronave.map.legendnote': 'thickness = most recent (thicker) → oldest (thinner)',
       'aeronave.legs.heading': 'Legs',
       'aeronave.th.flight': 'Flight',
       'aeronave.legs.empty': 'No legs in this period.',
@@ -156,6 +157,7 @@
   window.KATABATIC_AIRPORTS_URL = {{ airportsUrl|json_encode|raw }};
   window.KATABATIC_TRAJETOS_COMPLETOS_URL = {{ trajetosCompletosUrl|json_encode|raw }};
   window.KATABATIC_NOW = {{ nowIso|json_encode|raw }};
+  window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};
 </script>
 <script src="/assets/js/pages/aeronave.js" defer></script>
 {% endblock %}

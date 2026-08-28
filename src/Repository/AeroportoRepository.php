@@ -11,8 +11,31 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class AeroportoRepository extends ServiceEntityRepository
 {
-    /** ICAO das duas bases da rede - mesma lista que `NovaAeronaveController::BASES_VALIDAS`/`AeroportoController::BASES_VALIDAS`, repetida aqui (não importada de lá) pra não criar uma dependência de Controller dentro do Repository só por uma constante de duas strings. */
-    private const BASES = ['PAFA', 'SCCI'];
+    /**
+     * ICAO das seis bases da rede - mesma lista que
+     * `NovaAeronaveController::BASES_VALIDAS`/`AeroportoController::BASES_VALIDAS`/
+     * `AdesaoController::VALID_BASE_PREF`, repetida aqui (não importada de
+     * lá) pra não criar uma dependência de Controller dentro do
+     * Repository só por uma constante pequena - mesma decisão de sempre,
+     * ver docblock de `App\Entity\Aeroporto`.
+     *
+     * **Atualizado: bases sazonais.** PAFA/SCCI eram as duas únicas até
+     * esta fatia; SLLP (La Paz/El Alto, Bolívia), VNKT (Tribhuvan Intl.,
+     * Catmandu, Nepal), WAJW (Wamena, Nova Guiné) e VQPR (Paro, Butão)
+     * entraram como bases principais novas - locais extremos de
+     * propósito (altitude, relevo, aproximação sem instrumento), pra dar
+     * variedade "sazonal" de tema/identidade à rede sem nenhum trava de
+     * calendário (ver `app:importar-bases-sazonais` e README, "Bases
+     * sazonais"). A base do Nepal é Catmandu, não Lukla (VNLK) - Lukla
+     * é destino, não hub (pista de mão única, sem infraestrutura pra
+     * basear frota); entra como posto avançado de VNKT, mesma
+     * classificação de qualquer outro posto. BGSF (Kangerlussuaq,
+     * Groenlândia) é só posto avançado de PAFA, e cada uma das quatro
+     * bases novas ganhou 3 postos avançados próprios - nenhum desses
+     * entra aqui, continua a mesma regra de sempre: virar posto avançado
+     * de uma base não torna esse ICAO uma base nova.
+     */
+    private const BASES = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR'];
 
     public function __construct(ManagerRegistry $registry)
     {
@@ -136,7 +159,7 @@ class AeroportoRepository extends ServiceEntityRepository
      * mais o que `AeroportoController::catalogo()` serve pras telas, ver
      * `findCatalogoReferenciaArray()`) e a versão pequena.
      *
-     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool}>
+     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool, isBase: bool}>
      */
     public function findAllAsCatalogArray(): array
     {
@@ -157,7 +180,7 @@ class AeroportoRepository extends ServiceEntityRepository
      * Agendamento e a busca da tela admin alcançam o catálogo inteiro sob
      * demanda, sem embutir tudo de cara.
      *
-     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool}>
+     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool, isBase: bool}>
      */
     public function findCatalogoReferenciaArray(): array
     {
@@ -165,9 +188,62 @@ class AeroportoRepository extends ServiceEntityRepository
     }
 
     /**
+     * Mesmo formato de `findCatalogoReferenciaArray()` (bases + postos
+     * avançados), mas GARANTE que todo ICAO em `$icaosExtras` também
+     * entra, mesmo que não seja nenhum dos dois — usado por
+     * `MapaAoVivoController` pra montar o catálogo daquela tela
+     * especificamente, nunca `AeroportoController::catalogo()` (que
+     * continua só bases + postos, de propósito, pras outras telas que
+     * o consomem). Sem isso, uma aeronave estacionada (ou um voo com
+     * origem/destino) num aeroporto qualquer do catálogo grande — a
+     * imensa maioria, desde a importação do OurAirports — nunca teria
+     * coordenada pro Mapa ao vivo desenhar, e sumiria do mapa em
+     * silêncio (`AIRPORTS[pa.pos]` undefined em `mapa-ao-vivo.js`, ver
+     * README). Uma única query extra, só pelos ICAOs que faltam (nunca
+     * N+1) — o conjunto continua pequeno (bases/postos + o tamanho da
+     * frota), longe de despejar o catálogo inteiro.
+     *
+     * @param list<string> $icaosExtras
+     *
+     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool, isBase: bool}>
+     */
+    public function findCatalogoReferenciaArrayComExtras(array $icaosExtras): array
+    {
+        $catalogo = $this->findCatalogoReferenciaArray();
+
+        $faltando = [];
+        foreach ($icaosExtras as $icao) {
+            $icao = strtoupper(trim($icao));
+            if ('' !== $icao && !isset($catalogo[$icao])) {
+                $faltando[$icao] = true;
+            }
+        }
+        if ([] === $faltando) {
+            return $catalogo;
+        }
+
+        $extras = $this->createQueryBuilder('a')
+            ->andWhere('a.icao IN (:icaos)')
+            ->setParameter('icaos', array_keys($faltando))
+            ->getQuery()
+            ->getResult();
+
+        return $catalogo + $this->catalogoArrayFor($extras);
+    }
+
+    /**
      * @param list<Aeroporto> $lista
      *
-     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool}>
+     * @return array<string, array{name: string, city: string, lat: float, lon: float, postoAvancadoDe: ?string, icaoOficial: bool, isBase: bool}>
+     */
+    /**
+     * `isBase` foi acrescentado ao formato pra `mapa-ao-vivo.js`/`aeronave.js`
+     * poderem desenhar a bolinha das seis bases principais maior que a dos
+     * postos avançados (pedido do piloto) sem duplicar a lista `self::BASES`
+     * em JS — `postoAvancadoDe === null` sozinho não serve pra isso porque
+     * também é null em qualquer aeroporto "extra" que não é base nem posto
+     * (ver `findCatalogoReferenciaArrayComExtras()`), então o JS calcularia
+     * "é base" errado pra esses casos.
      */
     private function catalogoArrayFor(array $lista): array
     {
@@ -180,6 +256,7 @@ class AeroportoRepository extends ServiceEntityRepository
                 'lon' => $a->getLon(),
                 'postoAvancadoDe' => $a->getPostoAvancadoDe(),
                 'icaoOficial' => $a->isIcaoOficial(),
+                'isBase' => \in_array($a->getIcao(), self::BASES, true),
             ];
         }
 

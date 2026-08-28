@@ -51,11 +51,12 @@ class Pilot implements UserInterface, PasswordAuthenticatedUserInterface
     private bool $admin = false;
 
     /**
-     * Base preferida do piloto ('PAFA' ou 'SCCI') — usada no grid de
-     * Pilotos em Solicitações. Preenchida a partir da `basePref` do
-     * pedido de adesão quando aprovado (ver
-     * SolicitacoesController::aprovar()); 'Sem preferência' vira
-     * 'PAFA' nesse momento, então esta coluna nunca guarda esse valor.
+     * Base preferida do piloto (uma das seis bases válidas — ver
+     * `AdesaoController::VALID_BASE_PREF`) — usada no grid de Pilotos em
+     * Solicitações. Preenchida a partir da `basePref` do pedido de
+     * adesão quando aprovado (ver SolicitacoesController::aprovar());
+     * 'Sem preferência' vira 'PAFA' nesse momento, então esta coluna
+     * nunca guarda esse valor.
      */
     #[ORM\Column(length: 10)]
     private string $base = 'PAFA';

@@ -1,7 +1,7 @@
 {% extends 'app_base.html.twig' %}
 
 {% block title %}Ferramentas do piloto — Katabatic{% endblock %}
-{% block meta_description %}Calculadoras de vento, unidades, peso e balanceamento e distância de decolagem/pouso da Katabatic.{% endblock %}
+{% block meta_description %}Calculadoras de vento, unidades/QNH, peso e balanceamento, distância de decolagem/pouso, fuso horário das Bases, planeio e ponto de descida da Katabatic.{% endblock %}
 
 {% block page_stylesheets %}
 <link rel="stylesheet" href="/assets/css/pages/ferramentas.css">
@@ -63,6 +63,7 @@
             <button class="chip" data-cat="weight" type="button" data-i18n="tools.conv.cat.weight">Peso</button>
             <button class="chip" data-cat="fuel" type="button" data-i18n="tools.conv.cat.fuel">Combustível</button>
             <button class="chip" data-cat="alt" type="button" data-i18n="tools.conv.cat.alt">Altitude</button>
+            <button class="chip" data-cat="pressure" type="button" data-i18n="tools.conv.cat.pressure">Pressão (QNH)</button>
           </div>
         </div>
         <div class="grid3">
@@ -173,6 +174,94 @@
       </div>
     </div>
 
+    <!-- Zulu (UTC) x hora local das Bases -->
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="tools.zulu.title">Zulu (UTC) × hora local das Bases</h3></div>
+      <div class="card-b">
+        <p class="tool-note" data-i18n="tools.zulu.scope">Planos de voo VATSIM usam sempre Zulu (UTC) — informe uma hora de referência e veja a correspondente em cada Base, sem precisar decorar fuso.</p>
+        <div class="zulu-row">
+          <div class="field">
+            <label data-i18n="tools.zulu.time">Hora</label>
+            <input type="time" class="mono-input" id="zulu-time">
+          </div>
+          <div class="field">
+            <label data-i18n="tools.zulu.ref">Fuso de referência</label>
+            <select id="zulu-ref">
+              <option value="UTC" data-i18n="tools.zulu.ref.utc">Zulu (UTC)</option>
+              <option value="America/Anchorage">PAFA — Fairbanks, Alasca</option>
+              <option value="America/Punta_Arenas">SCCI — Punta Arenas, Chile</option>
+              <option value="America/La_Paz">SLLP — La Paz, Bolívia</option>
+              <option value="Asia/Kathmandu">VNKT — Catmandu, Nepal</option>
+              <option value="Asia/Jayapura">WAJW — Wamena, Nova Guiné</option>
+              <option value="Asia/Thimphu">VQPR — Paro, Butão</option>
+            </select>
+          </div>
+          <button class="btn" type="button" id="zulu-now" data-i18n="tools.zulu.now">Agora</button>
+        </div>
+        <p class="hint" data-i18n="tools.zulu.hint">Fuso calculado pro instante atual (cobre horário de verão onde existe) — não leva em conta virada de data em trânsito entre fusos muito distantes.</p>
+        <div class="result" id="zulu-result"></div>
+      </div>
+    </div>
+
+    <!-- Alcance de planeio (engine-out) -->
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="tools.glide.title">Alcance de planeio (engine-out)</h3></div>
+      <div class="card-b">
+        <p class="tool-note" data-i18n="tools.glide.scope"><b>Estimativa aproximada</b> — regra de bolso pra planejamento de pouso de emergência, não substitui os números de planeio do POH da aeronave.</p>
+        <div class="grid3">
+          <div class="field">
+            <label data-i18n="tools.glide.alt">Altitude disponível</label>
+            <div class="unit-row"><input type="number" class="mono-input" id="glide-alt" min="0" placeholder="3000"><span class="unit">ft</span></div>
+          </div>
+          <div class="field">
+            <label data-i18n="tools.glide.ratio">Razão de planeio (L/D)</label>
+            <input type="number" class="mono-input" id="glide-ratio" min="1" step="0.1" placeholder="9">
+            <p class="hint" data-i18n="tools.glide.ratio.hint">Ex.: ~9:1 num monomotor leve típico — confira o POH da aeronave.</p>
+          </div>
+          <div class="field">
+            <label><span data-i18n="tools.glide.wind">Vento de proa/cauda</span> <span class="opt" data-i18n="common.optional">(opcional)</span></label>
+            <div class="unit-row"><input type="number" class="mono-input" id="glide-wind" placeholder="0"><span class="unit">kt</span></div>
+            <p class="hint" data-i18n="tools.glide.wind.hint">Positivo = proa (reduz alcance), negativo = cauda (aumenta) — mesma referência da calculadora de vento cruzado.</p>
+          </div>
+        </div>
+        <div class="result" id="glide-result"></div>
+      </div>
+    </div>
+
+    <!-- Ponto ideal de descida (TOD) -->
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="tools.tod.title">Ponto ideal de descida (TOD)</h3></div>
+      <div class="card-b">
+        <p class="tool-note" data-i18n="tools.tod.scope"><b>Estimativa aproximada</b> — regra de bolso trigonométrica, não considera desaceleração nem restrições de descida do ATC.</p>
+        <div class="field">
+          <label data-i18n="tools.tod.method">Método</label>
+          <div class="chips" id="tod-method-chips">
+            <button class="chip on" data-method="rate" type="button" data-i18n="tools.tod.method.rate">Taxa de descida (fpm)</button>
+            <button class="chip" data-method="angle" type="button" data-i18n="tools.tod.method.angle">Ângulo (°)</button>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label data-i18n="tools.tod.alt">Altitude a perder</label>
+            <div class="unit-row"><input type="number" class="mono-input" id="tod-alt" min="0" placeholder="8000"><span class="unit">ft</span></div>
+          </div>
+          <div class="field">
+            <label data-i18n="tools.tod.gs">Velocidade no solo</label>
+            <div class="unit-row"><input type="number" class="mono-input" id="tod-gs" min="1" placeholder="150"><span class="unit">kt</span></div>
+          </div>
+          <div class="field" id="tod-rate-field">
+            <label data-i18n="tools.tod.rate">Taxa de descida</label>
+            <div class="unit-row"><input type="number" class="mono-input" id="tod-rate" min="1" placeholder="500"><span class="unit">fpm</span></div>
+          </div>
+          <div class="field" id="tod-angle-field" style="display:none">
+            <label data-i18n="tools.tod.angle">Ângulo de descida</label>
+            <div class="unit-row"><input type="number" class="mono-input" id="tod-angle" min="0.1" step="0.1" placeholder="3"><span class="unit">°</span></div>
+          </div>
+        </div>
+        <div class="result" id="tod-result"></div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -200,6 +289,7 @@
       'tools.conv.cat.weight': 'Weight',
       'tools.conv.cat.fuel': 'Fuel',
       'tools.conv.cat.alt': 'Altitude',
+      'tools.conv.cat.pressure': 'Pressure (QNH)',
       'tools.conv.value': 'Value',
       'tools.conv.from': 'From',
       'tools.conv.to': 'To',
@@ -237,7 +327,35 @@
       'tools.dist.result.da': 'Density altitude',
       'tools.dist.result.takeoff': 'Adjusted takeoff distance',
       'tools.dist.result.landing': 'Adjusted landing distance',
-      'tools.dist.result.reference': 'reference'
+      'tools.dist.result.reference': 'reference',
+      'tools.zulu.title': 'Zulu (UTC) × Bases local time',
+      'tools.zulu.scope': 'VATSIM flight plans always use Zulu (UTC) — enter a reference time and see the matching time at each Base, no need to memorize time zones.',
+      'tools.zulu.time': 'Time',
+      'tools.zulu.ref': 'Reference zone',
+      'tools.zulu.ref.utc': 'Zulu (UTC)',
+      'tools.zulu.now': 'Now',
+      'tools.zulu.hint': 'Offset computed for the current instant (covers daylight saving where it applies) — does not account for a date change while in transit between distant zones.',
+      'tools.glide.title': 'Glide range (engine-out)',
+      'tools.glide.scope': '<b>Approximate estimate</b> — rule-of-thumb for emergency-landing planning, does not replace the aircraft\'s POH glide figures.',
+      'tools.glide.alt': 'Altitude available',
+      'tools.glide.ratio': 'Glide ratio (L/D)',
+      'tools.glide.ratio.hint': 'E.g. ~9:1 on a typical light single — check the aircraft\'s POH.',
+      'tools.glide.wind': 'Head/tailwind',
+      'tools.glide.wind.hint': 'Positive = headwind (reduces range), negative = tailwind (increases it) — same reference as the crosswind calculator.',
+      'tools.tod.title': 'Top of descent (TOD)',
+      'tools.tod.scope': '<b>Approximate estimate</b> — trigonometric rule of thumb, does not account for deceleration or ATC descent restrictions.',
+      'tools.tod.method': 'Method',
+      'tools.tod.method.rate': 'Descent rate (fpm)',
+      'tools.tod.method.angle': 'Angle (°)',
+      'tools.tod.alt': 'Altitude to lose',
+      'tools.tod.gs': 'Ground speed',
+      'tools.tod.rate': 'Descent rate',
+      'tools.tod.angle': 'Descent angle',
+      'tools.tod.result.distance': 'Distance from TOD',
+      'tools.tod.result.time': 'Descent time',
+      'tools.tod.result.rate': 'Recommended descent rate',
+      'tools.glide.result.distance': 'Reachable distance',
+      'tools.zulu.result.base': 'Base'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();

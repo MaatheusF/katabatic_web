@@ -71,18 +71,22 @@ lacunas conhecidas de propósito e o passo a passo pra ligar na sua máquina:
    bases + postos avançados por padrão — o catálogo inteiro só aparece
    quando alguém busca por ele.
 
-O que **ainda é mock** (sem tabela/banco por trás): o boletim de
-vento/temperatura/visibilidade/teto no cabeçalho de cada base na aba
-"Bases" do Portal (a lista de postos avançados abaixo dele já é real,
-ver item 8 acima), fotos
-de aeronave em `/nova-aeronave`, o modo "Importar telemetria" e o botão
-"Salvar rascunho" da própria tela `/novo-voo` (ver "Backend: voos e
-telemetria" pra por quê) — **atualizado:** "Publicar" no modo "Registro
-manual" já grava um `Voo` de verdade, e busca de
-METAR/TAF/recorte GRIB. A posição no Mapa ao vivo agora é real pra quem já
-manda heartbeat de posição (ver fatia 6 acima) — só cai pro replay em loop
-antigo quando não há heartbeat ainda. A contagem `Pilot::$voos` no grid de
-Pilotos já é real (não é mais mock, ver "Backend: adesão e solicitações").
+O que **ainda é mock** (sem tabela/banco por trás): fotos de aeronave em
+`/nova-aeronave` (upload nunca existiu, só o visual herdado do mockup
+original) e busca de TAF/recorte GRIB (METAR de origem e pouso já é
+real, ver "Auditoria dos dados de voo integrados"). **Atualizado:** o
+boletim de vento/temperatura/visibilidade da aba "Bases" do Portal
+agora é clima real via Open-Meteo, não mais inventado (ver "Backend:
+clima real nas Bases (Open-Meteo)" mais abaixo — só "Teto" virou
+"Nuvens baixas", a API não tem altura de teto). "Salvar rascunho" em
+`/novo-voo` também passou a persistir de verdade (ver "Backend:
+rascunho persistente de voo" mais abaixo), e "Publicar" nos dois modos
+("Registro manual" e "Importar telemetria") já grava um `Voo` de
+verdade. A posição no Mapa ao vivo é real pra quem já manda heartbeat
+de posição (ver fatia 6 acima) — só cai pro replay em loop antigo
+quando não há heartbeat ainda. A contagem `Pilot::$voos` no grid de
+Pilotos também é real (não é mais mock, ver "Backend: adesão e
+solicitações").
 Lista completa e ordenada de próximos passos em "Próximos passos" no fim
 deste arquivo.
 
@@ -187,15 +191,17 @@ katabatic_web/
   "Backend: voos e telemetria") — relato do piloto agora persiste de
   verdade (`POST /voo/{codigo}/relato`)
 - [x] `katabatic-novo-voo.html` → `/novo-voo` (registro de voo — importar
-  telemetria com dropzone simulada, ou registro manual). O seletor de
-  aeronave já vem da Frota real (ver "Backend: mapa ao vivo e histórico
-  da frota") — desde a ingestão ACARS (ver "Backend: ingestão ACARS
-  (MVP)"), o Logbook já cresce de verdade por fora desta tela também (o
-  script de captura manda o voo direto pro servidor, não passa pelo
-  formulário). **Atualizado:** "Publicar" no modo "Registro manual"
-  agora grava um `Voo` de verdade também a partir desta tela (ver
-  "Backend: voos e telemetria") — o modo "Importar telemetria" e
-  "Salvar rascunho" continuam mock (`alert`)
+  telemetria via upload, ou registro manual). O seletor de aeronave já
+  vem da Frota real (ver "Backend: mapa ao vivo e histórico da frota") —
+  desde a ingestão ACARS (ver "Backend: ingestão ACARS (MVP)"), o
+  Logbook já cresce de verdade por fora desta tela também (o script de
+  captura manda o voo direto pro servidor, não passa pelo formulário).
+  **Atualizado:** os dois modos gravam um `Voo` de verdade agora. Modo
+  "Registro manual": `POST /novo-voo/publicar` (ver "Backend: voos e
+  telemetria"). Modo "Importar telemetria": o piloto seleciona o
+  `upload_payload.json` que o script de captura sempre grava — ver
+  "Backend: importação de telemetria via upload (`/novo-voo`)". Só
+  "Salvar rascunho" continua mock (`alert`)
 - [x] `katabatic-nova-aeronave.html` → `/nova-aeronave` (cadastro de
   aeronave — país/matrícula/tipo/base, limites operacionais, fotos e
   observações internas). "Salvar aeronave" é um POST de verdade (ver
@@ -654,6 +660,68 @@ Os outros três cards do hub ("Procedimentos de emergência",
 placeholders — mostram o que vem a seguir sem prometer uma data, mesmo
 espírito transparente do roadmap no fim deste documento.
 
+### Ficha de voo / kneeboard (`/manuais/ficha-de-voo`)
+
+Segundo manual de verdade do hub, pensado pra apoio de cabine em vez de
+consulta de referência: um documento com espaço pra anotar dados **à
+mão (ou digitando) durante o voo** — callsign, horários (EOBT/off
+blocks/decolagem/pouso/on blocks), combustível planejado e embarcado,
+peso de decolagem, pista/vento/METAR na origem, e uma área de notas
+livres pra desvios e ocorrências. É deliberadamente um documento
+**estático e desconectado do backend** — nada de rota dinâmica por
+voo, sem geração por piloto: só dois arquivos fixos em
+`public/downloads/` (`ficha-de-voo.pdf` e `ficha-de-voo.xlsx`),
+linkados via `<a href download>` na página
+`manuais/ficha_de_voo.html.twig` (reaproveita
+`manual-fraseologia.css` pro grid/cards e soma só
+`manual-ficha-voo.css` pros botões de download). Faz sentido como
+arquivo estático porque o conteúdo não muda por piloto/voo — é o
+molde que cada um preenche por conta própria, offline.
+
+**PDF** (`ficha-de-voo.pdf`, A4, 3 voos por folha): HTML/CSS renderizado
+via Playwright + Chromium headless (`page.pdf(format="A4",
+print_background=True)`) em vez de reportlab/canvas — dá controle
+milimétrico de grid pra um formulário de impressão sem o trabalho de
+posicionar cada elemento manualmente em coordenadas. Layout com o
+logo/wordmark da Katabatic (mesmo SVG de `_brand.html.twig`) e 3
+cards idênticos empilhados, cada um com: linha de identificação
+(callsign/data/matrícula/operação — CID saiu do formulário, não
+adiciona nada pra quem tá anotando na cabine, e "Operação" virou
+campo de escrita livre em vez das 4 checkboxes originais, depois de
+feedback de que era melhor ter espaço pra escrever do que marcar
+opção), linha de rota (origem/destino/alternativo/squawk/pista/
+vento/METAR), linha de tempos e combustível, e uma área de notas com
+linhas pautadas. Depois de tirar CID e as checkboxes, sobrou espaço
+que foi usado pra aumentar a altura de escrita de todos os campos
+(~6mm → ~6.8mm) e voltar a área de notas pra 4 linhas — o pedido
+original era "mais espaço pra escrever", não só encaixar mais campo.
+**Fontes de marca (Archivo, IBM Plex Sans/Mono) não carregam neste
+ambiente de build** (Google Fonts e mirrors apt bloqueados no
+sandbox) — o CSS lista as fontes reais primeiro com fallback pra
+Liberation Sans/Mono já instaladas, então o PDF gerado aqui usa o
+fallback; se algum dia o pipeline de build tiver acesso à internet
+liberado, o resultado já sai com a fonte de marca certa sem precisar
+mudar o CSS.
+
+**Planilha** (`ficha-de-voo.xlsx`): versão editável dos mesmos campos
+(sem coluna CID, "Operação" como texto livre — mesmo ajuste do PDF,
+sem lista suspensa), uma linha por voo em vez de "3 por folha" (não
+faz sentido replicar a paginação de impressão numa planilha) — aba
+"Ficha de voo" com cabeçalho fixo (freeze pane), uma linha de exemplo
+preenchida (fundo amarelo, com comentário explicando que pode apagar)
+e 60 linhas em branco prontas pra usar, mais uma aba "Instruções" com
+o mesmo texto de como preencher. Sem fórmulas (é só uma tabela de
+apoio, não um cálculo), então não há risco de `#NAME?`/`#REF!` de
+função não suportada pelo LibreOffice — ainda assim passou por
+`recalc.py` pra confirmar que abre limpo.
+
+**Lacuna conhecida:** os dois arquivos foram gerados uma vez, manualmente,
+e ficam versionados como estáticos em `public/downloads/` — não há
+comando/pipeline que os regenere a partir de um único source (o HTML
+do PDF e o script Python do xlsx existem só como histórico de geração,
+não fazem parte do build do app). Se os campos mudarem no futuro, os
+dois arquivos precisam ser regenerados e recolocados manualmente.
+
 ## Perfil do piloto (`/perfil`)
 
 Tela de configurações da conta, aberta pelo próprio cartão do piloto no
@@ -748,10 +816,9 @@ backend depois desta fatia.
 
 **Lacunas conhecidas, de propósito, nesta primeira fatia:**
 
-- Sem proteção CSRF no formulário de login ainda (precisaria de
-  `symfony/security-csrf` + `CsrfTokenBadge` no autenticador) — ok pra
-  ambiente de dev, mas deve entrar antes de qualquer coisa exposta de
-  verdade.
+- ~~Sem proteção CSRF no formulário de login ainda~~ — **religado**
+  (ver "Backend: ativação de pilotos e proteção CSRF" mais abaixo):
+  `CsrfTokenBadge` no autenticador, mesmo mecanismo nativo do Symfony.
 - Sem "esqueci minha senha" — o único jeito de um piloto novo ganhar
   senha é a senha temporária mostrada uma vez no momento da aprovação
   (ver "Backend: adesão e solicitações" abaixo); se ela se perder,
@@ -823,15 +890,17 @@ guard manual de sessão das outras telas.
   a senha pro piloto novo é manual (Discord, e-mail avulso etc.).
 - `Pilot` ganhou duas colunas novas nesta fatia: `base` (preenchida a
   partir da `basePref` do pedido — `'Sem preferência'` vira `'PAFA'`)
-  e `active` (sempre `true` num piloto novo — sem fluxo de desativação
-  ainda). Ambas usadas só no grid de Pilotos em Solicitações.
+  e `active` (sempre `true` num piloto novo). ~~Sem fluxo de
+  desativação ainda~~ — **religado**, ver "Backend: ativação de
+  pilotos e proteção CSRF" mais abaixo.
 - Migration `migrations/Version20260821130000.php` — cria
   `membership_request` e adiciona `pilot.base`/`pilot.active`.
 
 **Lacunas conhecidas, de propósito, nesta fatia:**
 
-- Sem CSRF nos POSTs de `/adesao` e `/solicitacoes/{id}/...` — mesmo
-  gap já anotado pro login.
+- ~~Sem CSRF nos POSTs de `/adesao` e `/solicitacoes/{id}/...`~~ —
+  **religado**, ver "Backend: ativação de pilotos e proteção CSRF"
+  mais abaixo.
 - Sem envio de e-mail (nem da confirmação do pedido, nem da senha
   temporária) — tudo isso é comunicado fora do sistema por enquanto.
 - ~~`voos` no grid de Pilotos continua fixo em `0` pra todo mundo~~ —
@@ -989,10 +1058,11 @@ ingestão real do ACARS existir e um voo passar a ser uma coisa só
   `objetivo`, `simbrief` (OFP) e `visibilidade` são capturados no
   formulário e guardados em `dados`, mas nenhuma tela ainda os exibe
   (mesmo tipo de lacuna que "carga" tinha na ingestão ACARS — guardado
-  pra não perder o que foi digitado). O modo "Importar telemetria"
-  continua mock (nomes de arquivo fixos, sem parsing de CSV real) e
-  "Salvar rascunho" também — ver docblock de `NovoVooController` pro
-  porquê de cada um.
+  pra não perder o que foi digitado). ~~O modo "Importar telemetria"
+  continua mock~~ **Atualizado:** ver "Backend: importação de telemetria
+  via upload (`/novo-voo`)". ~~"Salvar rascunho" continua mock~~ —
+  também **religado**, ver "Backend: rascunho persistente de voo" mais
+  abaixo.
 - Sem paginação/streaming no `GET /voo/telemetria` — devolve a lista
   inteira do piloto de uma vez, igual o arquivo estático fazia. Ok com
   3 voos de teste; não escala pra um piloto com centenas de voos
@@ -1189,6 +1259,28 @@ pro Mapa ao vivo — ambas descritas abaixo. **Atualizado depois (peso
 real, carga estimada, METAR e través com pista real):** ver "Backend:
 realismo da ingestão ACARS" mais abaixo.
 
+**Atualizado: gelo — bug de escala corrigido, e anti-ice agora vira
+evento.** Um piloto relatou gelo real no para-brisa e uso de anti-ice
+num voo em que o relatório mostrou só 0,02% de pico — investigando,
+achamos que `katabatic_capture.py` pedia `STRUCTURAL ICE PCT` na
+unidade `percent over 100`, que o SDK do simulador documenta oficialmente
+como uma fração **0.0–1.0** (não 0-100, apesar da própria variável se
+descrever como "100 is fully iced" — pegadinha de nomenclatura do SDK).
+O resto do app sempre assumiu 0-100 direto (limiar do evento
+`icing_onset`, peso no índice de dificuldade, exibição em `voo.js`) —
+resultado, todo voo gravado até aqui reportou gelo estrutural ~100×
+menor do que o simulador realmente modelou. Corrigido pedindo direto
+em `percent`; ver `docs/payload-telemetria-acars.md` (seção 8) e o
+comentário no `GROUP_C` do script pro raciocínio completo, com fonte
+oficial. **Sem migração retroativa** — voos já gravados mantêm o valor
+antigo, errado. De quebra, `STRUCTURAL DEICE SWITCH`/
+`WINDSHIELD DEICE SWITCH` entraram no Grupo D do script — ligar o
+anti-ice (estrutural ou do para-brisa) em voo agora vira evento
+("Deice estrutural"/"Deice do para-brisa" no relatório), pelo mesmo
+mecanismo genérico que já cobre trem/flap/freio, então essa decisão do
+piloto fica registrada por si só, independente do que o
+`STRUCTURAL ICE PCT` mediu.
+
 **Importante: isto NÃO é o cliente/servidor completo do contrato ACARS**
 (`docs/payload-telemetria-acars.md`, v1.1) — aquele documento descreve uma
 arquitetura bem maior (sessão aberta/fechada, telemetria em streaming de
@@ -1219,6 +1311,12 @@ próxima fatia.
   preenche uma vez) e o atalho de gravação passa a aceitar
   `katabatic.bat KBT118 PAFA PABT carga` (callsign origem destino tipo) —
   `katabatic.bat KBT118` sozinho continua funcionando, só sem enviar nada.
+  **Atualizado:** `katabatic.bat rebuild PASTA` — reconstrói
+  `upload_payload.json` de uma gravação que caiu sem `Ctrl+C` (queda de
+  energia, crash), a partir dos CSVs que já estão em disco, sem precisar
+  do simulador aberto — ver "Backend: importação de telemetria via
+  upload (`/novo-voo`)" mais abaixo pro detalhe de como isso funciona e o
+  que dá pra recuperar automaticamente.
 - `App\Service\TelemetryDeriver` (`src/Service/TelemetryDeriver.php`) — o
   "servidor deriva" da seção 7 do contrato, versão mínima: recebe as
   amostras/ambiente/eventos crus e monta o mesmo blob que `flights.json`
@@ -1279,6 +1377,10 @@ quando as peças que faltam no contrato existirem):
 - METAR não é buscado — o campo fica `null` no Logbook (ver "Backend: voos
   e telemetria" pra por quê isso importa: é a única fonte de
   visibilidade/teto, já que as SimVars não acompanham o clima).
+  **Atualizado:** passou a ser buscado (origem e pouso) em "Backend:
+  realismo da ingestão ACARS" — ver também "Auditoria dos dados de voo
+  integrados" pra quando isso passou a aparecer no relatório de
+  verdade.
 - **Atualizado:** amostras com slew ativo (`IS SLEW ACTIVE`) ou
   `sim_rate` fora de ~1× (±5%) agora são excluídas de toda estatística
   agregada (`dist`/min-max-avg/fases/través, e por consequência
@@ -1429,6 +1531,27 @@ WebSocket).
   nesta fatia.
 - Sem correlação com Agendamentos — isso é outro item do roadmap ("Ligação
   com o ACARS" em "Agendamento de voo").
+
+**Bug corrigido:** uma aeronave `live: true` (ping real chegando certinho)
+sumia inteiro do Mapa ao vivo quando origem e/ou destino não estavam
+cadastrados no catálogo de aeroportos (`AeroportoController::catalogo()`)
+— por exemplo um reposicionamento pra fora da rede PAFA/SCCI, entre dois
+ICAO quaisquer que ninguém cadastrou em `/aeroporto`. Causa:
+`mapa-ao-vivo.js` (`buildFlying()`) sempre exigia os DOIS aeroportos
+resolvidos (`if (!a || !b) return null`) antes de desenhar qualquer coisa,
+mesmo pra uma aeronave com posição real — esse par só é necessário pro
+arco tracejado e pra simulação (`updateFlyingSimulated()`), nunca pra
+posicionar um marcador que já tem `lat`/`lon` do ACARS. Corrigido
+desacoplando os dois: `buildFlying()` agora só pula a aeronave quando
+NEM tem posição real NEM os dois aeroportos pra simular; com posição
+real e aeroportos desconhecidos, o marcador nasce na coordenada
+verdadeira e só o arco tracejado fica de fora (`fa.hasArc: false`).
+`updateFlying()` e o cálculo de `bounds` do `fitBounds()` inicial
+(`initMap()`) foram ajustados pra não tentar usar `fa.a`/`fa.b`/`fa.ctrl`
+nulos nesse caso. Vale considerar cadastrar os aeroportos usados em
+reposicionamentos frequentes em `/aeroporto` de qualquer forma — isso
+devolve o arco tracejado e a rota fica mais legível no mapa, mas deixou
+de ser exigência pra aeronave aparecer.
 
 **Como ligar isso na sua máquina:**
 
@@ -1582,6 +1705,98 @@ sem precisar de deploy:
   precisa rodar de novo — a linha não duplica, só ganha o
   `postoAvancadoDe` que ainda faltava.
 
+**Bases sazonais (`app:importar-bases-sazonais`)** — quatro bases
+principais novas, cada uma com 3 postos avançados reais da própria
+região, mais um posto avançado isolado, pedidas pra dar à rede locais
+desafiadores, com paisagens de tirar o fôlego, em continentes que
+PAFA (Alasca) e SCCI (Patagônia) sozinhos não cobriam:
+
+- **SLLP** (El Alto Intl., La Paz, Bolívia) — Andes, ~4 061 m de
+  altitude, um dos aeroportos internacionais mais altos do mundo.
+  Postos: **SLUY** (Uyuni — Salar de Uyuni, ~3 394 m), **SLRQ**
+  (Rurrenabaque — portal da Amazônia/Madidi, ~206 m) e **SLAP** (Apolo —
+  transição Andes/Amazônia).
+- **VNKT** (Tribhuvan Intl., Catmandu, Nepal) — hub de verdade do
+  Himalaia nepalês (ver correção abaixo). Postos: **VNLK**
+  (Tenzing-Hillary, Lukla — portal do Everest, pista curta em rampa,
+  sem approach instrumentado, sem chance de arremetida depois do ponto
+  de não-retorno), **VNJS** (Jomsom — ~2 736 m, vento de vale forte) e
+  **VNPR** (Pokhara — aeroporto internacional novo, base pro circuito
+  do Annapurna).
+- **WAJW** (Wamena, Papua/Nova Guiné) — vale do Baliem cercado por
+  picos de mais de 4 000 m, aproximação visual obrigatória. Postos:
+  **WAJO** (Oksibil — ~1 315 m, perto da fronteira com Papua-Nova
+  Guiné), **WAYE** (Enarotali — à beira do Lago Paniai, ~1 769 m) e
+  **WAJB** (Bokondini — ~1 400 m, planalto).
+- **VQPR** (Paro, Butão) — vale entre picos do Himalaia de até
+  ~5 500 m, uma das aproximações mais tecnicamente exigentes do mundo.
+  Postos: **VQBT** (Bathpalathang/Jakar — vale central de Bumthang,
+  ~2 586 m), **VQGP** (Gelephu — planície do sul na fronteira com a
+  Índia, ~299 m) e **VQTY** (Yongphulla/Trashigang — leste remoto,
+  ~2 743 m).
+- **BGSF** (Kangerlussuaq, Groenlândia) — entra como **posto avançado
+  de PAFA** (`postoAvancadoDe = 'PAFA'`), não como base nova, exatamente
+  como pedido ("sub base do Alasca"). Aparece na aba Bases do Portal
+  junto com os outros postos avançados de PAFA, mas nunca é
+  selecionável como base de aeronave nem preferência de piloto.
+
+**Correção: a base do Nepal é Catmandu, não Lukla — decisão tomada em
+conversa.** A primeira versão desta fatia usava VNLK (Lukla) como a
+base principal do Nepal; errado, corrigido depois de revisão. Lukla é
+destino, não hub: pista de mão única em rampa (~527 m, ~12% de
+inclinação), sem approach instrumentado e sem infraestrutura pra
+basear frota — na aviação real todo voo pra Lukla parte de Catmandu,
+nunca o contrário. **VNKT** (aeroporto internacional de Catmandu, cheio
+de infraestrutura) virou a base de verdade, e Lukla entrou como o que
+sempre foi na prática: um posto avançado desafiador dela, ao lado de
+Jomsom e Pokhara. As outras três bases já eram (ou continuam sendo,
+depois de revisadas) hubs de verdade e não precisaram da mesma
+correção: SLLP é o maior aeroporto internacional da Bolívia; WAJW já é
+o hub aéreo de fato de todo o planalto central de Papua (pista
+pavimentada, capaz de jato, de onde pistas menores da região são
+abastecidas); VQPR é a única porta de entrada aérea do Butão, com
+infraestrutura pra operar a frota inteira da Drukair. `app:importar-bases-sazonais`
+tem lógica de correção pra quem já rodou a versão antiga do comando:
+se VNLK já foi importado como base (sem `postoAvancadoDe`), a nova
+execução vira o campo pra `'VNKT'` em vez de deixar a linha errada
+parada — não precisa apagar nada na mão.
+
+As quatro bases principais entraram na mesma tier de PAFA/SCCI — a
+whitelist fixa que decide quais ICAOs são base de verdade cresceu de 2
+pra 6 entradas, repetida (mesma decisão de sempre, ver
+`AeroportoRepository::BASES`) em `NovaAeronaveController::BASES_VALIDAS`
+(cadastro de aeronave), `AeroportoController::BASES_VALIDAS` (validação
+de posto avançado) e `AdesaoController::VALID_BASE_PREF` (preferência de
+base no pedido de adesão) — os chips de seleção em `/nova-aeronave`,
+`/adesao` e `/aeroportos` (posto avançado) ganharam um botão por base
+nova, e o filtro de frota da aba Frota do Portal ganhou um chip por
+base. `PortalController::bases()` deixou de ser um array fixo de duas
+chaves (`north`/`south`) e virou uma lista de seis, cada uma com seu
+próprio "boletim" mock de vento/temperatura/visibilidade/teto (mesma
+lacuna de sempre — sem schema de estação/METAR ainda, ver "Próximos
+passos") e a mesma blurb-lore que PAFA/SCCI já tinham; os 12 postos
+avançados novos aparecem em "Estações avançadas" de cada base, mesmo
+mecanismo (`AeroportoRepository::findPostosAvancadosDe()`) que já
+listava os 9 postos legados de PAFA/SCCI.
+
+**Importante: "sazonal" aqui é só tema/identidade — decisão tomada em
+conversa.** O pedido original citava bases sazonais no sentido de
+operarem só em certos meses (calendário de verdade), mas isso **não**
+foi implementado: não existe nenhum campo de data/temporada em
+`Aeroporto`, nenhuma trava de agendamento por mês/época do ano — um
+voo de/pra qualquer uma destas entradas funciona o ano inteiro, igual a
+qualquer outra base ou posto avançado. "Sazonal" descreve só a
+ambientação (locais extremos, remotos, visualmente radicais), o mesmo
+sentido que PAFA/SCCI já carregam como "as duas bases geladas/de fim de
+mundo" sem nenhuma trava por trás. Uma janela de calendário de verdade,
+se pedida no futuro, é trabalho novo — não uma extensão trivial deste
+comando.
+
+Coordenadas são dado de referência pública (aeródromo, não pista
+específica, checadas contra Wikipédia/OurAirports/SkyVector), mesmo
+nível de precisão dos 11 aeroportos hand-cadastrados legados — não
+survey-grade.
+
 **Importação global (`app:importar-aeroportos-ourairports`)** — os 11
 aeroportos hand-cadastrados eram suficientes pro MVP, mas limitavam
 demais onde um voo podia pousar/ser agendado. Este comando novo importa
@@ -1699,6 +1914,31 @@ o próprio ajuste, sem precisar de PostGIS nem paginação:
   inteiramente no servidor — `aeronave.js`/`mapa-ao-vivo.js` só
   ganharam depois uma condicional pequena pro selo "Local" (ver
   "Pistas sem ICAO nas regiões de missão" acima), não pra essa parte.
+  **Atualizado: essa mesma restrição escondia aeronave de verdade no
+  Mapa ao vivo.** Uma aeronave estacionada num aeroporto qualquer do
+  catálogo grande (pouso alternativo, reposicionamento manual — a
+  imensa maioria dos aeroportos não é base nem posto) não tinha
+  coordenada nenhuma pra `mapa-ao-vivo.js` desenhar
+  (`AIRPORTS[pa.pos]` undefined em `buildParked()`) e simplesmente
+  desaparecia da tela, sem erro nem aviso — mesmo risco pra origem/
+  destino de um voo em replay. Corrigido só pra esta tela, sem tocar
+  no endpoint compartilhado: `/mapa-ao-vivo` passou a consumir uma
+  rota própria (`GET /mapa-ao-vivo/aeroportos`,
+  `MapaAoVivoController::aeroportos()`), que devolve o mesmo catálogo
+  pequeno de sempre **mais** todo ICAO que a frota realmente está
+  usando agora (`AeroportoRepository::findCatalogoReferenciaArrayComExtras()`
+  — uma query extra, só pelos ICAOs que faltam, nunca N+1 e nunca o
+  catálogo inteiro). Nenhuma mudança em `mapa-ao-vivo.js`: o formato
+  do JSON é idêntico, só ficou maior quando precisa. **`/aeronave/{reg}`
+  tem uma versão mais estreita do mesmo risco, ainda em aberto.** Perna
+  **com** telemetria ACARS já escapa desse problema desde a correção de
+  "Trajeto real no mapa" logo acima (usa o `track` gravado de verdade,
+  não o catálogo, pra origem/destino) — só a perna **sem** telemetria
+  (histórico só narrativo) continua dependendo do catálogo pequeno pro
+  fallback de curva estimada, e some do mapa se origem/destino não for
+  base nem posto. Continua no endpoint compartilhado (`AeronaveController`
+  não ganhou o mesmo reforço) — não corrigido ainda porque não foi o
+  que foi reportado, mas é o mesmo bug, num alcance menor.
 - `GET /aeroportos/buscar?q=` (rota `app_aeroportos_buscar`, exige
   sessão, sem exigir admin) é o jeito de alcançar qualquer aeroporto
   do catálogo grande: `q` casa por prefixo de ICAO ou por trecho de
@@ -1813,6 +2053,7 @@ e a resolução é sempre "quem chegou primeiro fica".
 ```bash
 php bin/console doctrine:migrations:migrate      # cria a tabela aeroporto e a coluna voo.destino_real
 php bin/console app:importar-aeroportos-legado   # importa os 11 aeroportos que já existiam em airports.json
+php bin/console app:importar-bases-sazonais      # importa as bases sazonais (SLLP/VNKT/WAJW/VQPR + 12 postos avançados + BGSF como posto de PAFA)
 php bin/console app:importar-aeroportos-ourairports  # importa a base pública inteira (OurAirports) - precisa de internet, pode demorar alguns minutos
 ```
 
@@ -1847,6 +2088,81 @@ rodar `doctrine:migrations:migrate` antes do import** — a coluna
 acima) é nova; sem ela o comando falha ao tentar persistir a primeira
 pista sem ICAO. O resto do schema (tabela `aeroporto` em si) já existe
 desde a fatia anterior.
+
+## Mapa base (CARTO) — API key obrigatória
+
+O mapa ao vivo (`/mapa-ao-vivo`), o mapa do relatório de voo (`/voo`) e
+o mapa de histórico de aeronave (`/aeronave/{reg}`) usam o mesmo
+provedor de tiles: `basemaps.cartocdn.com` (CARTO), estilos
+`light_all`/`dark_all` (claro/escuro, trocado junto com o tema do site
+— ver `initMap()` em `mapa-ao-vivo.js`/`voo.js`/`aeronave.js`). **A
+CARTO passou a exigir uma API key mesmo pro tile gratuito e anônimo**
+— sem ela, toda tile vem com uma marca d'água "API KEY REQUIRED,
+carto.com/basemaps/apikey" por cima, o mapa continua funcionando
+(pan/zoom/marcadores), só fica poluído visualmente.
+
+Corrigido injetando a chave via env, do jeito que `ACARS_TOKEN` já
+fazia (ver `AcarsIngestaoController` — mesmo padrão `#[Autowire('%env(...)%')]`):
+
+- `CARTO_API_KEY` no `.env` (real, já preenchida) / `.env.example`
+  (placeholder vazio) — pegue a sua de graça, sem precisar de conta
+  CARTO, em <https://carto.com/basemaps/apikey/>.
+- `MapaAoVivoController::index()`, `VooController::index()` e
+  `AeronaveController::index()` injetam
+  `#[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey` e passam
+  pro template. (`AeronaveController` foi corrigido numa segunda
+  passada — a primeira rodada dessa correção esqueceu essa tela, que
+  também monta seu próprio `L.tileLayer()` independente das outras
+  duas, e continuou mostrando a marca d'água até o piloto reportar.)
+- `mapa_ao_vivo/index.html.twig`/`voo/index.html.twig`/`aeronave/index.html.twig`
+  expõem `window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};`
+  — mesmo padrão dos outros `window.KATABATIC_*` que essas telas já
+  injetam.
+- `mapa-ao-vivo.js`/`voo.js`/`aeronave.js` (`initMap()`) anexam `?key=`
+  + a chave em cada URL de tile (claro e escuro) antes de montar o
+  `L.tileLayer()` — `encodeURIComponent('')` se a env não estiver
+  setada não quebra a URL, só deixa a marca d'água aparecer de novo
+  (degrada, não quebra o mapa).
+
+Sem `CARTO_API_KEY` no `.env`, o app ainda sobe normal (o parâmetro
+autowired vira string vazia) — só o mapa volta a mostrar a marca
+d'água, mesmo comportamento de antes desta correção.
+
+### Bolinha maior pras seis bases principais
+
+`AeroportoRepository::catalogoArrayFor()` ganhou um campo `isBase`
+(`true` pro ICAO estar em `self::BASES`) no formato que
+`airports.json`/`app_aeroportos_catalogo`/`app_mapa_ao_vivo_aeroportos`
+já serviam — não dá pra inferir isso só de `postoAvancadoDe === null`
+porque um aeroporto "extra" (nem base, nem posto avançado — ver
+`findCatalogoReferenciaArrayComExtras()`) também tem esse campo nulo, e
+o JS acertaria "é base" errado pra esses casos. Com o campo pronto,
+`mapa-ao-vivo.js` (`buildAirportDots()`) e `aeronave.js`
+(`drawMap()`) desenham as seis bases principais com uma bolinha maior
+(`radius` maior + contorno mais grosso) que postos avançados e outros
+aeroportos — pedido do piloto pra bater o olho e diferenciar hub de
+posto direto no mapa, sem precisar abrir o popup.
+
+### Histórico de aeronave: sem esmaecer voos antigos, labels sob demanda
+
+Ajustes de visualização no mapa de `/aeronave/{reg}` (histórico de
+todos os voos de uma matrícula), pedidos pelo piloto:
+
+- **Opacidade fixa.** Antes, `drawMap()` calculava opacidade a partir
+  da recência da perna (`.28` a `1`, ver `recencia`), deixando pernas
+  antigas quase invisíveis num histórico com muitos voos. A opacidade
+  agora é fixa (`.88`) pra toda perna — só a espessura da linha ainda
+  varia com a recência (mais recente = mais grossa), dando uma pista
+  visual sem prejudicar a legibilidade das mais antigas.
+- **Labels sob demanda.** O toggle "Labels sempre visíveis" (antes
+  "Labels no mapa") continua ligando/desligando os rótulos (callsign
+  no meio de cada perna, ICAO ao lado de cada aeroporto) — mas
+  desligado não some mais com eles: em vez disso nascem com
+  `opacity: 0` e só aparecem ao passar o mouse sobre a rota/aeroporto
+  correspondente (`setLabelVisible()`, chamado nos listeners de
+  `mouseover`/`mouseout` já existentes na linha/marcador). Com o
+  toggle ligado, o comportamento continua o mesmo de sempre (sempre
+  visível).
 
 ## Backend: Ferramentas do piloto e tipos de aeronave
 
@@ -1947,12 +2263,18 @@ aeronave/tipo até alguém preencher os números.
 
 ## Backend: realismo da ingestão ACARS (peso, carga, METAR, través de pista)
 
-Quatro enriquecimentos em `AcarsIngestaoController::ingerir()`, todos
-"melhor esforço" (nenhum bloqueia a gravação do voo se faltar dado) e
-**nenhum exigindo mudança no script de captura** (`katabatic_capture.py`
-já manda tudo que os dois primeiros precisam) — decisão tomada em
-conversa depois de revisar o que a ingestão MVP (ver "Backend: ingestão
-ACARS (MVP)") ainda deixava na mesa:
+Quatro enriquecimentos, todos "melhor esforço" (nenhum bloqueia a
+gravação do voo se faltar dado) e **nenhum exigindo mudança no script de
+captura** (`katabatic_capture.py` já manda tudo que os dois primeiros
+precisam) — decisão tomada em conversa depois de revisar o que a
+ingestão MVP (ver "Backend: ingestão ACARS (MVP)") ainda deixava na
+mesa. **Atualizado:** moraram em `AcarsIngestaoController::ingerir()`
+até a fatia de "importação de telemetria via upload" (ver seção
+abaixo) precisar exatamente da mesma lógica pra um `Voo` importado
+manualmente — extraídos pra `App\Service\TelemetriaVooBuilder`, que as
+duas vias (ACARS ao vivo e upload manual) chamam igual; o comportamento
+descrito abaixo não mudou, só onde o código mora (ver docblock da
+classe nova):
 
 - **Peso real de decolagem vs. MTOW do tipo.** `ident.weight_lb`
   (`TOTAL WEIGHT`, lido uma vez no início da sessão — ver
@@ -1970,18 +2292,19 @@ ACARS (MVP)") ainda deixava na mesa:
   peso vazio − combustível inicial` (rotulado "estimado" no Logbook,
   detalhe do voo). Sem CG: bagagem mal distribuída não muda o número,
   só o centro de gravidade, que esta conta nem tenta calcular.
-- **METAR real da origem.** Novo `App\Service\MetarClient` (`curl_exec()`
-  direto contra `aviationweather.gov`, mesmo padrão de
+- **METAR real da origem e do pouso.** Novo `App\Service\MetarClient`
+  (`curl_exec()` direto contra `aviationweather.gov`, mesmo padrão de
   `ImportarAeroportosOurairportsCommand` — sem dependência nova de
   composer, sem chave/token) busca o METAR mais recente publicado pro
-  ICAO de origem no momento em que o servidor processa o fechamento do
-  voo. Preenche `Voo::$dados['metar']` (sempre `null` até esta fatia) —
-  aparece no detalhe do Logbook ("METAR na decolagem"). **Aproximação
-  documentada:** é o METAR mais recente no momento do POST, não o
-  METAR histórico de verdade do horário exato do voo (ver docblock de
-  `MetarClient` pra por quê) — a diferença costuma ser de minutos, dado
-  que os voos são curtos e o cliente envia assim que a gravação
-  encerra.
+  ICAO de origem, e também pro ICAO de pouso REAL (`$posIcao`,
+  considerando diversão — ver "Backend: aeroportos e pouso alternativo",
+  campo adicionado depois desta fatia original), no momento em que o
+  servidor processa o fechamento do voo. Preenche
+  `Voo::$dados['metar']`/`['metarPouso']`. **Aproximação documentada:**
+  é o METAR mais recente no momento do POST, não o METAR histórico de
+  verdade do horário exato do voo (ver docblock de `MetarClient` pra por
+  quê) — a diferença costuma ser de minutos, dado que os voos são curtos
+  e o cliente envia assim que a gravação encerra.
 - **Través com heading de pista real.** Novo campo opcional
   `Aeroporto::$pistaPrincipalHeadingMag` (0-359, magnético — cadastrado
   no formulário "Novo aeroporto" ou marcado depois via `POST
@@ -2011,10 +2334,11 @@ disponível" sozinho, sem quebrar nada.
 
 **Lacunas conhecidas, de propósito, nesta fatia:**
 
-- METAR só busca o aeródromo de ORIGEM (o rótulo "METAR na decolagem"
-  já existia assim) — não busca o do destino, nem popula o boletim
-  ainda-mock da aba "Bases" do Portal (`PortalController`), que
-  continua fora do escopo desta fatia.
+- ~~METAR só busca o aeródromo de ORIGEM~~ Feito — busca origem e pouso
+  real desde a auditoria de dados de voo (ver seção abaixo). Ainda não
+  popula o boletim ainda-mock da aba "Bases" do Portal
+  (`PortalController`), nem busca TAF, nem faz validação cruzada com
+  VATSIM — tudo isso fora do escopo desta fatia.
 - Carga estimada não sabe se o número faz sentido (peso vazio errado
   no cadastro do tipo produz uma "carga" errada silenciosamente) — é
   só subtração, sem nenhuma validação cruzada.
@@ -2024,6 +2348,152 @@ disponível" sozinho, sem quebrar nada.
 - Limite de G continua cadastrado por AERONAVE (`Aeronave::$limiteG`),
   não herdado do `TipoAeronave` — ideia que ficou de fora desta fatia,
   descrita mas não implementada.
+
+**Bug corrigido:** amostra sem posição válida (`lat`/`lon` nulo — GPS
+ainda não pronto no instante da leitura, ou linha corrompida na
+gravação) sempre pôde existir em `track` — `TelemetryDeriver` grava a
+amostra inteira de propósito, sem filtrar nada (ver docblock da
+classe, "track/prof continuam com a gravação inteira"). O problema é
+que `voo.js` (`drawMap()`) não se protegia contra isso: um ponto nulo
+virava `[null, x]` numa polyline/marker do Leaflet, que não quebrava
+no desenho em si, só depois — em qualquer zoom/pan animado, com
+`TypeError: Cannot read properties of null (reading 'lat')` vindo de
+dentro do Leaflet (`Projection.SphericalMercator.js`). Corrigido com
+um guard `hasPos(p)` em `drawMap()`: pula segmentos de linha, marcador
+de clima e ponto de início/fim que toquem uma amostra sem posição, em
+vez de filtrar a amostra do `track` em si (isso quebraria o
+alinhamento por índice com `prof`, que várias partes do código — o
+próprio `drawMap()`, o CSV/GPX de `VooController` — assumem como
+verdade). Se um dia sobrar tempo, vale investigar por que a captura às
+vezes grava amostra sem GPS (`katabatic_capture.py`) — por ora só o
+sintoma no mapa foi tratado, não a causa raiz na gravação.
+
+## Backend: importação de telemetria via upload (`/novo-voo`)
+
+O modo "Importar telemetria" de `/novo-voo` era só uma simulação
+(dropzone com nomes de arquivo fixos, `alert()` de "publicado (mock)") —
+esta fatia liga o backend de verdade, reaproveitando tudo que a ingestão
+ACARS ao vivo já tinha (ver "Backend: ingestão ACARS (MVP)" e "Backend:
+realismo da ingestão ACARS" acima) em vez de reinventar.
+
+**O que o piloto faz:** seleciona (clique ou arrasta) o
+`upload_payload.json` que `katabatic_capture.py --record` **sempre**
+grava na pasta da gravação, servidor respondendo ou não durante o voo —
+é literalmente o arquivo que o script tentaria mandar sozinho pro
+`Api\AcarsIngestaoController` se `--server`/`--tipo`/`--origem`/
+`--destino`/`--pilot-cid`/token tivessem sido passados na hora de gravar
+(ver docstring do script, "Payload pronto em: ... pra reenviar
+manualmente depois, se quiser"). Na prática é o caminho pro caso mais
+comum de precisar desta tela: um voo gravado sem esses parâmetros (ou
+com o servidor fora do ar no momento), publicado depois com calma pela
+web.
+
+**Por que `upload_payload.json` e não os `samples.csv`/`env.csv`/
+`events.csv`/`session.json` separados** que a tela mencionava antes de
+existir backend real: o script já escreve esse único arquivo, sempre, no
+mesmo formato (schema `kb-raw-1`) que `TelemetryDeriver::derive()`
+espera — reconstruir esse payload no servidor a partir dos CSVs crus
+seria retrabalho frágil (linhas como string, `data` de `events.csv`
+re-serializado, sem `started_at`/`ident`/`callsign`, que só existem no
+JSON) pra chegar exatamente onde o script já deixa pronto.
+`session.json` sozinho **não** serve — é só o resumo final
+(`samples`/`events` ali são contagens, não as listas).
+
+**Atualizado: `katabatic.bat rebuild PASTA` reconstrói o
+`upload_payload.json` quando ele nunca chegou a ser gravado.**
+`upload_payload.json`/`session.json` só são escritos em
+`Recorder.close()`, chamado no fim normal do loop de gravação (quando o
+piloto encerra com `Ctrl+C`) — uma queda de energia, crash do simulador
+ou PC travado mata o processo Python antes disso, sem chance de rodar
+esse código. Os três CSVs (`samples.csv`/`env.csv`/`events.csv`)
+sobrevivem de qualquer jeito (`Recorder` dá `flush()` a cada poucas
+amostras/todo evento), então o voo não está perdido — só falta o JSON
+final. `katabatic_capture.py --rebuild PASTA` (chamado por
+`katabatic.bat rebuild PASTA`) lê os três CSVs de volta, reconstrói os
+tipos que o CSV não preserva (`bool`s como `on_ground`/`slew`/`in_cloud`
+voltam a ser `true`/`false` de verdade — deixar como texto faria um
+`(bool)` errado no PHP, já que qualquer string não vazia diferente de
+`"0"` é *truthy*) e escreve `upload_payload.json` na mesma pasta, pronto
+pra importar em `/novo-voo` — sem precisar do simulador aberto, porque
+não lê SimVar nenhuma, só o que já está em disco.
+`ident`/`aeronave_reg`/`callsign` são recuperados do evento
+`session_start` (a primeira linha de `events.csv`, gravada logo no
+início da sessão) quando ele existe; sem ele (caso extremo — perda de
+energia no primeiro segundo de gravação), o script avisa e segue mesmo
+assim, com esses campos vazios (preenchíveis na hora de publicar, igual
+qualquer gravação feita sem `--tipo`/`--origem`/`--destino`).
+`pilot_cid`/`tipo`/`origem`/`destino` nunca ficam gravados em CSV
+nenhum (só existiam como argumento de linha de comando na gravação
+original) — `--rebuild` aceita os mesmos `--pilot-cid`/`--tipo`/
+`--origem`/`--destino`/`--callsign` de `--record`, todos opcionais, e o
+`katabatic.bat rebuild` só passa `--pilot-cid` (da configuração do
+topo do `.bat`) por padrão — o resto fica pro formulário web, igual já
+era o caso pra uma gravação comum sem esses parâmetros. Recusa
+sobrescrever um `upload_payload.json` já existente sem `--force`.
+
+**Fluxo em duas etapas, sem estado no servidor entre elas:**
+
+1. O navegador lê o arquivo (`FileReader`), valida localmente que tem
+   `samples`/`started_at` (rejeita na hora, com uma mensagem clara, se
+   o piloto selecionar o `session.json` por engano) e manda pra `POST
+   /novo-voo/importar/preview` (`NovoVooController::importarPreview()`).
+   O servidor chama `TelemetryDeriver::derive()` de verdade e devolve
+   duração/distância/temperatura mínima/dificuldade calculadas — nada é
+   persistido. A tela usa o retorno pra preencher o preview e também
+   tenta casar `ident.tail_number` (ATC ID) do arquivo com a frota
+   (mesmo aviso de "matrícula não corresponde a nenhuma aeronave" que
+   existia no mock, agora alimentado por dado real), preenche
+   callsign/tipo/rota quando o arquivo trouxe algo (uma gravação feita
+   sem `--tipo`/`--origem`/`--destino` chega com esses campos vazios de
+   propósito — nesse caso o piloto preenche na mão, igual sempre foi) e
+   trava data/hora no valor real do arquivo.
+2. Ao clicar "Publicar", o navegador reenvia o **mesmo** payload (guardado
+   em memória desde o passo 1) mais os campos que o piloto ajustou no
+   formulário pra `POST /novo-voo/importar/publicar`
+   (`NovoVooController::importarPublicar()`), que valida (mesmas regras
+   de `publicar()`, o registro manual), resolve piloto pela sessão
+   (nunca por `pilot_cid` do arquivo — não é confiável vindo do
+   navegador) e aeronave pelo que está selecionado no formulário, e
+   grava o `Voo` via `App\Service\TelemetriaVooBuilder::build()` — a
+   mesma classe que `AcarsIngestaoController::ingerir()` usa, então o
+   voo importado ganha os mesmos quatro enriquecimentos "melhor
+   esforço" (peso vs. MTOW, través com heading de pista real, carga
+   estimada, METAR real da origem) e a mesma resolução de pouso
+   alternativo que um voo ingerido ao vivo pelo ACARS. Idempotente pelo
+   mesmo `codigo` (nome da pasta de gravação) que a ingestão ACARS usa —
+   publicar o mesmo arquivo duas vezes (ex.: duplo clique) devolve o
+   voo já criado em vez de duplicar.
+
+`objetivo`/`relato`/`simbrief`/`visibilidade` são capturados no mesmo
+formulário que o registro manual já usa (ver "Backend: voos e
+telemetria") — únicos campos que `TelemetriaVooBuilder::build()` não
+sabe preencher, porque a ingestão ACARS ao vivo nunca teve essa tela.
+
+**Lacunas conhecidas, de propósito, nesta fatia:**
+
+- Sem barra de progresso pro upload/preview — pra uma gravação bem
+  longa (o payload inteiro, samples a 1 Hz, viaja inteiro pro servidor
+  duas vezes: uma no preview, outra no publicar), a tela só mostra
+  "Lendo arquivo…" enquanto espera. Funciona, só não dá feedback
+  granular.
+- A dificuldade mostrada no preview usa o `limiteG` da aeronave
+  selecionada **no momento do preview** — se o piloto trocar de
+  aeronave depois (corrigindo um mismatch de matrícula, por exemplo)
+  sem reimportar o arquivo, o número na tela fica levemente
+  desatualizado. O voo **publicado** sempre usa o `limiteG` certo (a
+  aeronave é resolvida de novo, no servidor, em `importarPublicar()`) —
+  a lacuna é só cosmética, no preview.
+- Sem suporte a arrastar uma pasta inteira (a tela mockup original
+  falava em "arraste a pasta do voo") — só um arquivo por vez. Como o
+  fluxo agora pede especificamente o `upload_payload.json` (um único
+  arquivo), isso deixou de ser necessário.
+- `--rebuild` perde as últimas amostras entre o flush mais recente e a
+  queda de energia (até ~10 amostras de cinemática, menos de 10 s — ver
+  `Recorder`/`f_samples.flush()`) — o voo reconstruído fica levemente
+  mais curto que o real, nunca mais longo. `duration_s` é calculado do
+  timestamp da última linha que sobreviveu em qualquer um dos três CSVs
+  (não do momento real da queda de energia, que não fica registrado em
+  lugar nenhum).
 
 ## Fotos do voo (galeria no relatório)
 
@@ -2098,6 +2568,55 @@ que fizer sentido pra aquela missão.
   isso, o upload falha com "Não foi possível salvar a foto no
   servidor." em vez de quebrar a página.
 
+## PDF do plano de voo (anexo no relatório)
+
+Além do link pro SimBrief que já existia (ver seção seguinte), o
+piloto agora também pode anexar o PDF de verdade do plano de voo (OFP)
+a um voo específico, ficando disponível dentro do próprio relatório —
+sem depender de abrir o link externo (que pode expirar, exigir sessão
+logada no SimBrief, ou simplesmente já ter sido sobrescrito por um OFP
+mais novo gerado pelo mesmo Pilot ID, ver limitação do link na seção
+seguinte).
+
+- `App\Entity\Voo::getPlanoVooPdf()`/`setPlanoVooPdf()` — um único
+  `{arquivo, nomeOriginal, enviadoEm}` (não uma lista, como `fotos`)
+  guardado dentro de `dados`. Anexar um novo PDF substitui o anterior
+  — nunca acumula.
+- `VooController::adicionarPlanoVoo()` (`POST /voo/{codigo}/plano-voo`,
+  multipart, campo `planoVoo`) e `removerPlanoVoo()`
+  (`POST /voo/{codigo}/plano-voo/remover`) — mesmo guard de posse dos
+  outros endpoints do voo. Ao substituir, o arquivo antigo é apagado do
+  disco antes de gravar a referência do novo, pra não deixar órfão.
+- `App\Service\PlanoVooUploader` — sem reencode (diferente de
+  `FotoVooUploader`, que reprocessa imagens): só valida que o arquivo
+  é mesmo um PDF de verdade lendo os primeiros bytes (assinatura
+  `%PDF-`, não confia só no Content-Type que o navegador declarou),
+  limite de 15 MB, e move pra um nome opaco gerado com
+  `random_bytes()` — mesmo padrão de nomes das fotos. O nome original
+  enviado pelo piloto é guardado à parte, só pra exibição (nunca vira
+  nome de arquivo em disco).
+- **Mesma pasta por voo que as fotos**
+  (`public/uploads/voos/{codigo}/`, ver
+  `VooController::arquivosVooDir()`, renomeado de `fotosDir()`) — de
+  propósito: `VooController::excluir()` (hard-delete) já limpa esse
+  arquivo de graça junto com a galeria de fotos
+  (`FotoVooUploader::removerPasta()` apaga a pasta inteira), sem
+  precisar de nenhum código extra. `marcarAcidentado()` não mexe no
+  anexo (o voo continua existindo, só marcado).
+- `voo.js`/`voo/index.html.twig` — nova linha "Plano de voo (PDF)"
+  dentro do próprio card "Referências externas", ao lado do SimBrief:
+  mostra um link (abre o PDF numa aba nova) com o nome original do
+  arquivo quando já tem um anexado, ou um botão "Anexar" quando não
+  tem — mesma dinâmica visual do link do SimBrief (`link-row`/
+  `link-view`/`link-empty`, CSS reaproveitado sem nenhuma classe nova).
+
+**Lacunas conhecidas, de propósito:**
+
+- Sem preview embutido do PDF na própria página — o link abre o
+  arquivo numa aba nova, no visualizador de PDF do navegador.
+- Mesmas lacunas de moderação/cota de disco que "Fotos do voo" acima
+  (sem revisão de conteúdo, sem cota por piloto/instância).
+
 ## Referências externas (relatório de voo)
 
 O card "Referências externas" do relatório de voo sempre teve 5 links
@@ -2148,7 +2667,9 @@ de um jeito diferente, dependendo do que dava pra saber de verdade:
   "Adicionar" quando não tem link salvo, e um ✎ pra editar/trocar
   quando já tem. Validação rasa (só confere `http(s)` + domínio
   `simbrief.com`), não confirma que é o plano certo — isso o piloto
-  garante ao colar.
+  garante ao colar. **Atualizado:** logo abaixo desse link, o piloto
+  também pode anexar o PDF de verdade do OFP — ver seção "PDF do plano
+  de voo (anexo no relatório)" acima.
 
 **Lacunas conhecidas, de propósito:**
 
@@ -2276,6 +2797,373 @@ que já é en­sinado em inglês por natureza (as chamadas de rádio com
 "casca" ao redor desse manual (títulos, parágrafos explicativos,
 botão "Copiar") foi traduzida.
 
+## Auditoria dos dados de voo integrados: METAR de pouso e campos "mortos"
+
+Revisão pedida sobre o que a telemetria/ACARS já integra, pra achar
+onde os dados podem estar errados ou incompletos — não uma feature
+nova, correção do que já existia:
+
+- **METAR de pouso, que não existia.** `TelemetriaVooBuilder::build()`
+  só buscava o METAR da ORIGEM (`Voo::$dados['metar']`) — o do pouso
+  real (`$posIcao`, considerando diversão) nunca foi buscado. Agora
+  busca os dois (`['metarPouso']` novo); quando origem e pouso são o
+  mesmo ICAO (voo local/circuito, a maioria dos voos gravados até
+  agora), reaproveita a mesma chamada em vez de bater duas vezes na
+  mesma API pro mesmo dado.
+- **Achado maior: o RELATÓRIO INDIVIDUAL de voo (`/voo`) nunca mostrava
+  metade do que `TelemetriaVooBuilder::build()` grava em `Voo::$dados`
+  — nem no HTML, nem no JSON que `voo.js` lê.**
+  `VooController::telemetria()` (a rota que alimenta especificamente
+  essa tela) sempre devolveu só a chave `telemetria` de dentro de
+  `dados` (o blob track/prof/env/eventos); tudo que o builder monta um
+  nível ACIMA disso — `metar`, `carga` estimada, `modelo` da aeronave,
+  `ocorrências` resumidas — ficava gravado no banco desde sempre, mas
+  nunca virava resposta HTTP nesta rota específica, então `voo.js`
+  nunca teve como mostrar. **Correção da correção:** o Logbook (tela
+  `/portal`) é um caso à parte — `PortalController::logbookViewModel()`
+  já lia `Voo::$dados` inteiro desde sempre, e a linha de detalhe
+  expansível da tabela (`lbDetailRow()` em `portal.js`) já mostrava o
+  METAR de origem ("METAR na decolagem") — o README estava certo
+  sobre ESSA tela. O gap era só no relatório individual, uma rota e um
+  arquivo JS completamente separados do Logbook. `telemetria()` agora
+  mescla `metar`/`metar_pouso`/`carga`/`modelo`/`ocorrencias`, mais
+  `tipo_operacao`/`aeronave_reg` (colunas de verdade que também nunca
+  tinham sido expostas nesta resposta). `voo.js` mostra os dois METARs
+  e a carga estimada no card "Relatório de missão" (resumo automático),
+  quando disponíveis.
+- **Bug à parte, achado na mesma auditoria: segunda linha do
+  cabeçalho era hardcoded.** `templates/voo/index.html.twig` tinha
+  `<p class="meta">C185F Skywagon · N104KT · voo local de
+  avaliação</p>` fixo no HTML — mesmo texto pra QUALQUER voo aberto,
+  nunca atualizado por `voo.js` (sobra do mockup original). Agora lê
+  `modelo`/`aeronave_reg`/`tipo_operacao` de verdade (ver acima).
+- **Ressalva pra reabrir se um dia importar:** flags gravados ANTES da
+  correção de escala do `ice_pct` (ver docblock de `TelemetryDeriver`,
+  "Atualizado: escala de ice_pct corrigida na fonte") reportam gelo
+  estrutural ~100× menor do que o simulador de fato modelou —
+  relevante se algum voo antigo for reprocessado ou comparado com um
+  voo novo.
+- **Ainda aproximado, sem mudança nesta fatia (documentado, não é
+  bug):** índice de dificuldade usa pesos/referências de escala
+  arbitrários (não calibrados contra frota real); través só usa
+  heading de pista real quando o aeroporto de pouso tem
+  `pistaPrincipalHeadingMag` cadastrado, senão cai pra aproximação
+  (heading da aeronave no toque) — ver "Backend: realismo da ingestão
+  ACARS" acima pra ambos.
+
+## Backend: Pousos e Condições extremas (histórico agregado entre voos)
+
+Primeiras duas das quatro visualizações pedidas em conversa (painel de
+estatísticas do piloto e mapa de turbulência acumulada ficam pra
+depois) — dado que `TelemetryDeriver` já calcula por voo desde sempre
+(toque com vs/pitch/bank, eventos com severidade), só nunca tinha uma
+visão somada entre voos, só presa dentro do relatório individual de
+cada um.
+
+- **Duas views novas no Portal (`/portal?view=pousos` /
+  `?view=condicoes`), mesmo mecanismo de Frota/Bases** (troca de
+  visibilidade via `data-view` no rail, sem recarregar página — ver
+  `portal.js`). Ao contrário do Logbook (que tem filtro/ordenação/
+  paginação em JS), estas duas são Twig puro (`{% for %}` direto,
+  igual "Bases" já fazia) — mais simples de propósito, sem filtro
+  nesta primeira fatia.
+- **Pousos:** todo toque com telemetria registrada
+  (`telemetria.td`), entre TODOS os voos do piloto com ACARS gravado —
+  não só o mais recente (`PortalController::pousosViewModel()`). VS,
+  pitch, bank e uma classificação Suave/Normal/Duro com os mesmos
+  limiares que `TelemetryDeriver::deriveEvents()` já usa pro selo
+  "Toque no solo" dentro do relatório individual (450/300 fpm) — mesma
+  régua, não uma nova.
+- **Condições extremas:** todo evento com severidade `warn`/`bad` de
+  toda a telemetria do piloto (`PortalController::condicoesViewModel()`)
+  — gelo, toque duro, overspeed, estol, sim_rate/slew suspeitos, o que
+  já existe em `telemetria.events` mas nunca tinha visão agregada.
+  Ordenado pelo momento absoluto de cada evento (`startedAt` do voo +
+  offset em segundos), não só pela ordem dos voos — um voo mais antigo
+  com timestamp de evento mais recente (não deveria acontecer na
+  prática, mas o código não assume isso) apareceria fora de ordem se
+  só ordenasse por voo.
+- Ambas linkam pra `/voo?id={codigo}` (clique na linha), mesmo padrão
+  de navegação que o Logbook já usa.
+- **Esparso por enquanto, de propósito:** só os voos com telemetria de
+  verdade (ACARS gravado) entram nessas duas listas — a maioria do
+  Logbook hoje é histórico narrativo sem gravação (ver docblock de
+  `App\Entity\Voo`), então as duas telas ficam praticamente vazias até
+  mais voos serem gravados com o script de captura. Isso é esperado,
+  não um bug.
+- Rail ganhou dois itens novos ("Pousos"/"Condições extremas") no
+  grupo Operação, entre Bases e Mapa ao vivo — ver
+  `templates/partials/_rail.html.twig`.
+
+**Fora do escopo desta fatia:** filtro por aeronave/período/severidade
+nas duas listas novas (viriam fácil, reaproveitando o padrão do
+Logbook, se o volume de voos crescer o bastante pra precisar); painel
+de estatísticas do piloto e mapa de turbulência acumulada (as outras
+duas visualizações pedidas, ainda não desenhadas); relatório de voo
+com análise por IA (frente separada, decisão de provedor/custo de API
+pendente).
+
+## Exportar voos pra análise fora do banco (`app:exportar-voos`)
+
+Sem rota de rede daqui (ambiente de desenvolvimento remoto) até o
+Postgres local (roda em Docker na máquina do piloto — ver
+`docker-compose.yml`), e expor um banco local pra internet só pra isso
+seria um risco desnecessário. `app:exportar-voos` é a via: um comando
+só-leitura (`findBy()` + `file_put_contents()`, nunca escreve no
+banco) que junta todas as colunas de verdade de cada `Voo` mais
+`Voo::$dados` inteiro (telemetria completa quando existe) num único
+JSON.
+
+```bash
+php bin/console app:exportar-voos                       # var/export-voos.json, todos os voos
+php bin/console app:exportar-voos --so-com-telemetria    # pula o historico narrativo sem ACARS
+php bin/console app:exportar-voos --saida=var/voos.json  # caminho customizado
+```
+
+Não filtra por piloto (rede de um piloto só até agora) — fácil de
+somar `--piloto=CID` depois se um dia tiver mais de um.
+
+## Refinamentos de telemetria: peso, superfície de pouso e G negativo
+
+Três refinamentos pedidos em conversa depois de analisar os primeiros
+voos reais (via `app:exportar-voos`, ver seção acima) — todos
+server-only, sem mudança no script de captura (`katabatic_capture.py`
+já manda todo o dado necessário; só não era aproveitado ainda).
+
+**1. Peso ao longo do voo + peso no pouso vs. MTOW.** Até aqui só
+existia o peso de decolagem (`pesoDecolagemLb`) e a margem até o MTOW
+*na decolagem*. `TelemetriaVooBuilder::build()` agora também monta
+`telemetria.pesoSerie` — uma série `[t_s, peso_lb]` igual em formato a
+`prof`/`env`, calculada subtraindo de `pesoDecolagemLb` o quanto
+`fuel_lb` (grupo C) caiu desde o início — e `pesoPousoLb` (peso no
+último ponto da série) com `margemPousoAteMtowLb`. Sem largar carga em
+voo (não existe esse conceito aqui), o peso só decai com o
+combustível queimado. A margem no pouso é só informativa: MTOW é
+limite de *decolagem*, não existe (e provavelmente nunca vai existir)
+um limite de peso de pouso cadastrado nesta frota — nunca vira
+excedência no índice de dificuldade. Mesma regra de sempre: sem os
+dois pontos de partida (peso de decolagem + combustível inicial), a
+série fica vazia e os tiles/gráfico correspondentes somem no
+relatório, em vez de mostrar um número inventado. Aparece em
+`voo.js`: um gráfico "Peso" novo na seção de debrief, e dois KPIs
+("Peso no pouso"/"Margem até MTOW no pouso") ao lado dos que já
+existiam.
+
+**2. Superfície e condição no toque.** `SURFACE TYPE`/`SURFACE
+CONDITION` (SimConnect) sempre estiveram no payload — o script já lia
+os dois (grupo C, ~0,1 Hz), só que `TelemetryDeriver` nunca os
+aproveitava. Não existe leitura *exatamente* no instante do toque (a
+amostra mais próxima do grupo C é a melhor aproximação disponível), então
+`TelemetryDeriver::attachSurfaceAtTouchdown()` pega a amostra de
+ambiente com `t_s` mais perto do toque e anexa
+`surface_type`/`surface_type_label`/`surface_cond`/`surface_cond_label`
+(rótulos já em PT) ao `td`. O mapeamento de `SURFACE TYPE` é
+corroborado por um fórum técnico independente (fsdeveloper.com), além
+do conhecimento geral do SDK; **o de `SURFACE CONDITION` não foi
+reverificado nesta sessão** contra a documentação oficial (três
+tentativas diretas falharam — 404, resumo sem a resposta, timeout de
+permissão) — vem do conhecimento geral e é corroborado pelo próprio
+comentário de debug do script de captura, mas com menos confiança que
+o de tipo. Revisar se aparecer um pouso com condição visivelmente
+errada. Aparece no relatório individual (linhas "Superfície"/
+"Condição" no card de pouso) e numa coluna nova ("Superfície") na
+tabela agregada de Pousos do Portal — voos gravados antes deste
+refinamento simplesmente não têm o dado (mostra "—").
+
+**3. Excedência de G negativo.** `Aeronave::$limiteG` (positivo) já
+sinalizava "overG" quando `gmax` excedia o limite cadastrado; o lado
+negativo (rajada forte pra baixo, manobra abrupta) nunca era checado.
+Nova coluna opcional `aeronave.limite_g_negativo`
+(`Aeronave::$limiteGNegativo`, migração
+`Version20260828090000`) — cadastrável em `/nova-aeronave` (campo
+"Limite de G negativo", ao lado do positivo), sem valor padrão
+inventado ("nunca um número inventado" — a mesma regra que já valia
+pro G positivo). `TelemetryDeriver::deriveEvents()` agora também
+checa `gmin < limiteGNegativo` e soma na mesma contagem `exceed` que
+overG já usava (sem evento próprio na timeline, mesmo tratamento que
+overG sempre teve). **Nos 4 voos reais gravados até agora, os 2 mais
+recentes (`20260824_024359_N208KB`, `20260827_041303_N208KB`) já
+foram feitos com a correção de escala do `ice_pct` aplicada; os 2
+primeiros podem carregar valores de gelo estrutural ~100× menores do
+que o simulador de fato modelou** (sem migração retroativa, mesma
+convenção de sempre) — vale o mesmo cuidado ao interpretar o índice de
+dificuldade desses dois.
+
+**Limitação pré-existente que passa a valer também pro campo novo:**
+não existe rota de edição pra `Aeronave` (só criação, em
+`NovaAeronaveController::submit()`) — preencher `limiteGNegativo` (ou
+`limiteG`) numa aeronave já cadastrada exige um `UPDATE` manual via
+`php bin/console dbal:run-sql`, por exemplo:
+
+```bash
+php bin/console dbal:run-sql "UPDATE aeronave SET limite_g_negativo = -1.5 WHERE reg = 'N208KB'"
+```
+
+(valor de exemplo — usar o número real do POH da aeronave, nunca um
+padrão inventado.)
+
+## Limpeza de textos explicativos "de desenvolvimento" visíveis ao piloto
+
+Varredura pedida em conversa por textos que faziam sentido enquanto a
+tela ainda era mockup/em construção, mas ficaram confusos ou enganosos
+pro piloto de verdade. Quatro encontrados e corrigidos:
+
+- **"Rascunho salvo (mock)"** (`/novo-voo`, botão "Salvar rascunho") —
+  o alerta dizia que o rascunho tinha sido salvo E que dava pra retomar
+  depois pelo Logbook; nenhuma das duas coisas é verdade (o botão nunca
+  persistiu nada, ver `NovoVooController`). Texto agora avisa que o
+  rascunho NÃO é salvo nesta versão, em vez de fingir que salvou.
+- **"Na rede VATSIM: 100%"** (Logbook, card de resumo) — sempre fixo em
+  100, sem nenhuma validação real contra o datafeed da VATSIM por trás
+  (`PortalController::logbookSummary()`). Removido em vez de deixar um
+  número inventado passando por métrica — volta quando existir uma
+  fonte de verdade pra calcular isso.
+- **"opcional agora, dá pra completar depois"** (`/nova-aeronave`,
+  seção Fotos) — os slots "Adicionar" nunca tiveram upload de verdade
+  por trás (puro visual, herdado do mockup original). Texto agora diz
+  que o upload não está disponível nesta tela, em vez de prometer "mais
+  tarde".
+- **Nota de changelog vazando na página** (`/manuais/fraseologia-vatsim`,
+  rodapé) — frase final ("Conteúdo estático por enquanto, sem
+  versionamento...") era uma nota de implementação, sem utilidade pro
+  piloto lendo o manual. Removida, mantendo só o aviso de verdade (não
+  substitui a documentação oficial da VATSIM/AIM).
+- **"A verificação contra o datafeed da VATSIM roda automaticamente ao
+  publicar"** (`/novo-voo`) — não existe (e nunca existiu) nenhuma
+  validação cruzada com a VATSIM em lugar nenhum do site (mesma lacuna
+  registrada em "Auditoria dos dados de voo integrados" e em "Próximos
+  passos", item 5). Parágrafo removido em vez de prometer uma
+  verificação que não roda.
+
+## Backend: ativação de pilotos e proteção CSRF
+
+Duas fatias pequenas, isoladas do mock inventariado em conversa junto
+com "Rascunho de voo persistente" e "Clima real nas Bases" (as três
+próximas seções).
+
+**`Pilot::$active` — toggle de verdade.** O campo já existia desde
+"Backend: adesão e solicitações" (sempre `true` num piloto novo), mas
+nada nunca o desativava. Agora o grid de Pilotos em `/solicitacoes` tem
+um botão Ativar/Desativar por linha (`SolicitacoesController::
+alternarStatus()`, `POST /solicitacoes/pilotos/{cid}/status`):
+
+- Um admin não pode desativar a própria conta (guard por CID da sessão,
+  409 se tentar) — evita o admin se trancar fora sem querer.
+- `LoginFormAuthenticator` rejeita login de piloto inativo com a
+  **mesma mensagem genérica** ("CID ou senha inválidos") que já usava
+  pra "piloto não encontrado" — de propósito, pra não revelar pra quem
+  tenta logar se o CID existe mas está desativado ou simplesmente não
+  existe.
+- Sem confirmação server-side pra desativar — o `window.confirm()` no
+  cliente (`solicitacoes.js`) é a única barreira, mesmo padrão de outras
+  ações destrutivas simples no site.
+
+**Proteção CSRF em `/login`, `/adesao` e `/solicitacoes/*`.**
+`symfony/security-csrf` já vinha instalado transitivamente (confirmado
+via `composer.lock`) e vem habilitado por padrão assim que o pacote
+está presente — só faltava usar. Três mecanismos diferentes, um por
+tipo de superfície:
+
+- **`/login`** — formulário HTML cru + `AbstractLoginFormAuthenticator`:
+  usa o `CsrfTokenBadge` nativo do Symfony no construtor do `Passport`
+  (token id `'authenticate'`) — o `CsrfProtectionListener` do framework
+  valida sozinho, sem código manual nenhum no autenticador.
+- **`/adesao`** — formulário público via `fetch` (JSON, sem reload):
+  token embutido no corpo (`_csrf_token`, token id `'adesao'`),
+  validado manualmente em `AdesaoController::submit()` via
+  `CsrfTokenManagerInterface` injetado — 419 se inválido/expirado.
+- **`/solicitacoes/*`** — POSTs admin via `fetch` sem corpo relevante
+  (aprovar/rejeitar/ativar/desativar): token mandado num header
+  `X-CSRF-Token` (token id `'solicitacoes'`), validado no mesmo guard
+  `ensureAdmin()` que já checava a sessão — 419 se inválido/expirado,
+  mesmo código que a sessão expirada já usava.
+
+## Backend: rascunho persistente de voo (`/novo-voo`)
+
+"Salvar rascunho" sempre foi um `alert()` — nunca salvou nada, nunca
+existiu jeito de retomar depois. Agora persiste de verdade: uma nova
+entidade `App\Entity\VooRascunho` (tabela `voo_rascunho`, migration
+`Version20260828100000`) guarda um snapshot cru do formulário por
+piloto (`UNIQUE` em `pilot_id` — salvar de novo sobrescreve o anterior,
+sem tela de lista pra gerenciar).
+
+**Por que uma entidade separada, e não um "status rascunho" em `Voo`**
+(a ideia original cogitada no docblock antigo do controller): o
+construtor de `Voo` exige callsign/tipo/origem/destino/aeronave/
+data-hora/duração/dificuldade, todos não-nulos — um rascunho de
+verdade é exatamente um formulário ainda incompleto, então reaproveitar
+`Voo` exigiria tornar todas essas colunas opcionais só pra acomodar
+esse estado, complicando toda leitura de `Voo` no resto do app. Uma
+tabela à parte, sem nenhuma coluna obrigatória além do piloto, resolve
+sem tocar em `Voo` (ver docblock de `VooRascunho` pro raciocínio
+completo).
+
+**Escopo: só os campos do modo "Registro manual"** (mais
+`tipoOperacao`/`aeronaveReg`/`origem`/`destino`, compartilhados com o
+modo "Importar telemetria") — o `upload_payload.json` em si NÃO é
+resalvo (já existe no disco do piloto, reimportar é trivial, e guardar
+a telemetria inteira só pra um rascunho seria peso demais). `dados['mode']`
+guarda qual dos dois modos estava ativo, só pra `novo-voo.js` saber pra
+qual aba voltar ao restaurar.
+
+**Fluxo:** `POST /novo-voo/rascunho` salva/sobrescreve (sem validar —
+rascunho pode e deve estar incompleto); `DELETE /novo-voo/rascunho`
+descarta (confirmação só no cliente, `window.confirm()`);
+`NovoVooController::index()` busca o rascunho do piloto ao abrir a tela
+e devolve pro template (`window.KATABATIC_NOVOVOO_RASCUNHO`), que
+`novo-voo.js` usa pra pré-preencher o formulário sozinho e mostrar
+"Rascunho restaurado (salvo às HH:MM)" — não existe tela de "lista de
+rascunhos", a própria `/novo-voo` é quem retoma. Publicar, nos dois
+modos, apaga o rascunho do piloto (`limparRascunho()`, chamado antes do
+`flush()` final de `publicar()`/`importarPublicar()`) — virou um voo de
+verdade, não faz mais sentido continuar "em rascunho".
+
+## Backend: clima real nas Bases (Open-Meteo)
+
+O boletim de cada base na aba "Bases" do Portal (vento/temperatura/
+visibilidade/teto) sempre foi um número fixo por base, nunca ligado a
+nada. Agora é clima real, buscado no navegador via Open-Meteo — a
+mesma API pública e gratuita (sem chave) que o Mapa ao vivo já usava
+pro popup de cada aeroporto (ver "Backend: mapa ao vivo e histórico da
+frota"), só que agora também alimentando o boletim das 6 bases e o dot
+de cor de cada posto avançado.
+
+- `PortalController::bases()` não inventa mais os quatro números — só
+  devolve `lat`/`lon` de cada base e posto avançado (`basesWx`/
+  `stationsWx`, montados em `index()`), e é `portal.js::
+  loadBasesWeather()` quem busca o clima de verdade, numa única
+  chamada em lote pra todas as coordenadas (6 bases + todos os postos)
+  de uma vez, e escreve direto nos elementos do boletim
+  (`#base-wind-{icao}`, `#base-temp-{icao}`, `#base-vis-{icao}`,
+  `#base-cloud-{icao}`) e no dot de cada posto
+  (`#stn-dot-{baseIcao}-{icao}`).
+- **"Teto" virou "Nuvens baixas".** A API de previsão da Open-Meteo não
+  tem nenhuma variável de altura de teto/base de nuvem — só cobertura
+  em % por camada (`cloud_cover_low/mid/high`). Em vez de continuar
+  inventando um número em pés sem fonte nenhuma por trás (o que "teto"
+  sempre foi), o boletim mostra `cloud_cover_low` (%), a métrica real
+  mais próxima da mesma pergunta ("o céu está fechando aqui em baixo?").
+- Visibilidade (`visibility`, metros) só existe como variável **horária**
+  na Open-Meteo, não em `current` — `portal.js` busca `hourly` junto e
+  usa a leitura mais próxima da hora atual (casando o prefixo
+  `AAAA-MM-DDTHH` de `current.time` com `hourly.time`).
+- `windWarn`/`visWarn` (destaque visual no boletim) agora são
+  calculados no cliente a partir do dado real: rajada ≥ 25 kt (ou vento
+  sustentado ≥ 20 kt sem rajada relevante) e visibilidade < 8 000 m —
+  limiares sem fonte regulatória específica, só pra destacar condições
+  dignas de atenção, mesmo espírito que o `.warn` já tinha.
+- O dot de cada posto avançado (fixo em "ok" antes, sem nenhuma fonte
+  de condição por trás) agora reflete o `weather_code` de verdade da
+  coordenada do próprio posto, com a mesma régua de cor que
+  `mapa-ao-vivo.js` usa (névoa/neve = azul, chuva = laranja, tempestade
+  = vermelho, resto = verde) — cinza neutro (`var(--muted)`) até a
+  Open-Meteo responder, nunca mais um "tudo ok" fabricado sem dado
+  atrás.
+- Mesmo padrão de resiliência do Mapa ao vivo: uma chamada só, com
+  try/catch silencioso (só `console.warn`) se a Open-Meteo cair — o
+  boletim simplesmente fica parado em "—" em vez de travar a tela ou
+  fingir um número.
+
 ## Próximos passos (da fase de mockup)
 
 Ver `docs/mockups-originais/README-mockups-original.md` para o histórico
@@ -2318,17 +3206,21 @@ completo de decisões de produto. Resumo do que vem depois das telas:
    heartbeat simples, não uma sessão com sequência/reenvio), fila com
    reenvio automático no cliente, gzip, token por piloto, push (Mercure/
    WebSocket) em vez de polling.
-5. Busca de METAR/TAF e validação cruzada com VATSIM — hoje
-   `TelemetryDeriver` não busca nenhum dos dois (`metar` fica `null`,
-   `través` é aproximado sem heading de pista de verdade); é o que dá
+5. ~~Busca de METAR~~ Feito (origem e pouso real — ver "Auditoria dos
+   dados de voo integrados"). Faltam TAF e validação cruzada com VATSIM;
+   través continua aproximado sem heading de pista de verdade quando o
+   aeroporto não tem `pistaPrincipalHeadingMag` cadastrado — é o que dá
    sentido a normalizar a telemetria de `Voo::$dados['telemetria']` num
    schema de amostras mais rico, se algum dia fizer falta.
 6. Job de recorte GRIB
 7. Ligar todas as telas ao backend real
-8. ~~Religar a aba "Bases" do Portal ao catálogo `Aeroporto` novo~~ Feito
-   (ver "Backend: aeroportos e pouso alternativo (diversão)") — falta
-   ainda o boletim de vento/temperatura/visibilidade/teto de cada base,
-   que segue mock (sem schema de estação/METAR, mesma lacuna do item 5).
+8. ~~Religar a aba "Bases" do Portal ao catálogo `Aeroporto` novo~~ /
+   ~~Boletim de vento/temperatura/visibilidade/teto de cada base~~
+   Feito (ver "Backend: aeroportos e pouso alternativo (diversão)" e
+   "Backend: clima real nas Bases (Open-Meteo)") — o boletim usa clima
+   real via Open-Meteo agora, "Teto" virou "Nuvens baixas" porque a API
+   não tem altura de teto/base de nuvem. Falta TAF e validação cruzada
+   com VATSIM, mesma lacuna do item 5.
 9. ~~Importar o catálogo de aeroportos inteiro (não só os 11
    hand-cadastrados)~~ / ~~Trazer pistas sem ICAO nas regiões de
    missão~~ Feito (ver "Importação global" e "Pistas sem ICAO nas

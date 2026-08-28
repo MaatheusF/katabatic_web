@@ -26,7 +26,22 @@ use Symfony\Component\Routing\Attribute\Route;
 class NovaAeronaveController extends AbstractController
 {
     private const PREFIXOS = ['CL' => 'CC-', 'US' => 'N'];
-    private const BASES_VALIDAS = ['PAFA', 'SCCI'];
+
+    /**
+     * Mesma lista que `AeroportoRepository::BASES`/`AeroportoController::BASES_VALIDAS`/
+     * `AdesaoController::VALID_BASE_PREF` (repetida, não importada — ver
+     * docblock de `AeroportoRepository::BASES`). **Atualizado: bases
+     * sazonais** — SLLP (La Paz/El Alto, Bolívia), VNKT (Tribhuvan Intl.,
+     * Catmandu, Nepal), WAJW (Wamena, Nova Guiné) e VQPR (Paro, Butão)
+     * entraram como bases principais de verdade (mesma tier de PAFA/
+     * SCCI, selecionáveis aqui no cadastro de aeronave) — locais
+     * extremos de propósito, ver README "Bases sazonais". A base do
+     * Nepal é Catmandu, não Lukla (VNLK) — Lukla é destino, não hub, ver
+     * docblock de `App\Entity\Aeroporto`. BGSF (Groenlândia) fica de
+     * fora desta lista de propósito: é posto avançado de PAFA, não base
+     * própria.
+     */
+    private const BASES_VALIDAS = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR'];
 
     #[Route('/nova-aeronave', name: 'app_nova_aeronave', methods: ['GET'])]
     public function index(Request $request): Response
@@ -60,6 +75,7 @@ class NovaAeronaveController extends AbstractController
         $tipo = trim((string) ($data['tipo'] ?? ''));
         $base = (string) ($data['base'] ?? '');
         $limiteG = $data['limiteG'] ?? null;
+        $limiteGNegativo = $data['limiteGNegativo'] ?? null;
         $vsLimiteFpm = $data['vsLimiteFpm'] ?? null;
         $horas = $data['horas'] ?? null;
         $observacoes = trim((string) ($data['observacoes'] ?? ''));
@@ -93,6 +109,9 @@ class NovaAeronaveController extends AbstractController
         $aeronave = new Aeronave($reg, $pais, $tipo, $base);
         if (null !== $limiteG && is_numeric($limiteG)) {
             $aeronave->setLimiteG((float) $limiteG);
+        }
+        if (null !== $limiteGNegativo && is_numeric($limiteGNegativo)) {
+            $aeronave->setLimiteGNegativo((float) $limiteGNegativo);
         }
         if (null !== $vsLimiteFpm && is_numeric($vsLimiteFpm)) {
             $aeronave->setVsLimiteFpm((int) $vsLimiteFpm);

@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
  * Grid de administração: solicitações de adesão pendentes/aprovadas/
@@ -31,6 +33,10 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class SolicitacoesController extends AbstractController
 {
+    public function __construct(private readonly CsrfTokenManagerInterface $csrf)
+    {
+    }
+
     #[Route('/solicitacoes', name: 'app_solicitacoes', methods: ['GET'])]
     public function index(Request $request, MembershipRequestRepository $requests, PilotRepository $pilots, VooRepository $voos): Response
     {
@@ -119,6 +125,41 @@ class SolicitacoesController extends AbstractController
         ]);
     }
 
+    /**
+     * Alterna `Pilot::$active` (grid Pilotos, coluna Status) — campo já
+     * existia no schema sem fluxo nenhum pra mudar (todo piloto nascia
+     * ativo e ficava assim pra sempre). Piloto inativo continua com a
+     * linha no grid (histórico não some), só passa a ser barrado no
+     * login — ver checagem em `App\Security\LoginFormAuthenticator`.
+     *
+     * Guard extra além de `ensureAdmin()`: um admin não pode desativar a
+     * própria conta por aqui — evita se trancar fora sem querer (sem
+     * fluxo de "ativar de volta" fora do próprio grid, que exige estar
+     * logado).
+     */
+    #[Route('/solicitacoes/pilotos/{cid}/status', name: 'app_solicitacoes_toggle_status', methods: ['POST'])]
+    public function alternarStatus(string $cid, Request $request, EntityManagerInterface $em, PilotRepository $pilots, VooRepository $voos): JsonResponse
+    {
+        if (null !== $err = $this->ensureAdmin($request)) {
+            return $err;
+        }
+
+        $sessionPilot = $request->getSession()->get('pilot');
+        if ($sessionPilot['cid'] === $cid) {
+            return $this->json(['error' => 'Você não pode desativar sua própria conta.'], 409);
+        }
+
+        $alvo = $pilots->findOneByCid($cid);
+        if (null === $alvo) {
+            return $this->json(['error' => 'Piloto não encontrado.'], 404);
+        }
+
+        $alvo->setActive(!$alvo->isActive());
+        $em->flush();
+
+        return $this->json(['piloto' => $this->pilotViewModel($alvo, $voos->countForPilot($alvo))]);
+    }
+
     #[Route('/solicitacoes/{id}/rejeitar', name: 'app_solicitacoes_rejeitar', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function rejeitar(int $id, Request $request, EntityManagerInterface $em, MembershipRequestRepository $requests): JsonResponse
     {
@@ -143,8 +184,17 @@ class SolicitacoesController extends AbstractController
 
     /**
      * Mesmo guard de `index()` (sessão + papel admin), mas devolvendo
-     * JSON em vez de redirecionar — estas duas rotas são chamadas via
+     * JSON em vez de redirecionar — estas três rotas são chamadas via
      * `fetch` por `solicitacoes.js`, não navegação de página.
+     *
+     * **Atualizado: CSRF.** As três (`aprovar`/`rejeitar`/
+     * `alternarStatus`) já exigiam sessão de admin, mas nada impedia um
+     * site de terceiros disparar o POST com a sessão do admin logado
+     * (cookie vai junto automaticamente) — token gerado por
+     * `csrf_token('solicitacoes')` no template, mandado de volta por
+     * `solicitacoes.js` no cabeçalho `X-CSRF-Token` (essas chamadas não
+     * têm corpo JSON pra carregar o token junto, diferente de
+     * `AdesaoController::submit()`).
      */
     private function ensureAdmin(Request $request): ?JsonResponse
     {
@@ -154,6 +204,9 @@ class SolicitacoesController extends AbstractController
         }
         if (empty($pilot['admin'])) {
             return $this->json(['error' => 'Ação restrita a administradores.'], 403);
+        }
+        if (!$this->csrf->isTokenValid(new CsrfToken('solicitacoes', (string) $request->headers->get('X-CSRF-Token')))) {
+            return $this->json(['error' => 'Sessão expirada — recarregue a página e tente de novo.'], 419);
         }
 
         return null;

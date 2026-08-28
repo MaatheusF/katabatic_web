@@ -53,6 +53,18 @@
     document.getElementById('h-meta').textContent =
       (F.orig || '—') + ' · ' + F.start.slice(8, 10) + '/' + F.start.slice(5, 7) + '/' + F.start.slice(0, 4) + ' ' + F.start.slice(11, 16) + 'Z · ' + F.wx;
     document.getElementById('h-call').textContent = F.id ? F.id.split('_').pop() : '—';
+
+    // Segunda linha do cabecalho: ate esta correcao vinha fixa no HTML
+    // ("C185F Skywagon · N104KT · voo local de avaliacao"), mesma
+    // aeronave/relato pra qualquer voo aberto - agora usa o que o voo
+    // realmente foi (modelo/matricula/tipo de operacao, todos ja
+    // gravados em Voo::$dados mas so passaram a chegar aqui pela API
+    // depois desta correcao - ver VooController::telemetria()). Voos
+    // gravados antes da correcao nao tem 'modelo' no dados[] deles, dai
+    // o filtro Boolean(x) abaixo pra nao deixar '·' sobrando.
+    var tipoOpLabel = { Carga: tr('common.optype.cargo', 'Carga'), Pessoal: tr('common.optype.personal', 'Pessoal'), Pesquisa: tr('common.optype.research', 'Pesquisa'), Reposicionamento: tr('common.optype.repositioning', 'Reposicionamento') };
+    var meta2 = [F.modelo, F.aeronave_reg, F.tipo_operacao ? (tipoOpLabel[F.tipo_operacao] || F.tipo_operacao) : null].filter(Boolean).join(' · ');
+    document.getElementById('h-meta2').textContent = meta2;
     var s = document.getElementById('score');
     s.textContent = F.score;
     var c = F.score >= 75 ? 'var(--danger)' : (F.score >= 50 ? 'var(--accent)' : 'var(--ice)');
@@ -78,6 +90,17 @@
       if (F.pesoMaxDecolagemLb != null) {
         var margem = F.pesoMaxDecolagemLb - F.pesoDecolagemLb;
         k.push([tr('voo.kpi.mtowmargin', 'Margem até MTOW'), margem.toLocaleString('pt-BR'), ' lb', margem < 0 ? tr('voo.kpi.mtowmargin.over', 'decolou acima do MTOW cadastrado') : '']);
+      }
+    }
+    // Peso "ao pouso" (combustível residual no fim da gravação, ver
+    // TelemetriaVooBuilder::build()) - mesma logica de so aparecer
+    // quando o backend conseguiu calcular (nunca um numero inventado).
+    // "Margem" aqui e so informativa (MTOW e limite de DECOLAGEM, nao
+    // existe limite de peso de pouso cadastrado nesta frota).
+    if (F.pesoPousoLb != null) {
+      k.push([tr('voo.kpi.landingweight', 'Peso no pouso'), F.pesoPousoLb.toLocaleString('pt-BR'), ' lb']);
+      if (F.margemPousoAteMtowLb != null) {
+        k.push([tr('voo.kpi.landingweight.mtowmargin', 'Margem até MTOW no pouso'), F.margemPousoAteMtowLb.toLocaleString('pt-BR'), ' lb', tr('voo.kpi.landingweight.mtowmargin.hint', 'referência: MTOW é limite de decolagem, não de pouso')]);
       }
     }
 
@@ -134,8 +157,30 @@
       '<div><span>' + tr('voo.landing.pitch', 'Atitude') + '</span><b>' + F.td.pitch.toFixed(1) + '°</b></div>' +
       '<div><span>' + tr('voo.landing.bank', 'Inclinação') + '</span><b>' + F.td.bank.toFixed(1) + '°</b></div>' +
       '<div><span>' + tr('voo.landing.heading', 'Proa') + '</span><b>' + F.td.hdg + '°</b></div>' +
+      (F.td.surface_type_label ? '<div><span>' + tr('voo.landing.surface', 'Superfície') + '</span><b>' + surfaceLabel(F.td.surface_type_label) + '</b></div>' : '') +
+      (F.td.surface_cond_label ? '<div><span>' + tr('voo.landing.surface.cond', 'Condição') + '</span><b>' + surfaceCondLabel(F.td.surface_cond_label) + '</b></div>' : '') +
       '</div>';
   }
+
+  // Rotulos de superficie/condicao vem prontos em PT do backend
+  // (TelemetryDeriver::SURFACE_TYPES/SURFACE_CONDITIONS) - so existe
+  // dicionario EN pros valores que realmente aparecem nesta rede
+  // (pistas de terra/cascalho/asfalto/grama, condicao seca/molhada/
+  // gelo/neve); um rotulo fora dessa lista (superficie rara, tipo
+  // "Coral") cai no proprio texto em PT em vez de travar - a condicao
+  // de SURFACE_CONDITIONS nao ser 100% reverificada (ver docblock em
+  // TelemetryDeriver.php) nao muda nada aqui, so exibe o que o backend
+  // mandar.
+  var SURFACE_TYPE_EN = {
+    'Concreto': 'Concrete', 'Grama': 'Grass', 'Água': 'Water', 'Grama irregular': 'Bumpy grass', 'Asfalto': 'Asphalt',
+    'Grama curta': 'Short grass', 'Grama alta': 'Long grass', 'Turfa dura': 'Hard turf', 'Neve': 'Snow', 'Gelo': 'Ice',
+    'Urbano': 'Urban', 'Floresta': 'Forest', 'Terra': 'Dirt', 'Coral': 'Coral', 'Cascalho': 'Gravel',
+    'Tratada com óleo': 'Oil treated', 'Placas de aço': 'Steel mats', 'Betuminosa': 'Bituminous', 'Tijolo': 'Brick',
+    'Macadame': 'Macadam', 'Tábuas': 'Planks', 'Areia': 'Sand', 'Xisto': 'Shale', 'Tarmac': 'Tarmac'
+  };
+  var SURFACE_COND_EN = { 'Normal': 'Normal', 'Molhada': 'Wet', 'Gelo': 'Icy', 'Neve': 'Snow' };
+  function surfaceLabel(pt) { return (window.katabaticLang && window.katabaticLang() === 'en' && SURFACE_TYPE_EN[pt]) ? SURFACE_TYPE_EN[pt] : pt; }
+  function surfaceCondLabel(pt) { return (window.katabaticLang && window.katabaticLang() === 'en' && SURFACE_COND_EN[pt]) ? SURFACE_COND_EN[pt] : pt; }
 
   function renderObs() {
     var t = '';
@@ -144,7 +189,21 @@
     else t = 'Perna em tempo bom, sem precipitação e sem entrada em nuvem. Referência de linha de base para o índice.';
     var extra = F.exceed ? '<p class="obs" style="margin-top:12px">Registradas <b>' + F.exceed + '</b> excedência(s) durante a perna — provocadas para validar a detecção automática.</p>' : '';
     var land = F.td && F.td.vs >= 450 ? '<p class="obs" style="margin-top:12px">Toque a <b>' + F.td.vs.toFixed(0) + ' fpm</b> classificado como pouso duro.</p>' : '';
-    document.getElementById('obs').innerHTML = '<p class="obs">' + t + '</p>' + extra + land;
+
+    // METAR de origem/pouso e carga estimada - gravados em Voo::$dados
+    // desde sempre (TelemetriaVooBuilder::build()), mas so passaram a
+    // chegar nesta resposta depois desta correcao (ver
+    // VooController::telemetria()); METAR de pouso e novo de verdade
+    // (antes so origem era buscado). "Não disponível" e o fallback que o
+    // proprio backend grava quando a busca falha ou o voo e anterior a
+    // esta fatia - so mostra a linha quando ha pelo menos um METAR real.
+    var metarBits = [];
+    if (F.metar && F.metar !== 'Não disponível') metarBits.push('<b>' + (F.orig || '?') + '</b> <code>' + F.metar + '</code>');
+    if (F.metar_pouso && F.metar_pouso !== 'Não disponível' && F.metar_pouso !== F.metar) metarBits.push('<b>' + (F.destino_real || F.dest || '?') + '</b> <code>' + F.metar_pouso + '</code>');
+    var metarBlock = metarBits.length ? '<p class="obs" style="margin-top:12px">METAR — ' + metarBits.join(' · ') + '</p>' : '';
+    var cargaBlock = F.carga ? '<p class="obs" style="margin-top:12px">Carga: ' + F.carga + '</p>' : '';
+
+    document.getElementById('obs').innerHTML = '<p class="obs">' + t + '</p>' + extra + land + metarBlock + cargaBlock;
 
     exitEditMode();
     renderReportView();
@@ -356,6 +415,8 @@
       empty.style.display = '';
       editBtn.style.display = 'none';
     }
+
+    renderPlanoVoo();
   }
 
   function exitSimbriefEditMode() {
@@ -410,6 +471,106 @@
         simbriefSaveBtn.textContent = simbriefSaveLabel;
         simbriefErrorEl.textContent = tr('voo.links.simbrief.saveerror', 'Não foi possível salvar — verifique sua conexão e tente de novo.');
         simbriefErrorEl.style.display = '';
+      });
+  });
+
+  /* ---------- PDF do plano de voo ----------
+     Anexo do arquivo de verdade (diferente do link do SimBrief acima)
+     - ver VooController::adicionarPlanoVoo()/removerPlanoVoo() e
+     App\Entity\Voo::getPlanoVooPdf(). F.plano_voo e
+     {arquivo, url, nomeOriginal, enviadoEm} ou null. Faz parte do
+     mesmo card "Referencias externas" que o SimBrief, entao e chamada
+     dentro de renderLinks() (ver abaixo) em vez de ter sua propria
+     entrada em renderAll() - fica em dia toda vez que F muda, junto
+     com o resto do card. */
+  function renderPlanoVoo() {
+    var view = document.getElementById('planovoo-view');
+    var empty = document.getElementById('planovoo-empty');
+    var removeBtn = document.getElementById('planovoo-remove');
+    var nomeEl = document.getElementById('planovoo-nome');
+    var planoVoo = F.plano_voo || null;
+
+    document.getElementById('planovoo-error').style.display = 'none';
+
+    if (planoVoo) {
+      view.setAttribute('href', planoVoo.url);
+      nomeEl.textContent = planoVoo.nomeOriginal || tr('voo.links.planovoo', 'Plano de voo (PDF)');
+      view.style.display = '';
+      empty.style.display = 'none';
+      removeBtn.style.display = '';
+    } else {
+      view.style.display = 'none';
+      empty.style.display = '';
+      removeBtn.style.display = 'none';
+    }
+  }
+
+  var planoVooInput = document.getElementById('planovoo-input');
+  var planoVooErrorEl = document.getElementById('planovoo-error');
+
+  planoVooInput.addEventListener('change', function () {
+    var files = planoVooInput.files;
+    if (!files || !files.length) return;
+
+    planoVooErrorEl.style.display = 'none';
+    planoVooInput.disabled = true;
+
+    var fd = new FormData();
+    fd.append('planoVoo', files[0]);
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/plano-voo', {
+      method: 'POST',
+      body: fd
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        planoVooInput.disabled = false;
+        planoVooInput.value = '';
+        if (!result.ok || (result.body && result.body.error)) {
+          planoVooErrorEl.textContent = (result.body && result.body.error) || tr('voo.links.planovoo.error', 'Não foi possível anexar — tente de novo.');
+          planoVooErrorEl.style.display = '';
+          return;
+        }
+        F.plano_voo = result.body.plano_voo;
+        renderPlanoVoo();
+      })
+      .catch(function () {
+        planoVooInput.disabled = false;
+        planoVooInput.value = '';
+        planoVooErrorEl.textContent = tr('voo.links.planovoo.error', 'Não foi possível anexar — verifique sua conexão e tente de novo.');
+        planoVooErrorEl.style.display = '';
+      });
+  });
+
+  document.getElementById('planovoo-remove').addEventListener('click', function () {
+    if (!window.confirm(tr('voo.links.planovoo.remove.confirm', 'Remover o PDF do plano de voo? Isso não pode ser desfeito.'))) return;
+
+    var btn = document.getElementById('planovoo-remove');
+    planoVooErrorEl.style.display = 'none';
+    btn.disabled = true;
+
+    fetch('/voo/' + encodeURIComponent(F.id) + '/plano-voo/remover', {
+      method: 'POST'
+    })
+      .then(function (res) {
+        return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+      })
+      .then(function (result) {
+        btn.disabled = false;
+        if (!result.ok) {
+          planoVooErrorEl.textContent = (result.body && result.body.error) || tr('voo.links.planovoo.error', 'Não foi possível remover — tente de novo.');
+          planoVooErrorEl.style.display = '';
+          return;
+        }
+        F.plano_voo = null;
+        renderPlanoVoo();
+      })
+      .catch(function () {
+        btn.disabled = false;
+        planoVooErrorEl.textContent = tr('voo.links.planovoo.error', 'Não foi possível remover — verifique sua conexão e tente de novo.');
+        planoVooErrorEl.style.display = '';
       });
   });
 
@@ -603,6 +764,14 @@
       { label: tr('voo.chart.wind', 'Vento'), unit: 'kt', h: 76, lines: [{ data: series(F.env, 5), color: 'var(--ice)', w: 1.6 }] },
       { label: tr('voo.fuel', 'Combustível'), unit: 'lb', h: 76, lines: [{ data: series(F.env, 7), color: 'var(--accent)', w: 1.6 }] }
     ];
+    // Peso ao longo do voo - so entra quando o backend conseguiu montar
+    // a serie (TelemetriaVooBuilder::build(), precisa de peso de
+    // decolagem + combustivel inicial no payload) - ver docblock la.
+    // F.pesoSerie ja vem no formato [t_s, valor] igual a saida de
+    // series(), entao passa direto sem passar por essa funcao.
+    if (F.pesoSerie && F.pesoSerie.length) {
+      CH.push({ label: tr('voo.chart.weight', 'Peso'), unit: 'lb', h: 76, lines: [{ data: F.pesoSerie, color: 'var(--ok)', w: 1.6 }] });
+    }
     function build(c) {
       var all = []; c.lines.forEach(function (l) { l.data.forEach(function (p) { if (p[1] !== null) all.push(p[1]); }); });
       var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
@@ -685,21 +854,34 @@
 
   /* ---------- mapa ---------- */
   var MAP = null, MLAYER = null, MCUR = null, MODE = 'turb';
+  // Amostra sem posição valida (lat/lon null - GPS ainda nao pronto no
+  // instante da leitura, ou linha corrompida na gravacao) existe de
+  // verdade em `track`: `TelemetryDeriver` grava a amostra inteira de
+  // propósito, sem filtrar nada (ver docblock da classe), entao o mapa
+  // e quem tem que se proteger, nao o backend. Sem esse guard, um unico
+  // ponto nulo vira `[null, x]`/`[x, null]` numa polyline/marker do
+  // Leaflet, que nao quebra na hora de desenhar (so guarda a
+  // coordenada) mas quebra em qualquer reprojecao depois - zoom, pan
+  // animado - com "Cannot read properties of null (reading 'lat')" la
+  // dentro do Leaflet.
+  function hasPos(p) { return p[1] !== null && p[2] !== null; }
   function drawMap() {
     if (!MAP) return;
     MLAYER.clearLayers();
-    var pts = F.track.map(function (p) { return [p[1], p[2]]; });
+    var pts = F.track.filter(hasPos).map(function (p) { return [p[1], p[2]]; });
+    if (!pts.length) { renderMapUnavailable(); return; }
     function altColor(a) { var f = a / F.alt_max; return f < .33 ? '#2C7CA5' : (f < .66 ? '#7BA05B' : '#B85400'); }
     function wxColor(e) { return e[2] > 10 ? '#E4574A' : (e[2] > 0.5 ? '#FF8A1F' : (e[3] ? '#A78BFA' : '#5AA9D6')); }
     function envAt(sec) { var b = F.env[0]; for (var i = 0; i < F.env.length; i++) { if (F.env[i][0] <= sec) b = F.env[i]; } return b; }
     for (var i = 0; i < F.track.length - 1; i++) {
+      if (!hasPos(F.track[i]) || !hasPos(F.track[i + 1])) continue;
       var c = MODE === 'turb' ? turbColor(F.prof[i] ? F.prof[i][5] : 0) : (MODE === 'alt' ? altColor(F.prof[i] ? F.prof[i][1] : 0) : wxColor(envAt(F.track[i][0])));
       L.polyline([[F.track[i][1], F.track[i][2]], [F.track[i + 1][1], F.track[i + 1][2]]],
         { color: c, weight: MODE === 'wx' ? 4.5 : 3.4, opacity: .95 }).addTo(MLAYER);
     }
     if (MODE === 'wx') {
       F.env.forEach(function (e) {
-        var tp = null; for (var i = 0; i < F.track.length; i++) { if (F.track[i][0] <= e[0]) tp = F.track[i]; }
+        var tp = null; for (var i = 0; i < F.track.length; i++) { if (F.track[i][0] <= e[0] && hasPos(F.track[i])) tp = F.track[i]; }
         if (!tp) return;
         L.circleMarker([tp[1], tp[2]], { radius: e[3] ? 7 : 5, color: '#fff', weight: 1.5, fillColor: wxColor(e), fillOpacity: .9 })
           .addTo(MLAYER).bindPopup('<b>' + mmss(e[0]) + '</b><br><span>' + e[1].toFixed(1) + ' °C · ' +
@@ -728,7 +910,13 @@
 
   function initMap() {
     if (!window.L) { renderMapUnavailable(); return; }
-    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
+    // CARTO passou a exigir API key ate pro tile gratuito - sem isso
+    // desenha uma marca d'agua "API KEY REQUIRED" por cima do mapa (ver
+    // VooController::index()/README). window.KATABATIC_CARTO_API_KEY
+    // vem do env CARTO_API_KEY via Twig; encodeURIComponent('') se nao
+    // estiver configurada nao quebra a URL, so mantem a marca d'agua.
+    var CARTO_KEY = encodeURIComponent(window.KATABATIC_CARTO_API_KEY || '');
+    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
     MAP = L.map('map', { scrollWheelZoom: true, minZoom: 3, maxZoom: 14 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 14, detectRetina: true }).addTo(MAP);

@@ -48,6 +48,17 @@ namespace App\Service;
  *   ideia é não confiar nos números derivados, não esconder o que
  *   aconteceu no voo.
  *
+ * **Atualizado: escala de `ice_pct` corrigida na fonte.** Esta classe
+ * nunca precisou mudar — o bug estava em `katabatic_capture.py`, que
+ * pedia `STRUCTURAL ICE PCT` na unidade `percent over 100` (fração
+ * 0.0–1.0 pra SimConnect, confirmado contra a documentação oficial do
+ * SDK) enquanto todo o resto daqui (`icing_onset` a partir de
+ * `ice >= 1.0`, peso `iceMax * 4` no índice de dificuldade,
+ * `sprintf('%.1f%%', ...)`) sempre assumiu um valor já 0-100. Voos
+ * gravados antes da correção reportam gelo estrutural ~100× menor do
+ * que o simulador de fato modelou — ver `docs/payload-telemetria-acars.md`,
+ * seção 8, e o comentário em `GROUP_C` no script de captura.
+ *
  * Deliberadamente sem nenhuma dependência de Doctrine/Symfony — só
  * arrays entra, array sai. Isso deixa testar isolado (`php -r` com um
  * payload sintético) sem precisar do kernel nem do banco.
@@ -72,18 +83,51 @@ class TelemetryDeriver
         'stall_warning' => 'Alerta de estol',
         'overspeed' => 'Overspeed',
         'crash' => 'Colisão',
+        'deice_estrutural' => 'Deice estrutural',
+        'deice_parabrisa' => 'Deice do para-brisa',
     ];
 
     /** Campos onde "para" verdadeiro/diferente de zero é uma excedência de verdade. */
     private const ALARM_FIELDS = ['stall_warning', 'overspeed', 'crash'];
 
     /**
-     * @param array<string, mixed> $payload payload cru enviado pelo script (ver AcarsIngestaoController)
-     * @param float|null           $limiteG limite de fator de carga cadastrado pra essa aeronave (App\Entity\Aeronave::getLimiteG()) — usado só pra sinalizar excedência "overG", opcional
+     * `SURFACE TYPE` (SimConnect) — corroborado por um fórum técnico
+     * independente (fsdeveloper.com) além do conhecimento geral do SDK,
+     * ver conversa que motivou esta refinamento. Mesma lista que o
+     * comentário de debug de `katabatic_capture.py` usa.
+     */
+    private const SURFACE_TYPES = [
+        0 => 'Concreto', 1 => 'Grama', 2 => 'Água', 3 => 'Grama irregular', 4 => 'Asfalto',
+        5 => 'Grama curta', 6 => 'Grama alta', 7 => 'Turfa dura', 8 => 'Neve', 9 => 'Gelo',
+        10 => 'Urbano', 11 => 'Floresta', 12 => 'Terra', 13 => 'Coral', 14 => 'Cascalho',
+        15 => 'Tratada com óleo', 16 => 'Placas de aço', 17 => 'Betuminosa', 18 => 'Tijolo',
+        19 => 'Macadame', 20 => 'Tábuas', 21 => 'Areia', 22 => 'Xisto', 23 => 'Tarmac',
+    ];
+
+    /**
+     * `SURFACE CONDITION` (SimConnect) — **não reverificado
+     * independentemente nesta sessão** contra a documentação oficial do
+     * SDK (três tentativas diretas falharam: um 404, um resumo que não
+     * trazia a resposta, um timeout de permissão num fonte promissor).
+     * Vem do conhecimento geral de SimConnect e é corroborado pelo
+     * próprio comentário de debug de `katabatic_capture.py`
+     * ("surface_cond 0=normal 1=molhada 2=gelo 3=neve"), mas sem a
+     * mesma confirmação cruzada que `SURFACE_TYPES` teve. Revisar se
+     * aparecer um pouso com condição de superfície visivelmente errada
+     * (ex.: "molhada" num METAR sem precipitação nenhuma).
+     */
+    private const SURFACE_CONDITIONS = [
+        0 => 'Normal', 1 => 'Molhada', 2 => 'Gelo', 3 => 'Neve',
+    ];
+
+    /**
+     * @param array<string, mixed> $payload         payload cru enviado pelo script (ver AcarsIngestaoController)
+     * @param float|null           $limiteG         limite de fator de carga POSITIVO cadastrado pra essa aeronave (App\Entity\Aeronave::getLimiteG()) — usado só pra sinalizar excedência "overG", opcional
+     * @param float|null           $limiteGNegativo limite de fator de carga NEGATIVO cadastrado (App\Entity\Aeronave::getLimiteGNegativo()) — mesma ideia do lado negativo, opcional
      *
      * @return array{dur: int, dificuldade: int, telemetria: array<string, mixed>}
      */
-    public function derive(array $payload, ?float $limiteG = null): array
+    public function derive(array $payload, ?float $limiteG = null, ?float $limiteGNegativo = null): array
     {
         $startedAt = new \DateTimeImmutable($payload['started_at']);
 
@@ -160,7 +204,18 @@ class TelemetryDeriver
         $fuel = $this->fuelUsed($payload, $env);
 
         $phases = $this->derivePhases($trusted, $dur);
-        [$evList, $exceed, $bounces, $td] = $this->deriveEvents($events, $limiteG, $gmax);
+        [$evList, $exceed, $bounces, $td] = $this->deriveEvents($events, $limiteG, $gmax, $limiteGNegativo, $gmin);
+
+        // Superfície de pouso: não vem no evento `touchdown` em si (o
+        // script só lê `surface_type`/`surface_cond` no grupo C, 0,1 Hz
+        // — ver docblock de SURFACE_TYPES/SURFACE_CONDITIONS), então
+        // pega a amostra de ambiente mais próxima no tempo do toque.
+        // `$env` aqui já está com offsets/ordenado (acima), antes do
+        // `array_map` que produz `$envArr` (que não carrega esses dois
+        // campos) — por isso usa este, não aquele.
+        if (null !== $td) {
+            $td = $this->attachSurfaceAtTouchdown($td, $env);
+        }
 
         $wx = $this->classifyWeather($oatMin, $precipMax);
         $windc = $this->crosswindComponent($trusted, $env, $td);
@@ -480,7 +535,7 @@ class TelemetryDeriver
      *
      * @return array{0: list<array{0:int,1:string,2:string,3:string,4:string}>, 1: int, 2: int, 3: array<string,mixed>|null}
      */
-    private function deriveEvents(array $events, ?float $limiteG, float $gmax): array
+    private function deriveEvents(array $events, ?float $limiteG, float $gmax, ?float $limiteGNegativo = null, float $gmin = 1.0): array
     {
         $out = [];
         $exceed = 0;
@@ -502,6 +557,7 @@ class TelemetryDeriver
                 if (null !== $vs) {
                     $vs = abs($vs);
                     $td = [
+                        't_s' => $t,
                         'vs' => $vs,
                         'pitch' => self::num($data['td_pitch'] ?? null) ?? 0.0,
                         'bank' => self::num($data['td_bank'] ?? null) ?? 0.0,
@@ -564,8 +620,70 @@ class TelemetryDeriver
         if (null !== $limiteG && $gmax > $limiteG) {
             ++$exceed;
         }
+        // Espelha a checagem acima pro lado negativo — `$limiteGNegativo`
+        // é `App\Entity\Aeronave::$limiteGNegativo`, cadastrado só na
+        // criação da aeronave (sem rota de edição ainda, ver docblock da
+        // entidade), `null` até alguém preencher. Sem evento próprio na
+        // timeline (diferente de overG, que também não tem — os dois só
+        // incrementam `exceed`, o "Fator de carga" na composição do
+        // índice já usa `$gmin` de verdade, ver `difficultyScore()`).
+        if (null !== $limiteGNegativo && $gmin < $limiteGNegativo) {
+            ++$exceed;
+        }
 
         return [$out, $exceed, $bounces, $td];
+    }
+
+    /**
+     * Acrescenta `surface_type`/`surface_cond` (crus, enum do
+     * SimConnect) e seus rótulos em PT ao `$td` já montado, usando a
+     * amostra de ambiente (`$env`, grupo C, ~0,1 Hz) mais próxima no
+     * tempo do toque — não existe amostra de ambiente exatamente no
+     * instante do toque, então "mais próxima" é a melhor aproximação
+     * disponível (ver docblock de SURFACE_TYPES/SURFACE_CONDITIONS pra
+     * proveniência dos mapeamentos).
+     *
+     * @param array<string, mixed>       $td
+     * @param list<array<string, mixed>> $env
+     *
+     * @return array<string, mixed>
+     */
+    private function attachSurfaceAtTouchdown(array $td, array $env): array
+    {
+        $sample = $this->nearestByTime($env, (int) $td['t_s']);
+        $tipo = null !== $sample ? self::num($sample['surface_type'] ?? null) : null;
+        $cond = null !== $sample ? self::num($sample['surface_cond'] ?? null) : null;
+
+        $td['surface_type'] = null !== $tipo ? (int) $tipo : null;
+        $td['surface_type_label'] = null !== $tipo ? (self::SURFACE_TYPES[(int) $tipo] ?? null) : null;
+        $td['surface_cond'] = null !== $cond ? (int) $cond : null;
+        $td['surface_cond_label'] = null !== $cond ? (self::SURFACE_CONDITIONS[(int) $cond] ?? null) : null;
+
+        return $td;
+    }
+
+    /**
+     * Amostra de `$rows` (precisa de `t_s`) com o `t_s` mais próximo de
+     * `$tS` — usado pra achar a leitura de ambiente mais perto do
+     * instante do toque (`attachSurfaceAtTouchdown()`).
+     *
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return array<string, mixed>|null
+     */
+    private function nearestByTime(array $rows, int $tS): ?array
+    {
+        $best = null;
+        $bestDiff = null;
+        foreach ($rows as $row) {
+            $diff = abs((int) ($row['t_s'] ?? 0) - $tS);
+            if (null === $bestDiff || $diff < $bestDiff) {
+                $bestDiff = $diff;
+                $best = $row;
+            }
+        }
+
+        return $best;
     }
 
     private function classifyWeather(float $oatMin, float $precipMax): string

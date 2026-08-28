@@ -4,9 +4,11 @@ namespace App\Controller;
 
 use App\Entity\Aeronave;
 use App\Repository\AeronaveRepository;
+use App\Repository\AeroportoRepository;
 use App\Repository\PosicaoAoVivoRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -40,12 +42,43 @@ use Symfony\Component\Routing\Attribute\Route;
  * agora aponta pra `AeroportoController::catalogo()` em vez do antigo
  * `public/assets/data/airports.json` — mesmo formato JSON de sempre,
  * `mapa-ao-vivo.js` não mudou uma linha (ver README).
+ *
+ * **Atualizado: aeronave estacionada fora de base/posto avançado não
+ * pode sumir do mapa.** `AeroportoController::catalogo()` (usado pela
+ * maioria das outras telas) devolve só bases + postos avançados, de
+ * propósito (ver docblock de lá) — mas a imensa maioria dos aeroportos
+ * do catálogo (importados do OurAirports) não é nenhum dos dois, e uma
+ * aeronave pode estar estacionada em qualquer um deles (pouso
+ * alternativo, reposicionamento manual, etc.). `airportsUrl` agora
+ * aponta pra `aeroportos()` abaixo — mesmo catálogo de bases/postos,
+ * mas com uma garantia a mais: todo ICAO que a frota realmente usa
+ * agora (posição estacionada, base, origem/destino de voo em
+ * andamento) entra também, mesmo que não seja base nem posto. Sem
+ * isso, `mapa-ao-vivo.js` não tinha coordenada nenhuma pra desenhar
+ * aquela aeronave (`AIRPORTS[pa.pos]` undefined em `buildParked()`) e
+ * ela sumia da tela em silêncio — ver
+ * `AeroportoRepository::findCatalogoReferenciaArrayComExtras()`.
+ *
+ * **Atualizado: CARTO Basemaps exige API key.** O mapa base (tiles
+ * `light_all`/`dark_all` de `basemaps.cartocdn.com`, ver
+ * `mapa-ao-vivo.js`) passou a exigir uma API key mesmo pro plano
+ * gratuito — sem ela o CARTO desenha uma marca d'água "API KEY
+ * REQUIRED" por cima de tudo. `cartoApiKey` (env `CARTO_API_KEY`, ver
+ * `.env`/`.env.example`) é injetada aqui e repassada pro template como
+ * `window.KATABATIC_CARTO_API_KEY`, que `mapa-ao-vivo.js` agora anexa
+ * na URL do tile (`?key=...`). Mesma correção em `VooController::index()`
+ * pro mapa do relatório de voo, que usa o mesmo provedor.
  */
 class MapaAoVivoController extends AbstractController
 {
     #[Route('/mapa-ao-vivo', name: 'app_mapa_ao_vivo', methods: ['GET'])]
-    public function index(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes): Response
-    {
+    public function index(
+        Request $request,
+        AeronaveRepository $aeronaves,
+        VooRepository $voos,
+        PosicaoAoVivoRepository $posicoes,
+        #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey,
+    ): Response {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
             return $this->redirectToRoute('app_login');
@@ -56,10 +89,54 @@ class MapaAoVivoController extends AbstractController
             'pilot' => $pilot,
             'liveFlights' => $this->liveFlights($aeronaves, $voos, $posicoes),
             'parkedAircraft' => $this->parkedAircraft($aeronaves),
-            'airportsUrl' => $this->generateUrl('app_aeroportos_catalogo'),
+            'airportsUrl' => $this->generateUrl('app_mapa_ao_vivo_aeroportos'),
             'flightsUrl' => '/assets/data/flights.json',
             'posicoesUrl' => '/mapa-ao-vivo/posicoes',
+            'cartoApiKey' => $cartoApiKey,
         ]);
+    }
+
+    /**
+     * Catálogo de aeroportos desta tela especificamente — ver docblock
+     * da classe ("aeronave estacionada fora de base/posto avançado não
+     * pode sumir do mapa"). Mesmo formato de
+     * `AeroportoController::catalogo()`, nunca usado por nenhuma outra
+     * tela — só o Mapa ao vivo precisa desta garantia extra.
+     */
+    #[Route('/mapa-ao-vivo/aeroportos', name: 'app_mapa_ao_vivo_aeroportos', methods: ['GET'])]
+    public function aeroportos(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, AeroportoRepository $aeroportos): JsonResponse
+    {
+        if (null === $request->getSession()->get('pilot')) {
+            return $this->json([], 401);
+        }
+
+        return $this->json($aeroportos->findCatalogoReferenciaArrayComExtras(
+            $this->icaosEmUso($aeronaves, $voos, $posicoes)
+        ));
+    }
+
+    /**
+     * Todo ICAO que a frota está usando agora — posição estacionada e
+     * base de cada aeronave parada, mais origem/destino de todo voo em
+     * `liveFlights()` (ao vivo ou em replay) — pra garantir que
+     * `aeroportos()` acima sempre tenha coordenada pra desenhar,
+     * mesmo quando esse ICAO não é base nem posto avançado.
+     *
+     * @return list<string>
+     */
+    private function icaosEmUso(AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes): array
+    {
+        $icaos = [];
+        foreach ($aeronaves->findAllNotEmVoo() as $a) {
+            $icaos[] = $a->getPosIcao();
+            $icaos[] = $a->getBase();
+        }
+        foreach ($this->liveFlights($aeronaves, $voos, $posicoes) as $f) {
+            $icaos[] = $f['origem'];
+            $icaos[] = $f['destino'];
+        }
+
+        return $icaos;
     }
 
     /**

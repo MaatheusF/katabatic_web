@@ -7,8 +7,10 @@ use App\Repository\AeronaveRepository;
 use App\Repository\PilotRepository;
 use App\Repository\VooRepository;
 use App\Service\FotoVooUploader;
+use App\Service\PlanoVooUploader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -70,6 +72,38 @@ use Symfony\Component\Routing\Attribute\Route;
  * outros são construídos a partir de dado que já temos (CID do
  * piloto, usuário do AvioDeck em `Pilot::$aviodeckUsername`, ou a
  * própria telemetria gravada, no caso do CSV/GPX).
+ *
+ * **Atualizado: PDF do plano de voo anexado (além do link).** O
+ * SimBrief não expõe API pública estável pra buscar o OFP de um voo
+ * específico (ver docblock de `salvarSimbrief()`/README), então o link
+ * colado acima nunca vira automaticamente um arquivo — pra quem quer o
+ * PDF de verdade disponível dentro do relatório (não só um link pra
+ * fora, que pode expirar ou exigir login no SimBrief), o piloto agora
+ * também pode anexar o arquivo em si — ver `adicionarPlanoVoo()`/
+ * `removerPlanoVoo()` abaixo e `App\Entity\Voo::getPlanoVooPdf()`/
+ * `setPlanoVooPdf()`. Um só PDF por voo (não uma galeria, como as
+ * fotos): anexar um novo substitui o anterior. Mesma pasta em disco e
+ * mesmo guard de posse das fotos — ver `App\Service\PlanoVooUploader`
+ * e `arquivosVooDir()` (renomeado de `fotosDir()`, agora compartilhado
+ * pelos dois tipos de anexo).
+ *
+ * **Atualizado: CARTO Basemaps exige API key.** `index()` injeta
+ * `cartoApiKey` (env `CARTO_API_KEY`) igual a
+ * `MapaAoVivoController::index()` — ver docblock de lá pro porquê (a
+ * marca d'água "API KEY REQUIRED" que o CARTO desenha sem a chave). O
+ * mapa desta tela (`voo.js`) usa o mesmo tile provider.
+ *
+ * **Atualizado: METAR de pouso + campos de `dados` que nunca chegavam
+ * aqui.** `telemetria()` só devolvia a chave `telemetria` de dentro de
+ * `Voo::$dados` — tudo que `TelemetriaVooBuilder::build()` monta um
+ * nível acima (METAR de origem, carga estimada, modelo da aeronave,
+ * ocorrências resumidas) ficava gravado no banco sem nunca virar
+ * resposta HTTP nenhuma, então `voo.js` nunca teve como mostrar. Agora
+ * `telemetria()` também mescla essas chaves (mais `tipo_operacao` e
+ * `aeronave_reg`, colunas de verdade que também nunca tinham sido
+ * expostas). `TelemetriaVooBuilder::build()` também passou a buscar o
+ * METAR do aeroporto de pouso REAL (`$posIcao`, considerando diversão),
+ * não só o da origem — ver `App\Service\MetarClient`.
  */
 class VooController extends AbstractController
 {
@@ -77,7 +111,7 @@ class VooController extends AbstractController
     private const MAX_FOTOS_POR_VOO = 12;
 
     #[Route('/voo', name: 'app_voo', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey): Response
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
@@ -88,6 +122,7 @@ class VooController extends AbstractController
             'activeView' => 'logbook',
             'pilot' => $pilot,
             'flightsUrl' => $this->generateUrl('app_voo_telemetria'),
+            'cartoApiKey' => $cartoApiKey,
         ]);
     }
 
@@ -121,6 +156,22 @@ class VooController extends AbstractController
                 $telemetria['destino_real'] = $voo->getDestinoReal();
                 $telemetria['fotos'] = $this->fotosViewModel($voo);
                 $telemetria['simbrief_link'] = $voo->getSimbriefLink();
+                $telemetria['plano_voo'] = $this->planoVooViewModel($voo);
+
+                // Colunas de verdade que nunca vieram nesta resposta -
+                // `voo.js` só lia a chave `telemetria` de dentro de
+                // `dados`, então tudo que `TelemetriaVooBuilder::build()`
+                // monta um nível acima (metar/carga/modelo/ocorrências)
+                // ficava gravado no banco sem nunca chegar no relatório.
+                // Ver README, auditoria dos dados de voo integrados.
+                $dados = $voo->getDados();
+                $telemetria['tipo_operacao'] = $voo->getTipoOperacao();
+                $telemetria['aeronave_reg'] = $voo->getAeronaveReg();
+                $telemetria['modelo'] = $dados['modelo'] ?? null;
+                $telemetria['metar'] = $dados['metar'] ?? null;
+                $telemetria['metar_pouso'] = $dados['metarPouso'] ?? null;
+                $telemetria['carga'] = $dados['carga'] ?? null;
+                $telemetria['ocorrencias'] = $dados['ocorrencias'] ?? [];
 
                 return $telemetria;
             },
@@ -407,7 +458,7 @@ class VooController extends AbstractController
             if (!$arquivoEnviado instanceof UploadedFile) {
                 continue;
             }
-            $resultado = $uploader->processar($arquivoEnviado, $this->fotosDir($codigo));
+            $resultado = $uploader->processar($arquivoEnviado, $this->arquivosVooDir($codigo));
             if (null === $resultado['arquivo']) {
                 $erro = $resultado['erro'];
                 continue;
@@ -459,14 +510,111 @@ class VooController extends AbstractController
             return $this->json(['error' => 'Foto não encontrada.'], 404);
         }
 
-        $uploader->remover($this->fotosDir($codigo), $arquivo);
+        $uploader->remover($this->arquivosVooDir($codigo), $arquivo);
         $voo->setFotos($restantes);
         $em->flush();
 
         return $this->json(['fotos' => $this->fotosViewModel($voo)]);
     }
 
-    private function fotosDir(string $codigo): string
+    /**
+     * Anexa (ou substitui) o PDF do plano de voo deste voo — campo
+     * multipart `planoVoo` (ver `voo.js`). Mesmo guard de posse de
+     * `relato()`. Diferente de `adicionarFotos()`: é um único arquivo,
+     * não uma galeria — anexar um novo PDF apaga e substitui o
+     * anterior, se houver, em vez de acumular.
+     */
+    #[Route('/voo/{codigo}/plano-voo', name: 'app_voo_plano_voo_adicionar', methods: ['POST'])]
+    public function adicionarPlanoVoo(string $codigo, Request $request, EntityManagerInterface $em, PilotRepository $pilots, VooRepository $voos, PlanoVooUploader $uploader): JsonResponse
+    {
+        $sessionPilot = $request->getSession()->get('pilot');
+        if (null === $sessionPilot) {
+            return $this->json(['error' => 'Sessão expirada — faça login de novo.'], 401);
+        }
+
+        $pilot = $pilots->findOneByCid($sessionPilot['cid']);
+        if (null === $pilot) {
+            return $this->json(['error' => 'Piloto não encontrado.'], 404);
+        }
+
+        $voo = $voos->findOneByCodigoForPilot($codigo, $pilot);
+        if (null === $voo) {
+            return $this->json(['error' => 'Voo não encontrado.'], 404);
+        }
+
+        $arquivoEnviado = $request->files->get('planoVoo');
+        if (!$arquivoEnviado instanceof UploadedFile) {
+            return $this->json(['error' => 'Nenhum arquivo enviado.'], 400);
+        }
+
+        $resultado = $uploader->processar($arquivoEnviado, $this->arquivosVooDir($codigo));
+        if (null === $resultado['arquivo']) {
+            return $this->json(['error' => $resultado['erro']], 422);
+        }
+
+        // Um só PDF por voo - se já tinha um, apaga o arquivo velho do
+        // disco antes de gravar a referência do novo (senão o antigo
+        // ficaria órfão, sem nenhuma linha apontando pra ele).
+        $anterior = $voo->getPlanoVooPdf();
+        if (null !== $anterior) {
+            $uploader->remover($this->arquivosVooDir($codigo), $anterior['arquivo']);
+        }
+
+        $voo->setPlanoVooPdf([
+            'arquivo' => $resultado['arquivo'],
+            'nomeOriginal' => $resultado['nomeOriginal'],
+            'enviadoEm' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ]);
+        $em->flush();
+
+        return $this->json(['plano_voo' => $this->planoVooViewModel($voo)]);
+    }
+
+    /**
+     * Remove o PDF do plano de voo deste voo, se houver. Mesmo guard
+     * de posse de `relato()`.
+     */
+    #[Route('/voo/{codigo}/plano-voo/remover', name: 'app_voo_plano_voo_remover', methods: ['POST'])]
+    public function removerPlanoVoo(string $codigo, Request $request, EntityManagerInterface $em, PilotRepository $pilots, VooRepository $voos, PlanoVooUploader $uploader): JsonResponse
+    {
+        $sessionPilot = $request->getSession()->get('pilot');
+        if (null === $sessionPilot) {
+            return $this->json(['error' => 'Sessão expirada — faça login de novo.'], 401);
+        }
+
+        $pilot = $pilots->findOneByCid($sessionPilot['cid']);
+        if (null === $pilot) {
+            return $this->json(['error' => 'Piloto não encontrado.'], 404);
+        }
+
+        $voo = $voos->findOneByCodigoForPilot($codigo, $pilot);
+        if (null === $voo) {
+            return $this->json(['error' => 'Voo não encontrado.'], 404);
+        }
+
+        $atual = $voo->getPlanoVooPdf();
+        if (null === $atual) {
+            return $this->json(['error' => 'Nenhum PDF anexado a este voo.'], 404);
+        }
+
+        $uploader->remover($this->arquivosVooDir($codigo), $atual['arquivo']);
+        $voo->setPlanoVooPdf(null);
+        $em->flush();
+
+        return $this->json(['plano_voo' => null]);
+    }
+
+    /**
+     * Pasta em disco onde ficam TODOS os anexos deste voo — fotos
+     * (`App\Service\FotoVooUploader`) e o PDF do plano de voo
+     * (`App\Service\PlanoVooUploader`) dividem a mesma pasta por
+     * `codigo` de propósito: é por isso que `excluir()` abaixo apaga
+     * os dois tipos de anexo com uma única chamada
+     * (`FotoVooUploader::removerPasta()`), sem precisar saber o que
+     * tem lá dentro. Renomeado de `fotosDir()` quando o PDF passou a
+     * morar aqui também.
+     */
+    private function arquivosVooDir(string $codigo): string
     {
         return $this->getParameter('kernel.project_dir').'/public/uploads/voos/'.$codigo;
     }
@@ -486,6 +634,24 @@ class VooController extends AbstractController
             ],
             $voo->getFotos()
         );
+    }
+
+    /**
+     * @return array{arquivo: string, url: string, nomeOriginal: ?string, enviadoEm: ?string}|null
+     */
+    private function planoVooViewModel(Voo $voo): ?array
+    {
+        $planoVoo = $voo->getPlanoVooPdf();
+        if (null === $planoVoo) {
+            return null;
+        }
+
+        return [
+            'arquivo' => $planoVoo['arquivo'],
+            'url' => '/uploads/voos/'.$voo->getCodigo().'/'.$planoVoo['arquivo'],
+            'nomeOriginal' => $planoVoo['nomeOriginal'] ?? null,
+            'enviadoEm' => $planoVoo['enviadoEm'] ?? null,
+        ];
     }
 
     /**
@@ -575,11 +741,14 @@ class VooController extends AbstractController
      * se o voo ainda estava `valido` (nunca passou por
      * `marcarAcidentado()`).
      *
-     * **Atualizado: fotos.** Antes de apagar a linha, apaga também a
-     * pasta de fotos deste voo em disco (`FotoVooUploader::removerPasta()`)
-     * — sem isso, os arquivos ficariam órfãos (a referência dentro de
+     * **Atualizado: fotos (e, depois, o PDF do plano de voo — mesma
+     * pasta).** Antes de apagar a linha, apaga também a pasta de
+     * anexos deste voo em disco (`FotoVooUploader::removerPasta()`) —
+     * sem isso, os arquivos ficariam órfãos (a referência dentro de
      * `dados` some junto com a linha, mas ninguém mais apagaria o
-     * arquivo em `public/uploads/voos/{codigo}/`).
+     * arquivo em `public/uploads/voos/{codigo}/`). Uma única chamada
+     * limpa os dois tipos de anexo, já que dividem a mesma pasta — ver
+     * `arquivosVooDir()`.
      */
     #[Route('/voo/{codigo}/excluir', name: 'app_voo_excluir', methods: ['POST'])]
     public function excluir(string $codigo, Request $request, EntityManagerInterface $em, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves, FotoVooUploader $uploader): JsonResponse
@@ -616,7 +785,7 @@ class VooController extends AbstractController
             }
         }
 
-        $uploader->removerPasta($this->fotosDir($codigo));
+        $uploader->removerPasta($this->arquivosVooDir($codigo));
 
         $em->remove($voo);
         $em->flush();

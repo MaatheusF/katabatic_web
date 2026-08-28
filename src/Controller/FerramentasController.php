@@ -12,21 +12,23 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Ferramentas do piloto: página única com 4 calculadoras (vento cruzado/
- * cauda, conversor de unidades + ETA, peso e balanceamento, distância de
- * decolagem/pouso ajustada) — item do backlog do README ("Ideias
- * futuras: Ferramentas do piloto"). Aberta a qualquer piloto logado
- * (não é área de admin), mesmo padrão de `ManuaisController`.
+ * Ferramentas do piloto: página única com 7 calculadoras (vento cruzado/
+ * cauda, conversor de unidades/QNH + ETA, peso e balanceamento, distância
+ * de decolagem/pouso ajustada, Zulu×hora local das Bases, alcance de
+ * planeio engine-out, ponto ideal de descida) — item do backlog do
+ * README ("Ideias futuras: Ferramentas do piloto"). Aberta a qualquer
+ * piloto logado (não é área de admin), mesmo padrão de `ManuaisController`.
  *
- * Vento cruzado/cauda e o conversor de unidades/ETA são só matemática —
- * não dependem de nenhum dado cadastrado. Peso e balanceamento e
- * distância ajustada dependem do perfil de performance por tipo
- * (`App\Entity\TipoAeronave`, cadastrado em `/tipos-aeronave`) — aqui
- * só embutimos a frota (`aeronaves`, pra ligar aeronave→tipo) e os
- * tipos já cadastrados (`tiposAeronave`) como JSON pro cliente; toda a
- * lógica das duas calculadoras é client-side em `ferramentas.js`. Um
- * tipo sem perfil cadastrado (ou com campos em branco) simplesmente
- * mostra um aviso nessas duas calculadoras, ver `ferramentas.js`.
+ * Só peso e balanceamento e distância ajustada dependem de dado
+ * cadastrado — o perfil de performance por tipo (`App\Entity\TipoAeronave`,
+ * cadastrado em `/tipos-aeronave`). Aqui só embutimos a frota
+ * (`aeronaves`, pra ligar aeronave→tipo) e os tipos já cadastrados
+ * (`tiposAeronave`) como JSON pro cliente; toda a lógica das duas
+ * calculadoras é client-side em `ferramentas.js`. Um tipo sem perfil
+ * cadastrado (ou com campos em branco) simplesmente mostra um aviso
+ * nessas duas calculadoras, ver `ferramentas.js`. As outras cinco
+ * (vento cruzado, conversor/QNH/ETA, Zulu×Bases, planeio, TOD) são só
+ * matemática client-side, sem nenhum dado do backend.
  *
  * Ambas as calculadoras que usam `TipoAeronave` são deliberadamente
  * limitadas: peso e balanceamento é só peso total vs. MTOW (sem

@@ -65,7 +65,7 @@ class Aeronave
     #[ORM\Column(length: 60)]
     private string $tipo;
 
-    /** Base de operação — 'PAFA' ou 'SCCI'. */
+    /** Base de operação — uma das seis bases válidas (ver `NovaAeronaveController::BASES_VALIDAS`). */
     #[ORM\Column(length: 8)]
     private string $base;
 
@@ -77,9 +77,28 @@ class Aeronave
     #[ORM\Column(length: 20)]
     private string $status;
 
-    /** Limite de fator de carga (G), usado no índice de dificuldade — opcional. */
+    /** Limite de fator de carga (G) positivo, usado no índice de dificuldade — opcional. */
     #[ORM\Column(nullable: true)]
     private ?float $limiteG = null;
+
+    /**
+     * Limite de fator de carga (G) negativo, estrutural — opcional,
+     * espelha `$limiteG` (positivo). **Atualizado:** usado por
+     * `TelemetryDeriver::deriveEvents()` pra sinalizar excedência do
+     * lado negativo (`gmin < limiteGNegativo`), igual ao que `$limiteG`
+     * já fazia só pro lado positivo (`gmax > limiteG`).
+     *
+     * **Atualizado:** coluna nomeada explicitamente (`limite_g_negativo`)
+     * — sem isso a estratégia de nomenclatura padrão do Doctrine deriva
+     * `limite_gnegativo` (só insere `_` antes de maiúscula que segue
+     * minúscula, então o "N" de "GNegativo", colado ao "G" maiúsculo
+     * anterior, não ganha separador), divergindo da coluna real criada
+     * pela migration (`Version20260828090000`, `limite_g_negativo`) e
+     * quebrando toda query que toca `Aeronave` com
+     * `SQLSTATE[42703]: column a0_.limite_gnegativo does not exist`.
+     */
+    #[ORM\Column(name: 'limite_g_negativo', nullable: true)]
+    private ?float $limiteGNegativo = null;
 
     /** VS máxima de pouso, em fpm — opcional. */
     #[ORM\Column(nullable: true)]
@@ -89,7 +108,7 @@ class Aeronave
     #[ORM\Column]
     private int $horas = 0;
 
-    /** Notas internas (manutenção, particularidades do addon) — não aparece no site público. */
+    /** Notas internas (manutenção, particularidades do addon) — visível na Frota do Portal (`PortalController::fleetViewModel()`), mas só a piloto logado, nunca numa página pública sem sessão. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $observacoes = null;
 
@@ -287,6 +306,18 @@ class Aeronave
     public function setLimiteG(?float $limiteG): static
     {
         $this->limiteG = $limiteG;
+
+        return $this;
+    }
+
+    public function getLimiteGNegativo(): ?float
+    {
+        return $this->limiteGNegativo;
+    }
+
+    public function setLimiteGNegativo(?float $limiteGNegativo): static
+    {
+        $this->limiteGNegativo = $limiteGNegativo;
 
         return $this;
     }

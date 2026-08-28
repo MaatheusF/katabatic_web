@@ -113,7 +113,8 @@
       experiencia: state.exp,
       basePref: state.base,
       comoConheceu: document.getElementById('ad-conheceu').value,
-      motivacao: motivacaoEl.value.trim()
+      motivacao: motivacaoEl.value.trim(),
+      _csrf_token: window.KATABATIC_CSRF_TOKEN
     };
 
     fetch('/adesao', {

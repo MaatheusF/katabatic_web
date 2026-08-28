@@ -77,6 +77,10 @@
         <div class="chips" id="ad-base-chips">
           <button class="chip on" data-base="PAFA" type="button">PAFA · Fairbanks</button>
           <button class="chip" data-base="SCCI" type="button">SCCI · Punta Arenas</button>
+          <button class="chip" data-base="SLLP" type="button">SLLP · La Paz</button>
+          <button class="chip" data-base="VNKT" type="button">VNKT · Catmandu</button>
+          <button class="chip" data-base="WAJW" type="button">WAJW · Wamena</button>
+          <button class="chip" data-base="VQPR" type="button">VQPR · Paro</button>
           <button class="chip" data-base="Sem preferência" type="button" data-i18n="adesao.base.none">Sem preferência</button>
         </div>
       </div>
@@ -126,6 +130,9 @@
 
 {% block javascripts %}
 <script>
+  {# adesao.js manda isto de volta no corpo JSON do POST - validado em
+     AdesaoController::submit() via CsrfTokenManagerInterface. #}
+  window.KATABATIC_CSRF_TOKEN = {{ csrf_token('adesao')|json_encode|raw }};
   window.KATABATIC_I18N_EN = {
     'nav.pilot': 'Pilot area',
     'adesao.title': 'Membership request',

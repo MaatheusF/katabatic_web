@@ -5,9 +5,10 @@ namespace App\Service;
 /**
  * Busca o METAR mais recente publicado pra um ICAO, direto do
  * aviationweather.gov (NOAA/NWS — API pública, sem chave/token). Usado
- * por `AcarsIngestaoController::ingerir()` pra preencher
- * `Voo::$dados['metar']` (até esta fatia, sempre `null` — ver README,
- * "Backend: ingestão ACARS (MVP)").
+ * por `TelemetriaVooBuilder::build()` (ambas as vias de entrada, ACARS e
+ * upload manual — ver docblock de lá) pra preencher
+ * `Voo::$dados['metar']` (origem) e `Voo::$dados['metarPouso']` (pouso
+ * real, `$posIcao` — não necessariamente o `destino` declarado).
  *
  * **Aproximação documentada.** Não é o METAR "no horário do voo" — é o
  * METAR mais recente publicado no MOMENTO em que o servidor processa o

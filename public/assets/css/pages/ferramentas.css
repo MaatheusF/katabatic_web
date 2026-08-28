@@ -1,6 +1,6 @@
 /* ==========================================================================
    Katabatic — ferramentas.css
-   Ferramentas do piloto: 4 calculadoras client-side (ver
+   Ferramentas do piloto: 7 calculadoras client-side (ver
    FerramentasController/ferramentas.js). Depende de base.css +
    app-shell.css carregados antes (rail, bar, botoes, tokens ja vem de
    la) - mesmo padrao de card/field/grid/chips/tag que as outras telas
@@ -11,7 +11,16 @@
 
 .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 28px 60px; }
 
-.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+/* Colunas CSS em vez de grid de 2 colunas (reportado em conversa): com
+   `display: grid`, cada LINHA da grade cresce até a altura do maior
+   card dela (ex. o card do conversor+ETA é bem mais alto que o de
+   vento cruzado ao lado) - isso deixava um vão grande embaixo dos
+   cards mais curtos antes da próxima linha começar. `columns` empilha
+   os cards numa coluna até ela encher e só então passa pra próxima
+   (efeito "masonry"), sem depender de pares de mesma altura por linha.
+   `break-inside: avoid` no `.card` (abaixo) evita cortar um card no
+   meio entre as duas colunas. */
+.tools-grid { columns: 2; column-gap: 20px; }
 
 label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
 label .opt { text-transform: none; letter-spacing: 0; }
@@ -22,7 +31,8 @@ input[type=text], input[type=number], input[type=time], select {
 input:focus, select:focus { outline: none; border-color: var(--accent); }
 .mono-input { font-family: var(--font-mono); }
 
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 20px; }
+.tools-grid .card:last-child { margin-bottom: 0; }
 .card-h { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
 .card-h h3 { font-size: 15px; }
 .card-b { padding: 20px; }
@@ -61,6 +71,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .eta-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 .eta-heading { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
 
+/* ---------- Zulu x hora local das Bases ---------- */
+/* Hora + fuso lado a lado, botão "Agora" alinhado com os inputs (não
+   com o label) - por isso `align-items: end` em vez do padrão stretch,
+   já que o botão não tem label acima igual aos dois campos vizinhos. */
+.zulu-row { display: flex; gap: 14px; align-items: end; margin-bottom: 6px; }
+.zulu-row .field { flex: 1; margin-bottom: 0; }
+.zulu-row .btn { flex: none; white-space: nowrap; }
+
 /* ---------- peso e balanceamento / distancia: aviso "sem dados" ---------- */
 .wb-missing { font-size: 12.5px; color: var(--text-2); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 8px; padding: 10px 13px; line-height: 1.55; }
 .wb-missing a { color: var(--accent); }
@@ -68,9 +86,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .wb-ref b { color: var(--text); font-weight: 500; }
 
 @media (max-width: 980px) {
-  .tools-grid { grid-template-columns: 1fr; }
+  .tools-grid { columns: 1; }
 }
 @media (max-width: 640px) {
   .wrap { padding: 18px 16px 60px; }
   .grid3 { grid-template-columns: 1fr; }
+  .zulu-row { flex-direction: column; align-items: stretch; }
+  .zulu-row .btn { justify-content: center; }
 }

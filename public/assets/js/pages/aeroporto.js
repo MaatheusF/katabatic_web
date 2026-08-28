@@ -27,17 +27,29 @@
    lista quanto na busca, pra nao confundir com um ICAO de verdade.
 
    Atualizado mais uma vez: a lista principal ("Bases e postos avancados")
-   ganhou seu proprio botao "Remover" por linha - antes so dava pra
-   desmarcar um posto avancado indo ate o card de busca e achando o ICAO
+   ganhou seu proprio jeito de mudar/desmarcar posto avancado por linha -
+   antes so dava pra desmarcar indo ate o card de busca e achando o ICAO
    de novo, mesmo pra um aeroporto que ja estava bem na frente na lista.
    enviarAtualizacaoPosto()/sincronizarAposAtualizacao() abaixo sao
    compartilhados entre a lista e a busca - os dois chamam o mesmo
    POST /aeroportos/{icao}/posto-avancado, so o gatilho e diferente.
+
+   Atualizado de novo (pedido em conversa): a coluna de acoes virou um
+   <select> compacto (postoControlHtml()) em vez da pilha de ate 8
+   botoes de texto ("Marcar posto de PAFA"/"...SCCI"/.../"Remover") que
+   cabia numa linha so antes - o select mostra o posto atual (ou o
+   proprio "Nenhuma") como valor selecionado, entao a coluna "Posto
+   avancado de" que antes so exibia um selo virou o mesmo select (exibe
+   E edita, sem repetir a informacao em duas colunas). "Definir heading"
+   virou um icone (lapis) em vez de botao com texto - ver
+   headingEditButtonHtml(). Uma base (PAFA/SCCI/...) nunca ganha o
+   select, so um traco mudo - ela nao pode ser posto avancado de si
+   mesma nem de outra (mesma regra que ja existia, so a UI mudou).
    ========================================================================== */
 (function () {
   'use strict';
 
-  var BASES = ['PAFA', 'SCCI']; // mesma lista que AeroportoRepository::BASES/AeroportoController::BASES_VALIDAS - uma base nunca some da lista principal, mesmo sem postoAvancadoDe (ver sincronizarAposAtualizacao())
+  var BASES = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR']; // mesma lista que AeroportoRepository::BASES/AeroportoController::BASES_VALIDAS (bases sazonais, ver README) - uma base nunca some da lista principal, mesmo sem postoAvancadoDe (ver sincronizarAposAtualizacao())
   var AEROPORTOS = (window.KATABATIC_AEROPORTOS || []).slice();
   var TOTAL_CATALOGO = window.KATABATIC_AEROPORTOS_TOTAL || AEROPORTOS.length;
   var BUSCA_URL = window.KATABATIC_AEROPORTOS_BUSCA_URL || '/aeroportos/buscar';
@@ -59,43 +71,66 @@
     return '';
   }
 
-  // So aparece pra quem de fato e posto avancado de alguma base - uma
-  // base (PAFA/SCCI) nunca tem postoAvancadoDe preenchido (nao e posto
-  // avancado de si mesma), entao nunca ganha esse botao - nao tem "posto
-  // avancado" pra remover dela.
-  function removeButtonHtml(a) {
-    if (!a.postoAvancadoDe) return '';
-    return '<button class="btn btn-sm" data-icao="' + a.icao + '" data-posto="" type="button">' + tr('aeroporto.mark.clear', 'Remover') + '</button>';
+  // Select compacto de "posto avancado de" - substitui a pilha de
+  // botoes de texto que essa coluna tinha antes (ver cabecalho do
+  // arquivo). Mostra e edita ao mesmo tempo: a opcao marcada `selected`
+  // e o posto atual, trocar a opcao ja dispara o POST (ver listener de
+  // 'change' mais abaixo). `data-prev` guarda o valor de antes da troca,
+  // pra reverter visualmente se o POST falhar (enviarAtualizacaoPosto()
+  // não sabe desfazer sozinho um <select> - um <button> não precisava
+  // disso, não muda de estado visual sozinho ao clicar).
+  //
+  // Uma base nunca ganha esse controle - ela não pode ser posto avançado
+  // de si mesma nem de outra (mesma regra que `removeButtonHtml()` já
+  // aplicava, só que agora é checada aqui em vez de implícita em
+  // "postoAvancadoDe nunca vem preenchido pra uma base").
+  function isBase(icao) { return BASES.indexOf(icao) !== -1; }
+  function postoControlHtml(a) {
+    if (isBase(a.icao)) return '<span class="sub">—</span>';
+
+    var current = a.postoAvancadoDe || '';
+    var opts = '<option value="">' + tr('aeroporto.posto.none', 'Nenhuma') + '</option>';
+    BASES.forEach(function (b) {
+      opts += '<option value="' + b + '"' + (current === b ? ' selected' : '') + '>' + b + '</option>';
+    });
+    return '<select class="posto-select" data-icao="' + a.icao + '" data-prev="' + current + '" aria-label="' + tr('aeroporto.posto', 'Posto avançado de') + '">' + opts + '</select>';
   }
 
   // Botao "editar heading" compartilhado pela lista principal e pela
   // busca - so um prompt() simples (0-359 ou vazio pra limpar) em vez de
-  // um segundo formulario inteiro, ver headingEditButtonHtml/wiring no
-  // fim do arquivo. `data-heading-icao` (nao `data-icao`, que o resto do
-  // arquivo ja usa pra marcar/remover posto avancado) evita colidir com
-  // o listener delegado de posto avancado nas mesmas tabelas.
+  // um segundo formulario inteiro, ver enviarHeading()/wiring no fim do
+  // arquivo. Virou icone (lapis) em vez de texto - `title`/`aria-label`
+  // carregam o rotulo pra quem passa o mouse/usa leitor de tela.
+  // `data-heading-icao` (nao `data-icao`, que o select de posto avancado
+  // usa) evita colidir com o listener delegado do select nas mesmas
+  // tabelas.
   function headingCellHtml(a) {
     return null == a.pistaPrincipalHeadingMag
       ? '<span class="sub">—</span>'
       : a.pistaPrincipalHeadingMag + '°';
   }
   function headingEditButtonHtml(a) {
-    return '<button class="btn btn-sm" data-heading-icao="' + a.icao + '" type="button">' + tr('aeroporto.heading.edit', 'Definir heading') + '</button>';
+    var label = tr('aeroporto.heading.edit', 'Definir heading');
+    return '<button class="ap-icon-btn" data-heading-icao="' + a.icao + '" type="button" title="' + label + '" aria-label="' + label + '">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+      '</button>';
+  }
+
+  // Coluna de acoes compartilhada pelas duas tabelas - select de posto
+  // avancado (ou traco mudo, se for base) + icone de heading.
+  function actionsCellHtml(a) {
+    return '<div class="ap-row-actions">' + postoControlHtml(a) + headingEditButtonHtml(a) + '</div>';
   }
 
   function airportRow(a) {
-    var postoTag = a.postoAvancadoDe
-      ? '<span class="tag tag-ok">' + a.postoAvancadoDe + '</span>'
-      : '<span class="sub">—</span>';
     return '<tr>' +
       '<td class="mono">' + a.icao + codigoLocalTag(a) + '</td>' +
       '<td>' + a.nome + '</td>' +
       '<td>' + a.cidade + '</td>' +
       '<td class="num mono">' + a.lat.toFixed(4) + '</td>' +
       '<td class="num mono">' + a.lon.toFixed(4) + '</td>' +
-      '<td>' + postoTag + '</td>' +
       '<td class="num mono">' + headingCellHtml(a) + '</td>' +
-      '<td><div class="ap-row-actions">' + removeButtonHtml(a) + headingEditButtonHtml(a) + '</div></td>' +
+      '<td>' + actionsCellHtml(a) + '</td>' +
       '</tr>';
   }
 
@@ -103,7 +138,7 @@
     var body = document.getElementById('ap-body');
     body.innerHTML = AEROPORTOS.length
       ? AEROPORTOS.map(airportRow).join('')
-      : '<tr><td colspan="8" class="empty">' + tr('aeroporto.list.empty', 'Nenhum aeroporto cadastrado ainda.') + '</td></tr>';
+      : '<tr><td colspan="7" class="empty">' + tr('aeroporto.list.empty', 'Nenhum aeroporto cadastrado ainda.') + '</td></tr>';
     document.getElementById('ap-count').textContent = AEROPORTOS.length + ' ' + tr('aeroporto.count.suffix', 'aeroportos');
   }
   renderList();
@@ -119,25 +154,13 @@
   var searchTimer = null;
   var searchSeq = 0; // descarta respostas que chegam fora de ordem (busca rapida, resultado lento de uma tecla anterior)
 
-  function markButtonsHtml(a) {
-    var btns = '';
-    if (a.postoAvancadoDe !== 'PAFA') btns += '<button class="btn btn-sm" data-icao="' + a.icao + '" data-posto="PAFA" type="button">' + tr('aeroporto.mark.pafa', 'Marcar posto de PAFA') + '</button>';
-    if (a.postoAvancadoDe !== 'SCCI') btns += '<button class="btn btn-sm" data-icao="' + a.icao + '" data-posto="SCCI" type="button">' + tr('aeroporto.mark.scci', 'Marcar posto de SCCI') + '</button>';
-    if (a.postoAvancadoDe) btns += '<button class="btn btn-sm" data-icao="' + a.icao + '" data-posto="" type="button">' + tr('aeroporto.mark.clear', 'Remover') + '</button>';
-    return btns;
-  }
-
   function searchRow(a) {
-    var postoTag = a.postoAvancadoDe
-      ? '<span class="tag tag-ok">' + a.postoAvancadoDe + '</span>'
-      : '<span class="sub">—</span>';
     return '<tr data-row-icao="' + a.icao + '">' +
       '<td class="mono">' + a.icao + codigoLocalTag(a) + '</td>' +
       '<td>' + a.nome + '</td>' +
       '<td>' + a.cidade + '</td>' +
-      '<td class="posto-cell">' + postoTag + '</td>' +
       '<td class="num mono">' + headingCellHtml(a) + '</td>' +
-      '<td><div class="ap-row-actions">' + markButtonsHtml(a) + headingEditButtonHtml(a) + '</div></td>' +
+      '<td>' + actionsCellHtml(a) + '</td>' +
       '</tr>';
   }
 
@@ -179,14 +202,17 @@
     });
   }
 
-  // Marcar/remover posto avancado - POST compartilhado entre a busca
-  // (marcar OU remover, ver markButtonsHtml()) e a lista principal (so
-  // remover, ver removeButtonHtml()); os dois delegam o clique no body
-  // da tabela em vez de um listener por linha, porque as duas tabelas
-  // sao reconstruidas inteiras a cada render (renderSearchResults()/
-  // renderList()) e um listener por linha se perderia a cada uma.
-  function enviarAtualizacaoPosto(icao, novoPosto, botoesSelector, aoConcluir) {
-    document.querySelectorAll(botoesSelector).forEach(function (b) { b.disabled = true; });
+  // Marcar/remover posto avancado - POST compartilhado entre a busca e a
+  // lista principal (mesmo <select>, ver postoControlHtml()); os dois
+  // delegam o evento no body da tabela em vez de um listener por linha,
+  // porque as duas tabelas sao reconstruidas inteiras a cada render
+  // (renderSearchResults()/renderList()) e um listener por linha se
+  // perderia a cada uma. `aoErro`, se passado, roda além do banner de
+  // erro padrão - usado pelo <select> pra voltar visualmente ao valor
+  // anterior quando o POST falha (um <button> não precisava disso, não
+  // muda de estado visual sozinho ao clicar).
+  function enviarAtualizacaoPosto(icao, novoPosto, elementosSelector, aoConcluir, aoErro) {
+    document.querySelectorAll(elementosSelector).forEach(function (b) { b.disabled = true; });
 
     fetch('/aeroportos/' + encodeURIComponent(icao) + '/posto-avancado', {
       method: 'POST',
@@ -196,7 +222,8 @@
       .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
       .then(function (result) {
         if (!result.ok) {
-          document.querySelectorAll(botoesSelector).forEach(function (b) { b.disabled = false; });
+          document.querySelectorAll(elementosSelector).forEach(function (b) { b.disabled = false; });
+          if (aoErro) aoErro();
           showError((result.body && result.body.error) || tr('aeroporto.mark.error', 'Não foi possível atualizar — tente de novo.'));
           return;
         }
@@ -204,9 +231,26 @@
         aoConcluir(result.body);
       })
       .catch(function () {
-        document.querySelectorAll(botoesSelector).forEach(function (b) { b.disabled = false; });
+        document.querySelectorAll(elementosSelector).forEach(function (b) { b.disabled = false; });
+        if (aoErro) aoErro();
         showError(tr('aeroporto.mark.error', 'Não foi possível atualizar — verifique sua conexão e tente de novo.'));
       });
+  }
+
+  // Disparado pelo 'change' do <select> de posto avancado, nas duas
+  // tabelas (ver listeners logo abaixo). `sel.dataset.prev` guarda o
+  // valor de antes da troca (gravado por postoControlHtml() a cada
+  // render) - se o POST falhar, volta o <select> pra ele.
+  function onPostoSelectChange(sel, escopoSelector) {
+    var icao = sel.dataset.icao;
+    var novoPosto = sel.value || null;
+    var prev = sel.dataset.prev;
+    enviarAtualizacaoPosto(
+      icao, novoPosto,
+      escopoSelector + ' [data-icao="' + icao + '"]',
+      sincronizarAposAtualizacao,
+      function () { sel.value = prev; }
+    );
   }
 
   // Mantem lista principal + busca em sincronia depois de qualquer
@@ -230,18 +274,18 @@
   }
 
   if (searchBody) {
-    searchBody.addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-icao]');
-      if (!btn) return;
-      enviarAtualizacaoPosto(btn.dataset.icao, btn.dataset.posto || null, '#ap-search-body button[data-icao="' + btn.dataset.icao + '"]', sincronizarAposAtualizacao);
+    searchBody.addEventListener('change', function (e) {
+      var sel = e.target.closest('select[data-icao]');
+      if (!sel) return;
+      onPostoSelectChange(sel, '#ap-search-body');
     });
   }
 
   var listBody = document.getElementById('ap-body');
-  listBody.addEventListener('click', function (e) {
-    var btn = e.target.closest('button[data-icao]');
-    if (!btn) return;
-    enviarAtualizacaoPosto(btn.dataset.icao, null, '#ap-body button[data-icao="' + btn.dataset.icao + '"]', sincronizarAposAtualizacao);
+  listBody.addEventListener('change', function (e) {
+    var sel = e.target.closest('select[data-icao]');
+    if (!sel) return;
+    onPostoSelectChange(sel, '#ap-body');
   });
 
   /* ---------- editar heading da pista principal ---------- */

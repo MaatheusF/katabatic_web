@@ -52,6 +52,20 @@ class ManuaisController extends AbstractController
         ]);
     }
 
+    #[Route('/manuais/ficha-de-voo', name: 'app_manual_ficha_voo', methods: ['GET'])]
+    public function fichaDeVoo(Request $request): Response
+    {
+        $pilot = $request->getSession()->get('pilot');
+        if (null === $pilot) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        return $this->render('manuais/ficha_de_voo.html.twig', [
+            'activeView' => 'manuais',
+            'pilot' => $pilot,
+        ]);
+    }
+
     /**
      * `key` identifica o card pra tradução: o template usa
      * `data-i18n="manuais.card.{{ m.key }}.title"` (idem tag/blurb) pra
@@ -65,6 +79,7 @@ class ManuaisController extends AbstractController
     {
         return [
             ['key' => 'fraseologia', 'route' => 'app_manual_fraseologia', 'title' => 'Fraseologia VATSIM', 'tag' => 'Comunicação', 'blurb' => 'Comunicações padrão UNICOM em inglês, por etapa do voo — do radio check ao pouso.', 'ready' => true],
+            ['key' => 'ficha_voo', 'route' => 'app_manual_ficha_voo', 'title' => 'Ficha de voo (kneeboard)', 'tag' => 'Apoio de voo', 'blurb' => 'PDF pra imprimir (3 voos por folha) ou planilha editável, pra anotar dados durante o voo.', 'ready' => true],
             ['key' => 'emergencia', 'route' => null, 'title' => 'Procedimentos de emergência', 'tag' => 'Segurança', 'blurb' => 'Checklists e fraseologia pra pane de motor, pouso forçado e chamadas de Mayday/Pan-Pan.', 'ready' => false],
             ['key' => 'meteorologia', 'route' => null, 'title' => 'Meteorologia polar', 'tag' => 'Meteorologia', 'blurb' => 'Como ler METAR/TAF e reconhecer riscos específicos do Ártico e da Patagônia.', 'ready' => false],
             ['key' => 'pistas', 'route' => null, 'title' => 'Operação em pistas não pavimentadas', 'tag' => 'Técnica de voo', 'blurb' => 'Pouso e decolagem em cascalho, neve compactada e pistas curtas das estações avançadas.', 'ready' => false],

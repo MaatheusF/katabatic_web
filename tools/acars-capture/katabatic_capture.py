@@ -26,6 +26,27 @@ nada disso existe aqui). Serve para tres fins:
                --destino/--pilot-cid, se comporta exatamente como antes (so
                grava local, sem nenhum POST).
 
+  3. --rebuild Reconstroi upload_payload.json de uma gravacao existente, a
+               partir de samples.csv/env.csv/events.csv - sem precisar do
+               simulador aberto. Existe pra quando --record e encerrado sem
+               Ctrl+C (queda de energia, crash do simulador, PC travou): os
+               tres CSVs ficam gravados no disco (flush frequente, ver
+               Recorder), mas session.json/upload_payload.json nunca sao
+               escritos (isso so acontece em Recorder.close(), chamado no
+               fim normal do loop). "PASTA" e a pasta da gravacao (ex.:
+               voos/20260823_141500_KBT118). callsign/matricula sao
+               recuperados do evento "session_start" (primeira linha de
+               events.csv) quando existir; pilot_cid/tipo/origem/destino
+               continuam so por CLI (nunca ficam gravados em CSV nenhum) e
+               sao opcionais - uma gravacao sem eles fica com esses campos
+               vazios no upload_payload.json, exatamente como uma gravacao
+               feita sem --tipo/--origem/--destino em --record, e da pra
+               preencher depois na hora de importar pelo site (ver
+               NovoVooController, "Backend: importacao de telemetria via
+               upload"). Nao faz upload sozinho por padrao - so escreve o
+               arquivo (mesma "rede de seguranca" de sempre); passe
+               --server/--token junto se quiser mandar direto.
+
 Requisitos (na maquina que roda o simulador):
     python -m pip install SimConnect
     MSFS 2024 aberto e ja dentro do voo (nao no menu).
@@ -41,6 +62,10 @@ Uso:
     python katabatic_capture.py --record --callsign KBT118 \\
         --pilot-cid 1234567 --tipo carga --origem PAFA --destino PABT \\
         --server http://localhost:8080
+
+    # gravacao que caiu sem Ctrl+C (queda de energia, crash) - reconstroi
+    # upload_payload.json a partir do que ja esta em disco:
+    python katabatic_capture.py --rebuild voos/20260823_141500_KBT118
 
 Encerre a gravacao com Ctrl+C. Um Ctrl+C fecha os arquivos direito, para o
 heartbeat de posicao e tenta o envio de fechamento (se configurado).
@@ -108,7 +133,7 @@ GROUP_B = [
     ("acc_z", b"ACCELERATION BODY Z", b"feet per second squared"),
 ]
 
-# Grupo C - ambiente, 0.1 Hz. E aqui que moram as duvidas do SDK 2024.
+# Grupo C - ambiente, 0.1 Hz.
 GROUP_C = [
     ("oat_c", b"AMBIENT TEMPERATURE", b"celsius"),
     ("tat_c", b"TOTAL AIR TEMPERATURE", b"celsius"),
@@ -120,7 +145,18 @@ GROUP_C = [
     ("precip_rate", b"AMBIENT PRECIP RATE", b"millimeters of water"),
     ("in_cloud", b"AMBIENT IN CLOUD", b"bool"),
     ("air_density", b"AMBIENT DENSITY", b"slugs per cubic feet"),
-    ("ice_pct", b"STRUCTURAL ICE PCT", b"percent over 100"),
+    # Corrigido: pedir em "percent over 100" faz o SimConnect devolver a
+    # FRACAO 0.0-1.0 (1.0 = totalmente gelado) - e o resto do app
+    # (limiar de 1.0 pro evento icing_onset, peso *4 no indice de
+    # dificuldade, exibicao "X.XX %" em voo.js) sempre assumiu que o
+    # valor gravado ja era 0-100 direto. Resultado: todo voo gravado
+    # antes desta linha reportou o gelo estrutural ~100x menor do que
+    # o simulador realmente modelou. Unidade oficial confirmada em
+    # docs.flightsimulator.com/html/Programming_Tools/SimVars/Simulation_Variable_Units.htm
+    # ("Percent Over 100": 0.0-1.0; "Percent": 0-100) - pedir direto em
+    # "percent" corrige na fonte, sem precisar mexer em mais nada. Ver
+    # docs/payload-telemetria-acars.md, secao 8.
+    ("ice_pct", b"STRUCTURAL ICE PCT", b"percent"),
     ("surface_type", b"SURFACE TYPE", b"enum"),
     ("surface_cond", b"SURFACE CONDITION", b"enum"),
     ("fuel_lb", b"FUEL TOTAL QUANTITY WEIGHT", b"pounds"),
@@ -138,6 +174,16 @@ GROUP_D = [
     ("stall_warning", b"STALL WARNING", b"bool"),
     ("overspeed", b"OVERSPEED WARNING", b"bool"),
     ("crash", b"CRASH FLAG", b"enum"),
+    # Novo: liga/desliga do anti-ice, viram "state_deice_estrutural" /
+    # "state_deice_parabrisa" de graça (check_state() abaixo trata
+    # qualquer campo deste grupo genericamente) - ver
+    # App\Service\TelemetryDeriver::STATE_FIELD_LABELS pro rotulo em
+    # PT/voo.js. Direto do pedido do piloto: gelo grudou no para-brisa,
+    # precisou ligar anti-ice, e isso nao ficava registrado em lugar
+    # nenhum antes (so o STRUCTURAL ICE PCT, que mede acumulo na
+    # estrutura, nao a decisao do piloto de ligar o sistema).
+    ("deice_estrutural", b"STRUCTURAL DEICE SWITCH", b"bool"),
+    ("deice_parabrisa", b"WINDSHIELD DEICE SWITCH", b"bool"),
 ]
 
 # Grupo E - integridade
@@ -273,7 +319,9 @@ def do_probe(reader):
     print("\nAinda por verificar em voo, mesmo entre as que responderam:")
     print("  vis_m        em ceu claro marca ~135100 m (teto do sim). Confirme o piso com nevoeiro.")
     print("  precip_rate  compare o valor entre 'clear' e 'heavy rain' antes de confiar nele.")
-    print("  ice_pct      sobe de fato em condicao de gelo?")
+    print("  deice_*      novos (STRUCTURAL/WINDSHIELD DEICE SWITCH) - confirme que ligar")
+    print("               o anti-ice em voo realmente vira 'state_deice_estrutural'/")
+    print("               'state_deice_parabrisa' no console.")
     print("  pitch/bank   sinal invertido: nariz em cima da negativo. Normalize no servidor.")
     print("  surface_type 0=concreto 1=grama 2=agua 4=asfalto 8=neve 9=gelo 12=terra 14=cascalho 21=areia")
     print("  surface_cond 0=normal 1=molhada 2=gelo 3=neve")
@@ -730,6 +778,190 @@ TIPO_LABELS = {
 }
 
 
+# --------------------------------------------------------------------------
+# Modo rebuild - reconstroi upload_payload.json de uma gravacao existente
+# --------------------------------------------------------------------------
+
+# Campos que sao booleanos de verdade nos CSVs (todo o resto que nao for "t"
+# vira numero quando der - ver valor_tipado()). Csv nao tem tipos: True/False
+# viram o texto literal "True"/"False" na escrita (ver Recorder/rnd()), entao
+# precisam de tratamento explicito na leitura - se cair no ramo numerico
+# generico por engano, o valor vira string e o backend em PHP faz um cast
+# (bool) errado nele (qualquer string nao-vazia diferente de "0" vira `true`).
+CSV_BOOL_FIELDS = {"on_ground", "slew", "in_cloud"}
+
+
+def parse_iso(texto):
+    """Inverso de now_iso() - aceita o "Z" que now_iso() sempre grava."""
+    if texto.endswith("Z"):
+        texto = texto[:-1] + "+00:00"
+    return datetime.fromisoformat(texto)
+
+
+def format_iso(dt):
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def valor_tipado(campo, bruto):
+    """Devolve o tipo Python que o campo tinha antes de virar texto no CSV.
+
+    "t" fica string (e um timestamp ISO, nao um numero). Campos em
+    CSV_BOOL_FIELDS viram bool de verdade. O resto tenta virar numero (int
+    quando o texto nao tem ponto/expoente, float caso contrario) e, se nao
+    for numerico, fica como veio (defensivo - nao deveria acontecer com os
+    CSVs que o proprio script grava).
+    """
+    if bruto is None or bruto == "":
+        return None
+    if campo == "t":
+        return bruto
+    if campo in CSV_BOOL_FIELDS:
+        return bruto.strip().lower() in ("true", "1", "1.0", "yes")
+    try:
+        if "." in bruto or "e" in bruto.lower():
+            return float(bruto)
+        return int(bruto)
+    except ValueError:
+        return bruto
+
+
+def ler_csv_tipado(caminho):
+    """Le samples.csv/env.csv de volta pra lista de dicts tipados - mesmo
+    formato que Recorder.samples_list/env_list tinham em memoria durante a
+    gravacao original (ver upload_capture() em do_record())."""
+    linhas = []
+    with open(caminho, newline="", encoding="utf-8") as arquivo:
+        leitor = csv.DictReader(arquivo)
+        for row in leitor:
+            linhas.append({campo: valor_tipado(campo, bruto) for campo, bruto in row.items()})
+    return linhas
+
+
+def ler_eventos(caminho):
+    """Le events.csv de volta - a diferenca pra ler_csv_tipado() e a coluna
+    "data", que foi gravada como JSON serializado dentro do CSV
+    (Recorder.event()) e aqui volta a ser um dict de verdade, igual
+    Recorder.events_list tinha em memoria."""
+    linhas = []
+    with open(caminho, newline="", encoding="utf-8") as arquivo:
+        leitor = csv.DictReader(arquivo)
+        for row in leitor:
+            try:
+                data = json.loads(row.get("data") or "{}")
+            except ValueError:
+                data = {}
+            linhas.append({
+                "t": row.get("t"),
+                "type": row.get("type"),
+                "lat": valor_tipado("lat", row.get("lat")),
+                "lon": valor_tipado("lon", row.get("lon")),
+                "alt_ft": valor_tipado("alt_ft", row.get("alt_ft")),
+                "data": data,
+            })
+    return linhas
+
+
+def rebuild_payload(pasta, args):
+    """Reconstroi upload_payload.json de uma pasta de gravacao existente,
+    sem tocar no simulador - ver docstring do modulo, item 3, pro porque
+    disso existir (gravacao interrompida sem Ctrl+C)."""
+    pasta = os.path.normpath(pasta)
+    if not os.path.isdir(pasta):
+        print("Pasta nao encontrada: %s" % pasta)
+        sys.exit(1)
+
+    caminho_samples = os.path.join(pasta, "samples.csv")
+    caminho_env = os.path.join(pasta, "env.csv")
+    caminho_events = os.path.join(pasta, "events.csv")
+    caminho_payload = os.path.join(pasta, "upload_payload.json")
+
+    if os.path.exists(caminho_payload) and not args.force:
+        print("Ja existe upload_payload.json em %s - use --force pra sobrescrever." % pasta)
+        sys.exit(1)
+
+    if not os.path.exists(caminho_samples):
+        print("Nao achei samples.csv em %s - nada pra reconstruir." % pasta)
+        sys.exit(1)
+
+    samples_list = ler_csv_tipado(caminho_samples)
+    if not samples_list:
+        print("samples.csv esta vazio - nada pra reconstruir (a gravacao deve ter caido antes do primeiro flush).")
+        sys.exit(1)
+
+    env_list = ler_csv_tipado(caminho_env) if os.path.exists(caminho_env) else []
+    events_list = ler_eventos(caminho_events) if os.path.exists(caminho_events) else []
+
+    # ident/callsign moram dentro do evento "session_start" (primeira linha
+    # de events.csv, gravada logo no inicio de do_record()) - e o unico
+    # lugar onde esses dois sobrevivem fora do session.json que nunca chegou
+    # a ser escrito (ver docstring do modulo).
+    todos_t = [r["t"] for r in (samples_list + env_list + events_list) if r.get("t")]
+
+    ident = {}
+    callsign_do_arquivo = None
+    if events_list and events_list[0].get("type") == "session_start":
+        dados_inicio = events_list[0].get("data") or {}
+        ident = dados_inicio.get("ident") or {}
+        callsign_do_arquivo = dados_inicio.get("callsign")
+        started_dt = parse_iso(events_list[0]["t"])
+    else:
+        print("Aviso: sem evento 'session_start' utilizavel em events.csv - matricula/callsign nao recuperados automaticamente.")
+        if todos_t:
+            started_dt = min(parse_iso(t) for t in todos_t)
+        else:
+            casa_com_stamp = re.match(r"(\d{8}_\d{6})", os.path.basename(pasta))
+            if not casa_com_stamp:
+                print("Nao consegui descobrir o horario de inicio (sem timestamp utilizavel em nenhum CSV nem no nome da pasta).")
+                sys.exit(1)
+            started_dt = datetime.strptime(casa_com_stamp.group(1), "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+            print("Aviso: horario de inicio estimado pelo nome da pasta (pode estar alguns segundos adiantado do inicio real).")
+
+    ended_dt = max([parse_iso(t) for t in todos_t] + [started_dt])
+    duration_s = max(0, int((ended_dt - started_dt).total_seconds()))
+
+    tail = (ident.get("tail_number") or "").strip()
+    callsign = args.callsign or callsign_do_arquivo or ""
+    if not tail:
+        print("Aviso: matricula (ATC ID) nao recuperada - selecione a aeronave manualmente na hora de importar pelo site.")
+    if not callsign:
+        print("Aviso: callsign nao recuperado - informe com --callsign ou preencha na hora de importar.")
+
+    codigo = os.path.basename(pasta.rstrip("/\\"))
+
+    payload = {
+        "schema": "kb-raw-1",
+        "codigo": codigo,
+        "pilot_cid": args.pilot_cid,
+        "callsign": callsign,
+        "tipo_operacao": TIPO_LABELS.get((args.tipo or "").lower(), ""),
+        "origem": (args.origem or "").upper(),
+        "destino": (args.destino or "").upper(),
+        "aeronave_reg": tail,
+        "ident": ident,
+        "started_at": format_iso(started_dt),
+        "ended_at": format_iso(ended_dt),
+        "duration_s": duration_s,
+        "samples": samples_list,
+        "env": env_list,
+        "events": events_list,
+    }
+
+    with open(caminho_payload, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+
+    print("\nReconstruido: %s" % caminho_payload)
+    print("%d amostras, %d leituras de ambiente, %d eventos, %d min de voo." % (
+        len(samples_list), len(env_list), len(events_list), duration_s // 60))
+    print("Importe esse arquivo em /novo-voo (modo 'Importar telemetria') pra publicar o voo.")
+
+    if args.server:
+        token = args.token or os.environ.get("KATABATIC_ACARS_TOKEN", "")
+        if not token:
+            print("\n--server informado mas sem token (--token ou KATABATIC_ACARS_TOKEN) - so o arquivo local foi gerado.")
+        else:
+            upload_capture(payload, args.server, token, caminho_payload)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Katabatic - captura de SimVars do MSFS 2024")
     parser.add_argument("--probe", action="store_true", help="le cada variavel uma vez e relata disponibilidade")
@@ -746,7 +978,19 @@ def main():
                          help="token do ACARS (senao, le da variavel de ambiente KATABATIC_ACARS_TOKEN)")
     parser.add_argument("--pos-interval", type=float, default=12.0,
                          help="segundos entre POSTs de posicao pro Mapa ao vivo (padrao: 12; 0 desliga o heartbeat sem desligar o fechamento)")
+    parser.add_argument("--rebuild", metavar="PASTA", default="",
+                         help="reconstroi upload_payload.json de uma gravacao existente (a partir de "
+                              "samples.csv/env.csv/events.csv), sem precisar do simulador - ver "
+                              "docstring do modulo, item 3. Aceita --callsign/--pilot-cid/--tipo/"
+                              "--origem/--destino junto, todos opcionais; --server/--token tambem, "
+                              "se quiser mandar pro backend na hora em vez de so gerar o arquivo")
+    parser.add_argument("--force", action="store_true",
+                         help="com --rebuild, sobrescreve upload_payload.json se ja existir na pasta")
     args = parser.parse_args()
+
+    if args.rebuild:
+        rebuild_payload(args.rebuild, args)
+        return
 
     if not args.probe and not args.record:
         parser.print_help()

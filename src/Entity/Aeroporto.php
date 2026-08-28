@@ -27,11 +27,36 @@ use Doctrine\ORM\Mapping as ORM;
  * diversão).
  *
  * `postoAvancadoDe` é só rótulo/organização — um aeroporto marcado como
- * posto avançado de PAFA ou SCCI aparece com essa nota nos popups do
- * mapa (ver `aeronave.js`/`mapa-ao-vivo.js`), mas **não** libera essa
- * pista como opção de base ao cadastrar aeronave
- * (`NovaAeronaveController::BASES_VALIDAS` continua fixo em PAFA/SCCI de
- * propósito — decisão tomada em conversa, ver README).
+ * posto avançado de uma base aparece com essa nota nos popups do mapa
+ * (ver `aeronave.js`/`mapa-ao-vivo.js`), mas **não** libera essa pista
+ * como opção de base ao cadastrar aeronave
+ * (`NovaAeronaveController::BASES_VALIDAS` continua uma whitelist fixa
+ * de propósito — decisão tomada em conversa, ver README).
+ *
+ * **Atualizado: bases sazonais.** A whitelist cresceu de 2 pra 6 —
+ * PAFA (Fairbanks, Alasca) e SCCI (Punta Arenas, Chile) continuam as
+ * originais; SLLP (La Paz/El Alto, Bolívia), VNKT (Tribhuvan Intl.,
+ * Catmandu, Nepal), WAJW (Wamena, Nova Guiné) e VQPR (Paro, Butão)
+ * entraram como bases principais novas, locais extremos de propósito
+ * (altitude, relevo, aproximação sem instrumento) — ver
+ * `app:importar-bases-sazonais` e README, "Bases sazonais". "Sazonal"
+ * aqui é só tema/identidade (o pedido original falava em bases sazonais
+ * de verdade, com janela de calendário — decisão tomada em conversa:
+ * ficou só a ambientação extrema por enquanto, sem nenhuma trava de
+ * agendamento por mês/época do ano).
+ *
+ * **Correção: a base do Nepal é Catmandu, não Lukla.** A primeira
+ * versão desta fatia usava VNLK (Tenzing-Hillary, Lukla) como base —
+ * errado, decisão corrigida em conversa: Lukla é uma pista de mão única
+ * em rampa, sem infraestrutura pra basear frota, é sempre destino,
+ * nunca origem, na aviação real. VNKT (aeroporto internacional de
+ * Catmandu) é o hub de verdade; VNLK virou posto avançado dela, junto
+ * de mais duas pistas de altitude do Nepal (Jomsom/VNJS, Pokhara/VNPR).
+ * Cada uma das quatro bases novas ganhou 3 postos avançados assim,
+ * reais da própria região (ver `app:importar-bases-sazonais`). BGSF
+ * (Kangerlussuaq, Groenlândia) continua um posto avançado isolado de
+ * PAFA (`postoAvancadoDe = 'PAFA'`), não uma base nova — mesma regra de
+ * sempre: virar posto avançado não muda a whitelist.
  *
  * lat/lon são `float` simples, não geography/PostGIS — mesmo padrão que
  * `App\Entity\PosicaoAoVivo` já usa pra coordenada em tempo real; o
@@ -82,10 +107,10 @@ class Aeroporto
     private float $lon;
 
     /**
-     * 'PAFA' / 'SCCI' quando este aeroporto é um posto avançado de uma
-     * das duas bases, `null` quando não tem essa associação (a maioria
-     * — incluindo as próprias PAFA/SCCI, que não são posto avançado de
-     * si mesmas). Só rótulo/organização, ver docblock da classe.
+     * ICAO de uma das seis bases quando este aeroporto é um posto
+     * avançado dela, `null` quando não tem essa associação (a maioria —
+     * incluindo as próprias bases, que não são posto avançado de si
+     * mesmas). Só rótulo/organização, ver docblock da classe.
      */
     #[ORM\Column(length: 8, nullable: true)]
     private ?string $postoAvancadoDe = null;

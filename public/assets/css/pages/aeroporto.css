@@ -8,7 +8,21 @@
 
 .bar { z-index: 600; }
 
-.wrap { max-width: 980px; margin: 0 auto; padding: 28px 28px 60px; }
+/* Layout em duas colunas (pedido em conversa): "Novo aeroporto" fica
+   numa coluna estreita e fixa (`.ap-col-form`, `position: sticky` -
+   acompanha o scroll, já que ela é bem mais curta que a lista ao lado),
+   e busca + "Bases e postos avançados" ocupam o resto da largura
+   disponível (`.ap-col-list`) - antes tudo empilhava numa coluna só,
+   travada em 980px mesmo em tela larga, deixando a lista (que é quem
+   mais se beneficia de espaço - mais colunas, menos scroll horizontal)
+   espremida do mesmo jeito que o formulário. `.wrap` cresceu de 980px
+   pra 1600px de propósito, senão a coluna da lista não ganha nada de
+   verdade. `top: 82px` no sticky = altura da `.bar` (62px, ver
+   app-shell.css) + 20px de respiro, pra não colar nela ao rolar. */
+.wrap { max-width: 1600px; margin: 0 auto; padding: 28px 28px 60px; }
+.ap-layout { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 24px; align-items: start; }
+.ap-col-form { position: sticky; top: 82px; }
+.ap-col-list { min-width: 0; } /* min-width:0 evita a coluna empurrar o grid mais largo que o wrap quando a tabela tenta não quebrar linha (Heading, coordenadas etc.) */
 
 .ap-error { margin-bottom: 18px; padding: 11px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); font-size: 13px; }
 
@@ -28,7 +42,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .card-b { padding: 20px; }
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid3 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px; }
 .field { margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 
@@ -41,9 +54,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .unit-row input { border-radius: 7px 0 0 7px; }
 .unit-row .unit { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border); border-left: 0; border-radius: 0 7px 7px 0; background: var(--surface-2); font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
 
-.footer-actions { display: flex; align-items: center; gap: 16px; padding: 4px 0 20px; flex-wrap: wrap; }
-.footer-actions .hint { font-size: 12px; color: var(--muted); flex: 1 1 380px; }
-.footer-actions .right { margin-left: auto; }
+/* Empilhado (não lado a lado como a maioria das outras telas) porque
+   `.footer-actions` agora vive dentro da coluna estreita do formulário
+   (`.ap-col-form`, ~380px) - dica + botão um do lado do outro não
+   cabiam mais depois do layout em duas colunas. */
+.footer-actions { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 16px 0 0; }
+.footer-actions .hint { margin-top: 0; }
+.footer-actions .btn { width: 100%; justify-content: center; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
 /* ---------- busca no catalogo global (ver ap-search-card) ----------
@@ -52,9 +69,28 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
    "Aeroportos cadastrados" virou "Bases e postos avancados" (pequeno,
    estavel) e esta busca e como um admin alcanca qualquer outro ICAO do
    catalogo grande pra marca-lo como posto avancado. `.ap-row-actions`
-   tambem estiliza a coluna "Remover" da lista principal logo abaixo
-   (ver #ap-body em aeroporto.js) - mesma UI de acoes nos dois lugares. */
-.ap-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+   tambem estiliza a mesma coluna de acoes da lista principal logo
+   abaixo (ver #ap-body/actionsCellHtml() em aeroporto.js) - mesma UI
+   nos dois lugares. */
+.ap-actions-th { text-align: right; }
+.ap-row-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; white-space: nowrap; }
+
+/* Select compacto de "posto avançado de" (ver postoControlHtml() em
+   aeroporto.js) - substitui a pilha de botões de texto que a coluna de
+   ações tinha antes. `select`/`input` acima já tem `width:100%` (pro
+   formulário) - sobrescrito aqui pra ficar do tamanho do próprio texto,
+   já que este select vive numa célula de tabela, não numa coluna de
+   formulário inteira. */
+.posto-select { width: auto; min-width: 92px; padding: 6px 8px; font-family: var(--font-mono); font-size: 12px; border-radius: 6px; }
+.posto-select:disabled { opacity: .5; cursor: default; }
+
+/* Ícone de ação (editar heading) - mesma linguagem visual do .icon-btn
+   global (app-shell.css), só menor pra caber numa linha de tabela sem
+   esticar a altura da linha. */
+.ap-icon-btn { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+.ap-icon-btn:hover { color: var(--text); border-color: var(--accent); }
+.ap-icon-btn:disabled { opacity: .5; cursor: default; }
+.ap-icon-btn svg { width: 14px; height: 14px; }
 
 /* ---------- lista ---------- */
 .ap-list-card { padding: 0; }
@@ -72,7 +108,15 @@ td.num, th.num { text-align: right; }
 /* Código local/FAA sem ICAO oficial (pistas de bush flying nas regiões de missão, ver README) - discreto de propósito, não é um erro nem uma base. */
 .tag-local { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-size: 9px; margin-left: 4px; }
 
+/* Abaixo disso o formulário (sticky, ~380px) mais a lista já não sobra
+   largura útil nenhuma pra lista - empilha em uma coluna só, formulário
+   primeiro, mesma ordem visual de antes do layout em duas colunas. */
+@media (max-width: 1100px) {
+  .ap-layout { grid-template-columns: 1fr; }
+  .ap-col-form { position: static; }
+}
+
 @media (max-width: 900px) {
   .wrap { padding: 18px 16px 60px; }
-  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
 }

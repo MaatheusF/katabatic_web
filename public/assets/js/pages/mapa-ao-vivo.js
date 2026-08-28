@@ -150,22 +150,41 @@
   }
 
   /* ---------- construção dos marcadores ---------- */
+  // `a`/`b` (aeroportos de origem/destino resolvidos no catálogo) só
+  // existem pra desenhar o arco tracejado e pra simular posição quando
+  // NÃO há ping real (`updateFlyingSimulated()`) - uma aeronave `live`
+  // não depende deles pra aparecer: a posição real (`fa.lat`/`fa.lon`,
+  // do ACARS) já é suficiente. Antes disto, um voo `live: true` entre
+  // aeroportos fora do catálogo (ex.: reposicionamento pra fora da rede
+  // Katabatic/PAFA/SCCI, como CYQH→CYXY) sumia inteiro do mapa mesmo
+  // com posição real chegando certinho - `if (!a || !b) return null`
+  // matava a aeronave toda por causa de um dado que só a simulação
+  // precisa. Aeronave sem ping E sem os dois aeroportos no catálogo
+  // continua sem aparecer (não tem nem posição real nem arco pra
+  // simular - nada pra mostrar mesmo).
   function buildFlying() {
     FLYING = FLYING_RAW.map(function (fa) {
-      var a = AIRPORTS[fa.origem], b = AIRPORTS[fa.destino];
-      if (!a || !b) return null;
-      var aLL = [a.lat, a.lon], bLL = [b.lat, b.lon];
-      var ctrl = curveCtrl(aLL, bLL, curveBend(aLL, bLL));
-      L.polyline(curvePoints(aLL, bLL, ctrl, 32), { color: 'var(--accent)', weight: 1.6, opacity: .55, dashArray: '2 7' }).addTo(MLAYER);
+      var apOrig = AIRPORTS[fa.origem], apDest = AIRPORTS[fa.destino];
+      var hasArc = !!(apOrig && apDest);
+      var hasLivePos = fa.live && typeof fa.lat === 'number' && typeof fa.lon === 'number';
+      if (!hasArc && !hasLivePos) return null;
 
-      var marker = L.marker(aLL, {
+      var aLL = hasArc ? [apOrig.lat, apOrig.lon] : null;
+      var bLL = hasArc ? [apDest.lat, apDest.lon] : null;
+      var ctrl = hasArc ? curveCtrl(aLL, bLL, curveBend(aLL, bLL)) : null;
+      if (hasArc) {
+        L.polyline(curvePoints(aLL, bLL, ctrl, 32), { color: 'var(--accent)', weight: 1.6, opacity: .55, dashArray: '2 7' }).addTo(MLAYER);
+      }
+
+      var initialLL = hasLivePos ? [fa.lat, fa.lon] : aLL;
+      var marker = L.marker(initialLL, {
         icon: L.divIcon({ className: '', html: flyingMarkerHtml(fa), iconSize: [130, 26], iconAnchor: [13, 13] }),
         zIndexOffset: 600
       }).addTo(MLAYER);
 
       var rec = FLIGHTS_BY_ID[fa.flightId] || null;
       var obj = {
-        data: fa, F: rec, a: aLL, b: bLL, ctrl: ctrl, marker: marker,
+        data: fa, F: rec, a: aLL, b: bLL, ctrl: ctrl, hasArc: hasArc, marker: marker,
         lastAlt: fa.live ? fa.altFt : null, lastIas: fa.live ? fa.iasKt : null, lastGs: fa.live ? fa.gsKt : null,
         // Posição real (ver applyLivePositions/updateFlying) - já
         // preenchida desde o load se a carga inicial já veio com
@@ -174,12 +193,12 @@
         // certa.
         livePrev: null, liveCurr: null, lastHdg: null
       };
-      if (fa.live && typeof fa.lat === 'number' && typeof fa.lon === 'number') {
+      if (hasLivePos) {
         var ponto = { lat: fa.lat, lon: fa.lon, hdg: (typeof fa.hdgTrue === 'number' ? fa.hdgTrue : null), ts: Date.now() };
         obj.livePrev = ponto;
         obj.liveCurr = ponto;
       }
-      marker.on('click', function () { focusOn(aLL); marker.bindPopup(flyingPopup(obj)).openPopup(); });
+      marker.on('click', function () { focusOn(initialLL); marker.bindPopup(flyingPopup(obj)).openPopup(); });
       return obj;
     }).filter(Boolean);
   }
@@ -209,7 +228,13 @@
 
     Object.keys(AIRPORTS).forEach(function (icao) {
       var ap = AIRPORTS[icao];
-      var dot = L.circleMarker([ap.lat, ap.lon], { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 }).addTo(MLAYER);
+      // ap.isBase vem do catalogo (AeroportoRepository::catalogoArrayFor())
+      // - as seis bases principais da rede ganham uma bolinha maior que
+      // postos avancados/outros aeroportos (pedido do piloto; mesmo
+      // tratamento em aeronave.js pro mapa de historico da frota).
+      var dot = L.circleMarker([ap.lat, ap.lon], ap.isBase
+        ? { radius: 7, color: '#fff', weight: 2, fillColor: '#2C7CA5', fillOpacity: .9 }
+        : { radius: 4, color: '#fff', weight: 1.5, fillColor: '#2C7CA5', fillOpacity: .85 }).addTo(MLAYER);
       dot.on('click', function () { dot.bindPopup(airportPopup(icao)).openPopup(); });
       AIRPORT_MARKERS[icao] = { dot: dot, badge: null };
       if (active[icao]) {
@@ -522,7 +547,12 @@
   function updateFlying(now) {
     FLYING.forEach(function (fa) {
       if (isLiveFresh(fa)) updateFlyingLive(fa, now);
-      else updateFlyingSimulated(fa, now);
+      else if (fa.hasArc) updateFlyingSimulated(fa, now);
+      // Sem ping fresco E sem os dois aeroportos no catálogo pra simular
+      // (ver comentário de buildFlying()): não dá pra mover o marcador
+      // de nenhum jeito - fica parado na última posição real conhecida
+      // em vez de quebrar tentando usar `fa.a`/`fa.b`/`fa.ctrl` nulos.
+      else updateSideMetric(fa);
     });
   }
 
@@ -574,7 +604,13 @@
   /* ---------- mapa ---------- */
   function initMap() {
     if (!window.L) { document.getElementById('mv-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--font-mono);font-size:12px">' + tr('mapavivo.map.unavailable', 'Mapa indisponível') + '</p>'; return; }
-    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
+    // CARTO passou a exigir API key ate pro tile gratuito - sem isso
+    // desenha uma marca d'agua "API KEY REQUIRED" por cima do mapa (ver
+    // MapaAoVivoController::index()/README). window.KATABATIC_CARTO_API_KEY
+    // vem do env CARTO_API_KEY via Twig; encodeURIComponent('') se nao
+    // estiver configurada nao quebra a URL, so mantem a marca d'agua.
+    var CARTO_KEY = encodeURIComponent(window.KATABATIC_CARTO_API_KEY || '');
+    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
     MAP = L.map('mv-map', { scrollWheelZoom: true, minZoom: 2, maxZoom: 12 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 12, detectRetina: true }).addTo(MAP);
@@ -587,7 +623,10 @@
     renderPanel();
 
     var bounds = [];
-    FLYING.forEach(function (fa) { bounds.push(fa.a, fa.b); });
+    FLYING.forEach(function (fa) {
+      if (fa.hasArc) { bounds.push(fa.a, fa.b); }
+      else if (fa.liveCurr) { bounds.push([fa.liveCurr.lat, fa.liveCurr.lon]); }
+    });
     PARKED.forEach(function (pa) { if (pa._ll) bounds.push(pa._ll); });
     if (bounds.length) MAP.fitBounds(L.latLngBounds(bounds).pad(0.35)); else MAP.setView([20, -50], 3);
 

@@ -6,6 +6,7 @@ use App\Entity\Voo;
 use App\Repository\AeronaveRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,12 +48,25 @@ use Symfony\Component\Routing\Attribute\Route;
  * toggle "Mostrar todas as posições" (opt-in, com estado de
  * carregamento — ver docblock de `trajetosCompletos()` pra por quê
  * não vem tudo de cara).
+ *
+ * **CARTO API key.** Igual a `MapaAoVivoController`/`VooController`:
+ * injeta `CARTO_API_KEY` via `#[Autowire]` e manda pro template como
+ * `cartoApiKey`, que expõe `window.KATABATIC_CARTO_API_KEY` pro
+ * `aeronave.js` montar a URL do tile com `?key=...` — sem isso essa
+ * tela (a única das três que ainda não tinha sido corrigida) continuava
+ * mostrando a marca d'água "API KEY REQUIRED" por cima do mapa (ver
+ * README, "Mapa base (CARTO)").
  */
 class AeronaveController extends AbstractController
 {
     #[Route('/aeronave/{reg}', name: 'app_aeronave', methods: ['GET'])]
-    public function index(Request $request, string $reg, AeronaveRepository $aeronaves, VooRepository $voos): Response
-    {
+    public function index(
+        Request $request,
+        string $reg,
+        AeronaveRepository $aeronaves,
+        VooRepository $voos,
+        #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey,
+    ): Response {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
             return $this->redirectToRoute('app_login');
@@ -78,6 +92,7 @@ class AeronaveController extends AbstractController
             'airportsUrl' => $this->generateUrl('app_aeroportos_catalogo'),
             'trajetosCompletosUrl' => $this->generateUrl('app_aeronave_trajetos_completos', ['reg' => $reg]),
             'nowIso' => '2026-08-19T12:00:00Z',
+            'cartoApiKey' => $cartoApiKey,
         ]);
     }
 

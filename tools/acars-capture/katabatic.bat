@@ -9,6 +9,10 @@ REM   katabatic.bat setup
 REM   katabatic.bat probe
 REM   katabatic.bat KBT118
 REM   katabatic.bat KBT118 PAFA PABT carga
+REM   katabatic.bat rebuild PASTA
+REM     (gravacao que caiu sem Ctrl+C - queda de energia, crash - e por
+REM     isso nunca gerou upload_payload.json; reconstroi a partir dos CSVs
+REM     que ja estao na pasta, sem precisar do simulador aberto)
 REM ===============================================================
 
 REM ===============================================================
@@ -28,6 +32,12 @@ set "ARG1=%~1"
 set "ARG2=%~2"
 set "ARG3=%~3"
 set "ARG4=%~4"
+
+REM Tolera "--rebuild"/"--probe"/"--setup" (com traços) alem da forma
+REM sem traços, ja que e um erro de digitacao facil de cometer.
+if /i "%ARG1%"=="--rebuild" set "ARG1=rebuild"
+if /i "%ARG1%"=="--probe" set "ARG1=probe"
+if /i "%ARG1%"=="--setup" set "ARG1=setup"
 
 REM ===============================================================
 REM ENCONTRA PYTHON
@@ -116,6 +126,31 @@ if /i "%ARG1%"=="probe" (
     exit /b 0
 )
 
+if /i "%ARG1%"=="rebuild" (
+    if "%ARG2%"=="" (
+        echo.
+        echo Uso: katabatic.bat rebuild PASTA
+        echo   PASTA e a pasta de uma gravacao existente que caiu sem
+        echo   Ctrl+C ^(queda de energia, crash^) - precisa ter samples.csv
+        echo   dentro. Exemplo:
+        echo     katabatic.bat rebuild voos\20260823_141500_KBT118
+        echo.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo Reconstruindo upload_payload.json a partir de: %ARG2%
+    echo Pilot CID: %KATABATIC_PILOT_CID%
+    echo.
+    "%PY%" "%~dp0katabatic_capture.py" --rebuild "%ARG2%" --pilot-cid "%KATABATIC_PILOT_CID%"
+    echo.
+    echo Se deu certo, importe o upload_payload.json em /novo-voo ^(modo
+    echo "Importar telemetria"^) pra publicar o voo.
+    echo.
+    pause
+    exit /b 0
+)
+
 REM ===============================================================
 REM SEM ARGUMENTOS
 REM ===============================================================
@@ -127,6 +162,7 @@ if "%ARG1%"=="" (
     echo   katabatic.bat probe
     echo   katabatic.bat KBT118
     echo   katabatic.bat KBT118 PAFA PABT carga
+    echo   katabatic.bat rebuild PASTA
     echo.
     echo Envio ao servidor:
     echo   Server: %KATABATIC_SERVER%

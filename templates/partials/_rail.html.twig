@@ -1,5 +1,6 @@
 {# Rail lateral compartilhado pelas telas da area logada.
-   `activeView` marca qual item do menu fica destacado (logbook|frota|bases). #}
+   `activeView` marca qual item do menu fica destacado
+   (logbook|frota|bases|pousos|condicoes). #}
 <nav class="rail">
   <div class="rail-brand">
     {% include 'partials/_brand_icon.html.twig' %}
@@ -18,6 +19,14 @@
   <a data-view="bases" href="{{ path('app_portal') }}?view=bases"{% if activeView == 'bases' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/></svg>
     <span data-i18n="rail.bases">Bases</span>
+  </a>
+  <a data-view="pousos" href="{{ path('app_portal') }}?view=pousos"{% if activeView == 'pousos' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 20h18"/><path d="M5 20l6-13 6 13"/><path d="M9 13h6"/></svg>
+    <span data-i18n="rail.pousos">Pousos</span>
+  </a>
+  <a data-view="condicoes" href="{{ path('app_portal') }}?view=condicoes"{% if activeView == 'condicoes' %} class="on"{% endif %}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2v6"/><path d="M12 16v6"/><path d="M4.9 4.9l4.2 4.2"/><path d="M14.9 14.9l4.2 4.2"/><path d="M2 12h6"/><path d="M16 12h6"/><path d="M4.9 19.1l4.2-4.2"/><path d="M14.9 9.1l4.2-4.2"/></svg>
+    <span data-i18n="rail.condicoes">Condições extremas</span>
   </a>
   <a data-view="mapaVivo" href="{{ path('app_mapa_ao_vivo') }}"{% if activeView == 'mapaVivo' %} class="on"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="2"/><path d="M12 5v2M12 17v2M19 12h-2M7 12H5"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
@@ -57,6 +66,18 @@
   {% endif %}
 
   <div class="rail-foot">
+    {# Hora Zulu (UTC) - pedido em conversa ("acima do item de perfil"
+       ficou melhor que embaixo do logo). Fica aqui em vez de em cada
+       `{% block bar %}` porque a rail é a única peça de casca incluída
+       igual em toda tela logada (ver app_base.html.twig); some junto
+       com o resto do `.rail-foot` no layout mobile, sem precisar de
+       regra própria pra isso (ver media query em app-shell.css). O
+       relógio em si é só JS puro em app-shell.js (setInterval de 1s),
+       sem depender de nada específico de página. #}
+    <div class="rail-clock" title="Hora Zulu (UTC)">
+      <span class="rail-clock-time mono" id="rail-clock-time">--:--:--</span>
+      <span class="rail-clock-label">ZULU</span>
+    </div>
     <a href="{{ path('app_perfil') }}" class="pilot">
       {% if pilot.photo %}
       <span class="pilot-badge pilot-badge-img"><img src="{{ pilot.photo }}" alt=""></span>

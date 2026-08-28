@@ -101,6 +101,7 @@
       tipo: tipo,
       base: baseChip ? baseChip.dataset.base : '',
       limiteG: document.getElementById('f-glimit').value.trim(),
+      limiteGNegativo: document.getElementById('f-glimit-neg').value.trim(),
       vsLimiteFpm: document.getElementById('f-vslimit').value.trim(),
       horas: document.getElementById('f-hours').value.trim(),
       observacoes: document.getElementById('f-obs').value.trim()

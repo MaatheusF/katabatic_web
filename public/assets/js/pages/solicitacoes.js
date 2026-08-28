@@ -154,9 +154,20 @@ function renderSolic() {
 }
 
 /* ---------- Pilotos ---------- */
+// CID do piloto logado (window.KATABATIC_CURRENT_CID, ver template) -
+// nao desenha o botao de (des)ativar na propria linha, mesmo guard que
+// o backend ja faz (SolicitacoesController::alternarStatus() recusa
+// com 409) - aqui so evita mostrar uma acao que ia ser recusada.
+var CURRENT_CID = window.KATABATIC_CURRENT_CID || null;
+
 function pilRow(p) {
   var papelTag = p.papel === 'admin' ? '<span class="tag tag-warn">Admin</span>' : '<span class="tag">' + L('solicitacoes.pilot', 'Piloto') + '</span>';
-  var statusTagHtml = p.status === 'ativo' ? '<span class="tag tag-ok">' + L('solicitacoes.pilot.status.active', 'Ativo') + '</span>' : '<span class="tag tag-bad">' + L('solicitacoes.pilot.status.inactive', 'Inativo') + '</span>';
+  var ativo = p.status === 'ativo';
+  var statusTagHtml = ativo ? '<span class="tag tag-ok">' + L('solicitacoes.pilot.status.active', 'Ativo') + '</span>' : '<span class="tag tag-bad">' + L('solicitacoes.pilot.status.inactive', 'Inativo') + '</span>';
+  var actions = p.cid === CURRENT_CID
+    ? '<span style="color:var(--muted);font-size:12px">—</span>'
+    : '<button class="' + (ativo ? 'btn-reject' : 'btn-approve') + '" data-action="toggle-status" data-cid="' + p.cid + '" data-nome="' + p.nome + '" data-ativo="' + (ativo ? '1' : '0') + '" type="button">' +
+      (ativo ? L('solicitacoes.pilot.deactivate', 'Desativar') : L('solicitacoes.pilot.activate', 'Ativar')) + '</button>';
   return '<tr>' +
     '<td class="mono">' + p.nome + '</td>' +
     '<td class="mono">' + p.cid + '</td>' +
@@ -165,6 +176,7 @@ function pilRow(p) {
     '<td class="mono">' + ddmmyyyy(p.dataAdesao) + '</td>' +
     '<td class="num mono">' + p.voos + '</td>' +
     '<td>' + statusTagHtml + '</td>' +
+    '<td>' + actions + '</td>' +
     '</tr>';
 }
 
@@ -229,7 +241,7 @@ function performAction(id, action, btn) {
   var url = '/solicitacoes/' + id + '/' + action;
   btn.disabled = true;
 
-  fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } })
+  fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-Token': window.KATABATIC_CSRF_TOKEN } })
     .then(function (res) {
       return res.json().then(function (body) { return { ok: res.ok, body: body }; });
     })
@@ -262,6 +274,46 @@ function performAction(id, action, btn) {
       btn.disabled = false;
     });
 }
+
+/* ---------- (des)ativar piloto ----------
+   POST /solicitacoes/pilotos/{cid}/status (ver
+   SolicitacoesController::alternarStatus()) - alterna Pilot::$active e
+   devolve o piloto ja atualizado, mesmo padrao de performAction()
+   acima (merge local + re-render, sem reload). Confirmacao so pro lado
+   de desativar (ativar de volta e sempre seguro, nao precisa de
+   confirm()). */
+function performPilotToggle(cid, nome, ativoAtual, btn) {
+  var confirmMsg = L('solicitacoes.pilot.deactivate.confirm', 'Desativar {name}? A pessoa não vai conseguir fazer login até ser reativada.').replace('{name}', nome);
+  if (ativoAtual && !window.confirm(confirmMsg)) {
+    return;
+  }
+
+  btn.disabled = true;
+
+  fetch('/solicitacoes/pilotos/' + encodeURIComponent(cid) + '/status', { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-Token': window.KATABATIC_CSRF_TOKEN } })
+    .then(function (res) {
+      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+    })
+    .then(function (result) {
+      if (!result.ok) {
+        showBanner('error', result.body.error || L('solicitacoes.error.generic', 'Algo deu errado — tente de novo.'));
+        btn.disabled = false;
+        return;
+      }
+      mergePilot(result.body.piloto);
+      renderPilotos();
+    })
+    .catch(function () {
+      showBanner('error', L('solicitacoes.error.generic', 'Algo deu errado — verifique sua conexão e tente de novo.'));
+      btn.disabled = false;
+    });
+}
+
+document.getElementById('pil-body').addEventListener('click', function (e) {
+  var btn = e.target.closest('button[data-action="toggle-status"]');
+  if (!btn) return;
+  performPilotToggle(btn.dataset.cid, btn.dataset.nome, btn.dataset.ativo === '1', btn);
+});
 
 /* ---------- eventos ---------- */
 document.querySelectorAll('.filters .chip[data-status]').forEach(function (chip) {

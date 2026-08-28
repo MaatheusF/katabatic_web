@@ -24,4 +24,20 @@
       if (flash) flash.remove();
     });
   });
+
+  // Relogio Zulu (UTC) na rail - pedido em conversa ("mostrar o horario
+  // atual zulu em algum lugar da plataforma"). So decorativo: pega o
+  // horario UTC do proprio navegador (Date ja e UTC internamente, os
+  // getters getUTC* so leem sem aplicar o fuso local) e atualiza a cada
+  // segundo - nao depende de nenhuma chamada ao servidor.
+  var zuluTimeEl = document.getElementById('rail-clock-time');
+  if (zuluTimeEl) {
+    var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var tickZulu = function () {
+      var now = new Date();
+      zuluTimeEl.textContent = pad2(now.getUTCHours()) + ':' + pad2(now.getUTCMinutes()) + ':' + pad2(now.getUTCSeconds());
+    };
+    tickZulu();
+    setInterval(tickZulu, 1000);
+  }
 })();

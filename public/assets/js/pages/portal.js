@@ -1,8 +1,11 @@
 /* Katabatic — Portal do piloto: troca de view (Logbook/Frota/Bases),
    filtros/ordenacao do Logbook e grade/lista da Frota.
    Os dados (window.KATABATIC_LB / window.KATABATIC_FLEET) sao injetados
-   pelo template a partir do PortalController — ainda mock, mesma forma
-   que um Repository vai devolver depois. */
+   pelo template a partir do PortalController — backend real (Voo/
+   Aeronave), ver docblock da classe. O boletim de clima da view Bases
+   (window.KATABATIC_BASES_WX / KATABATIC_STATIONS_WX) tambem e real,
+   buscado aqui mesmo via Open-Meteo — ver loadBasesWeather() no fim
+   deste arquivo. */
 (function () {
   // O #title (h1 da barra) e trocado via JS ao navegar entre views, entao
   // nao da pra usar data-i18n nele (o lang-toggle.js so traduz uma vez, no
@@ -13,7 +16,9 @@
   var titles = {
     logbook: { pt: 'Logbook', en: 'Logbook' },
     frota: { pt: 'Frota', en: 'Fleet' },
-    bases: { pt: 'Bases', en: 'Bases' }
+    bases: { pt: 'Bases', en: 'Bases' },
+    pousos: { pt: 'Pousos', en: 'Landings' },
+    condicoes: { pt: 'Condições extremas', en: 'Extreme conditions' }
   };
   var currentView = 'logbook';
 
@@ -341,6 +346,33 @@ if (document.getElementById('lb-body')) {
     e.preventDefault();
     window.location.href = '/voo?id=' + encodeURIComponent(tr.dataset.flightId);
   });
+}
+
+// Pousos e Condicoes extremas: mesmas linhas clicaveis do Logbook
+// (data-flight-id -> /voo?id=...), mas sem botao de expandir nem
+// re-render em JS - as tabelas ja vem prontas do Twig (ver
+// pousosViewModel()/condicoesViewModel() em PortalController), entao o
+// unico comportamento que falta adicionar aqui e a navegacao.
+['pousos-body', 'condicoes-body'].forEach(function (id) {
+  var body = document.getElementById(id);
+  if (!body) return;
+  body.addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-flight-id]');
+    if (tr) window.location.href = '/voo?id=' + encodeURIComponent(tr.dataset.flightId);
+  });
+  body.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr[data-flight-id]');
+    if (!tr) return;
+    e.preventDefault();
+    window.location.href = '/voo?id=' + encodeURIComponent(tr.dataset.flightId);
+  });
+});
+
+if (document.getElementById('lb-body')) {
+  // (bloco original do Logbook continua abaixo, sem mudanca - so
+  // reaproveitando o `if` de guarda que ja existia aqui pra nao duplicar
+  // a checagem de existencia do elemento.)
 
   document.querySelectorAll('.filters .chip[data-tipo]').forEach(function (chip) {
     chip.addEventListener('click', function () {
@@ -424,6 +456,10 @@ function statusLabel(p) { return L(STATUS_KEYS[p.status] || '', p.status); }
 
 function fleetGridCard(p) {
   var hist = '<a class="plane-hist" href="/aeronave/' + encodeURIComponent(p.reg) + '">' + L('portal.fleet.viewhistory', 'Ver histórico no mapa ›') + '</a>';
+  // Observações é opcional (Aeronave::$observacoes, nullable) - só
+  // aparece o bloco quando tem texto de verdade, sem "—" nem card vazio
+  // pra aeronave sem nota nenhuma.
+  var obs = p.observacoes ? '<div class="plane-obs"><span>' + L('portal.fleet.notes', 'Observações') + '</span>' + p.observacoes + '</div>' : '';
   return '<article class="plane">' +
     '<div class="plane-shot"><span>' + L('portal.fleet.photoplaceholder', 'Foto · 16:10') + '</span></div>' +
     '<div class="plane-body">' +
@@ -435,16 +471,22 @@ function fleetGridCard(p) {
     '<div><span>' + L('common.hours', 'Horas') + '</span><b>' + p.horas + '</b></div>' +
     '<div><span>' + L('portal.th.lastflight', 'Último voo') + '</span><b>' + p.ultimo + '</b></div>' +
     '</div>' +
+    obs +
     hist +
     '</div>' +
     '</article>';
 }
 function fleetListRow(p) {
   var hist = '<a href="/aeronave/' + encodeURIComponent(p.reg) + '">' + L('portal.fleet.history', 'Histórico ›') + '</a>';
+  // Nota pode ser longa (textarea livre no cadastro) - trunca visualmente
+  // via CSS (.fleet-obs-cell, max-width + ellipsis) e guarda o texto
+  // inteiro no title pra aparecer no hover, em vez de estourar a tabela.
+  var obsCell = p.observacoes ? '<td class="fleet-obs-cell" title="' + p.observacoes.replace(/"/g, '&quot;') + '">' + p.observacoes + '</td>' : '<td class="fleet-obs-cell muted">—</td>';
   return '<tr><td class="mono">' + p.reg + '</td><td>' + p.tipo + '</td>' +
     '<td><span class="tag tag-' + p.statusTag + '">' + statusLabel(p) + '</span></td>' +
     '<td class="mono">' + p.base + '</td><td class="mono">' + p.pos + '</td>' +
     '<td class="num mono">' + p.horas + '</td><td class="mono">' + p.ultimo + '</td>' +
+    obsCell +
     '<td>' + hist + '</td></tr>';
 }
 function fleetRender() {
@@ -478,3 +520,129 @@ if (document.getElementById('fleet-grid')) {
   }
   fleetRender();
 }
+
+/* ---------- Bases: clima real (Open-Meteo, gratuito, sem chave) ----------
+   `window.KATABATIC_BASES_WX`/`KATABATIC_STATIONS_WX` vêm de
+   PortalController::index() (só {icao,lat,lon}, ver docblock de
+   `bases()`) - o clima de verdade é buscado aqui, no navegador, exatamente
+   como mapa-ao-vivo.js já faz pro popup de cada aeroporto (mesma API,
+   mesmo padrão de UMA chamada em lote pra todas as coordenadas de uma vez,
+   mesmo try/catch silencioso se ela cair - o boletim então só fica parado
+   em "—", sem fingir um número que não veio de lugar nenhum). */
+(function () {
+  var BASES = window.KATABATIC_BASES_WX || [];
+  var STATIONS = window.KATABATIC_STATIONS_WX || [];
+  if (!document.getElementById('v-bases') || (!BASES.length && !STATIONS.length)) return;
+
+  var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+
+  // Mesmo agrupamento por weather_code (WMO) que mapa-ao-vivo.js usa em
+  // weatherCodeInfo() - só a tag de cor importa pro dot dos postos aqui,
+  // não precisa do rótulo (o boletim de bases mostra números, não uma
+  // palavra de condição).
+  function wxCodeTag(code) {
+    if (code === 45 || code === 48) return 'ice';
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82) || (code >= 51 && code <= 57)) return 'warn';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'ice';
+    if (code >= 95) return 'bad';
+    if (code === 0 || code === 1 || code === 2 || code === 3) return 'ok';
+    return '';
+  }
+  function wxTagColor(tag) {
+    return tag === 'ok' ? 'var(--ok)' : tag === 'ice' ? 'var(--ice)' : tag === 'warn' ? 'var(--accent)' : tag === 'bad' ? 'var(--danger)' : 'var(--muted)';
+  }
+  // Mesmo estilo "4 800 m"/"9 999 m" (espaço a cada 3 dígitos) que o
+  // boletim mockado sempre usou pra visibilidade - mantém o número
+  // parecendo o mesmo, só que real agora.
+  function spaceThousands(n) {
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+  // Rosa dos ventos de 8 pontas - o bastante pro boletim, mesma
+  // granularidade textual que "210/09" (rumo/velocidade) sempre teve.
+  function windDirLabel(deg) {
+    var dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return dirs[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+  }
+
+  // `current` só cobre temperatura/vento/weather_code (visibilidade e
+  // nuvem baixa só existem como variável horária na Open-Meteo, não em
+  // `current`) - acha a leitura horária mais próxima do instante de
+  // `current.time` comparando o prefixo "YYYY-MM-DDTHH".
+  function nearestHourlyIndex(hourly, currentIso) {
+    if (!hourly || !Array.isArray(hourly.time) || !currentIso) return -1;
+    var hourPrefix = currentIso.slice(0, 13);
+    for (var i = 0; i < hourly.time.length; i++) {
+      if (hourly.time[i].slice(0, 13) === hourPrefix) return i;
+    }
+    return -1;
+  }
+
+  function applyBaseWx(icao, cur, hourly) {
+    var windEl = document.getElementById('base-wind-' + icao);
+    var tempEl = document.getElementById('base-temp-' + icao);
+    var visEl = document.getElementById('base-vis-' + icao);
+    var cloudEl = document.getElementById('base-cloud-' + icao);
+    if (!windEl) return;
+
+    if (cur) {
+      var wind = Math.round(cur.wind_speed_10m);
+      var gust = (cur.wind_gusts_10m !== undefined && cur.wind_gusts_10m !== null) ? Math.round(cur.wind_gusts_10m) : null;
+      windEl.textContent = windDirLabel(cur.wind_direction_10m) + ' ' + wind + (gust !== null && gust >= wind + 5 ? 'G' + gust : '') + ' kt';
+      // Limiar sem fonte regulatoria especifica - so pra destacar no
+      // boletim rajada/vento sustentado alto o bastante pra chamar
+      // atencao, mesmo espirito do .warn que a classe ja tinha.
+      windEl.classList.toggle('warn', gust !== null ? gust >= 25 : wind >= 20);
+      if (tempEl) tempEl.textContent = Math.round(cur.temperature_2m) + ' °C';
+    }
+    var idx = nearestHourlyIndex(hourly, cur && cur.time);
+    if (hourly && idx >= 0) {
+      var visM = hourly.visibility ? hourly.visibility[idx] : null;
+      if (visEl && visM !== null && visM !== undefined) {
+        visEl.textContent = spaceThousands(visM) + ' m';
+        visEl.classList.toggle('warn', visM < 8000);
+      }
+      var cloudPct = hourly.cloud_cover_low ? hourly.cloud_cover_low[idx] : null;
+      if (cloudEl && cloudPct !== null && cloudPct !== undefined) {
+        cloudEl.textContent = Math.round(cloudPct) + '%';
+      }
+    }
+  }
+
+  function loadBasesWeather() {
+    var locations = BASES.map(function (b) { return { icao: b.icao, lat: b.lat, lon: b.lon }; })
+      .concat(STATIONS.map(function (s) { return { icao: s.icao, baseIcao: s.baseIcao, lat: s.lat, lon: s.lon }; }));
+    if (!locations.length) return;
+
+    var lats = locations.map(function (l) { return l.lat; }).join(',');
+    var lons = locations.map(function (l) { return l.lon; }).join(',');
+    var url = WEATHER_URL + '?latitude=' + lats + '&longitude=' + lons +
+      '&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m' +
+      '&hourly=visibility,cloud_cover_low&forecast_days=1&wind_speed_unit=kn&timezone=UTC';
+
+    fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      var list = Array.isArray(data) ? data : [data];
+      locations.forEach(function (loc, i) {
+        var entry = list[i];
+        if (!entry) return;
+        if (loc.baseIcao) {
+          // posto avancado - so o dot muda de cor, com a tag do proprio
+          // weather_code do posto (nao herda a cor da base que ele
+          // aparece embaixo no boletim).
+          var dotEl = document.getElementById('stn-dot-' + loc.baseIcao + '-' + loc.icao);
+          if (dotEl && entry.current) {
+            dotEl.style.background = wxTagColor(wxCodeTag(entry.current.weather_code));
+          }
+        } else {
+          applyBaseWx(loc.icao, entry.current, entry.hourly);
+        }
+      });
+    }).catch(function (err) {
+      console.warn('Katabatic: clima das bases indisponível (Open-Meteo).', err);
+    });
+  }
+
+  loadBasesWeather();
+})();

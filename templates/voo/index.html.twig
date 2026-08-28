@@ -44,7 +44,7 @@
       <div>
         <div class="rt" id="h-route"><span id="h-route-text">UEEE <i></i> UEEE</span><span class="tag tag-bad" id="crash-badge" style="display:none" data-i18n="voo.crash.badge">Acidentado</span><span class="tag tag-warn" id="diversion-badge" style="display:none"></span></div>
         <p class="meta" id="h-meta"></p>
-        <p class="meta">C185F Skywagon · N104KT · voo local de avaliação</p>
+        <p class="meta" id="h-meta2"></p>
       </div>
       <div class="score"><span data-i18n="voo.difficulty">Dificuldade</span><b id="score">--</b><em id="score-lbl"></em></div>
     </div>
@@ -182,6 +182,19 @@
           <span class="report-error" id="simbrief-error" style="display:none"></span>
         </div>
 
+        <div class="link-row" id="planovoo-row">
+          <a class="link-view" id="planovoo-view" href="#" target="_blank" rel="noopener" style="display:none">
+            <span class="ic">PDF</span><span><b data-i18n="voo.links.planovoo">Plano de voo (PDF)</b><br><span style="font-size:12px" id="planovoo-nome"></span></span><span class="ext">↗</span>
+          </a>
+          <div class="link-empty" id="planovoo-empty">
+            <span class="ic">PDF</span><span><b data-i18n="voo.links.planovoo">Plano de voo (PDF)</b><br><span style="font-size:12px" data-i18n="voo.links.planovoo.empty">Nenhum PDF anexado a este voo</span></span>
+            <label class="btn btn-sm" for="planovoo-input" data-i18n="voo.links.planovoo.add">Anexar</label>
+          </div>
+          <button type="button" class="link-edit-btn" id="planovoo-remove" style="display:none" data-i18n-attr="title:voo.links.planovoo.remove" title="Remover">🗑</button>
+          <input type="file" id="planovoo-input" accept="application/pdf" style="display:none">
+        </div>
+        <span class="report-error" id="planovoo-error" style="display:none"></span>
+
         {% if pilot.aviodeckUsername %}
         <a href="https://aviodeck.app/@{{ pilot.aviodeckUsername }}" target="_blank" rel="noopener"><span class="ic">AD</span><span><b>AvioDeck</b><br><span style="font-size:12px" data-i18n="voo.links.aviodeck">Perfil do piloto</span></span><span class="ext">↗</span></a>
         {% else %}
@@ -200,6 +213,7 @@
 {% block page_javascripts %}
 <script>
   window.KATABATIC_FLIGHTS_URL = {{ flightsUrl|json_encode|raw }};
+  window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};
 </script>
 {# Dicionario EN desta tela: cobre tanto os data-i18n estaticos do
    template acima quanto as chaves lidas via L() dentro de voo.js pra
@@ -252,6 +266,12 @@
       'voo.links.simbrief.save': 'Save',
       'voo.links.simbrief.error': 'Paste a simbrief.com link — the same one SimBrief gave you when you generated the plan.',
       'voo.links.simbrief.saveerror': 'Could not save — try again.',
+      'voo.links.planovoo': 'Flight plan (PDF)',
+      'voo.links.planovoo.empty': 'No PDF attached to this flight',
+      'voo.links.planovoo.add': 'Attach',
+      'voo.links.planovoo.remove': 'Remove',
+      'voo.links.planovoo.remove.confirm': 'Remove this flight plan PDF? This cannot be undone.',
+      'voo.links.planovoo.error': 'Could not attach — try again.',
       'voo.links.aviodeck': 'Pilot profile',
       'voo.links.aviodeck.empty': 'Set up your username in your profile',
       'voo.links.vatsim': 'Stats · CID {{ pilot.cid }}',
@@ -279,6 +299,9 @@
       'voo.kpi.weight': 'Takeoff weight',
       'voo.kpi.mtowmargin': 'Margin to MTOW',
       'voo.kpi.mtowmargin.over': 'took off above the registered MTOW',
+      'voo.kpi.landingweight': 'Landing weight',
+      'voo.kpi.landingweight.mtowmargin': 'Margin to MTOW at landing',
+      'voo.kpi.landingweight.mtowmargin.hint': 'reference only: MTOW is a takeoff limit, not a landing one',
       'voo.kpi.wind.pista': 'crosswind computed against the registered real runway heading',
       'voo.score.severe': 'severe',
       'voo.score.demanding': 'demanding',
@@ -289,6 +312,7 @@
       'voo.chart.loadfactor': 'Load factor',
       'voo.chart.temperature': 'Temperature',
       'voo.chart.wind': 'Wind',
+      'voo.chart.weight': 'Weight',
 
       'voo.readout.time': 'time',
       'voo.readout.onground': 'on ground (yes/no)',
@@ -308,6 +332,8 @@
       'voo.landing.pitch': 'Pitch',
       'voo.landing.bank': 'Bank',
       'voo.landing.heading': 'Heading',
+      'voo.landing.surface': 'Surface',
+      'voo.landing.surface.cond': 'Condition',
       'voo.landing.classifiedas': 'Touchdown classified as',
       'voo.landing.bounce': 'bounce',
       'voo.landing.aftercontact': 'after touchdown',
@@ -333,7 +359,6 @@
 
       'voo.error.load': 'Could not load telemetry for this flight.',
 
-      'voo.crash.badge': 'Crashed',
       'voo.diversion.badge': 'Landed at',
       'voo.danger.title': 'Mark this flight as crashed',
       'voo.danger.desc': 'Flight logged by mistake — a crash mid-route, a corrupted session, or any other reason this leg shouldn’t count? Marking it as crashed keeps the flight in the Logbook (flagged, for the record) but drops it from hours/stats, and sends the aircraft back to this leg’s origin, as if it never departed. You can only mark the aircraft’s <b>most recent</b> flight — if newer ones exist, mark those first, in reverse order. This action cannot be undone.',

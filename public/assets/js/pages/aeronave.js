@@ -7,8 +7,11 @@
    o trajeto REAL voado - nao uma linha reta/curva estimada; so cai pro
    fallback de curva entre origem/destino (coordenadas de airports.json)
    quando a perna nao tem gravacao (historico so narrativo). Ver
-   endpoints() pra essa decisao. Pernas mais recentes ficam com cor/
-   espessura mais forte, mais antigas mais apagadas (ver drawMap()).
+   endpoints() pra essa decisao. Pernas mais recentes ficam com o
+   traçado mais grosso, mais antigas mais fino (ver drawMap()) - a
+   opacidade NAO cai mais com a idade da perna (removida a pedido do
+   piloto: com opacidade caindo ate .28, pernas antigas ficavam quase
+   invisiveis, dificultando ver o historico completo).
 
    f.track (injetado por LEGS) ja vem decimado a 180 pontos por perna
    (ver AeronaveController::TRACK_MAX_PONTOS) pro carregamento inicial
@@ -19,6 +22,18 @@
    perna, se usa esse cache (quando o toggle ta ligado e a perna tem
    entrada nele) ou o f.track decimado (padrao) - ver trackFor()/
    endpoints() e o listener de #ac-fullres mais abaixo.
+
+   Labels (callsign da perna + ICAO do aeroporto) sao sempre criados no
+   mapa agora, nao so quando o toggle "Labels sempre visiveis" ta ligado
+   - a diferenca e que, com o toggle desligado, eles nascem com
+   opacity 0 e so aparecem ao passar o mouse na linha/aeroporto
+   correspondente (ver setLabelVisible() e os listeners de mouseover/
+   mouseout em drawMap()), em vez de sumirem inteiramente do mapa.
+
+   Aeroportos que sao uma das seis bases principais da rede (isBase, ver
+   AeroportoRepository::catalogoArrayFor()) desenham uma bolinha maior
+   que postos avancados/aeroportos comuns - ver o bloco de
+   airportPoints em drawMap().
    ========================================================================== */
 (function () {
   'use strict';
@@ -157,6 +172,17 @@
 
   function routeKey(a, b) { return [a, b].sort().join('|'); }
 
+  // Mostra/esconde um label (marker divIcon) construido "hoveronly" -
+  // usado tanto pro callsign no meio da perna quanto pro ICAO ao lado
+  // do aeroporto quando o toggle "Labels sempre visiveis" ta desligado
+  // (ver drawMap()). getElement() so existe depois do marker estar no
+  // mapa (addTo ja rodou antes de toda chamada daqui), entao o guard
+  // `if (el)` e so defensivo, nao deveria disparar na pratica.
+  function setLabelVisible(labelMarker, visible) {
+    var el = labelMarker.getElement();
+    if (el) el.style.opacity = visible ? '1' : '0';
+  }
+
   // Trajeto a usar pra uma perna: o completo (FULL_TRACKS[f.flightId]) so
   // quando o toggle "Mostrar todas as posicoes" ta ligado E esse voo ja
   // foi carregado nesse cache - senao cai no f.track decimado (padrao,
@@ -260,26 +286,32 @@
       // AeronaveController::aircraftLegs, offsets crescentes), entao o
       // indice `i` ja e a posicao cronologica dentro do periodo filtrado:
       // i=0 e sempre a perna mais recente exibida, i=n-1 a mais antiga.
-      // recencia (1 = mais recente, 0 = mais antiga) controla opacidade
-      // E espessura, pra o traçado mais recente ficar visivelmente mais
-      // forte/grosso que os antigos, nao so um pouco mais opaco.
+      // recencia (1 = mais recente, 0 = mais antiga) so controla a
+      // espessura agora - opacidade fixa pra todas as pernas (pedido do
+      // piloto: pernas antigas ficavam quase invisiveis com a opacidade
+      // caindo ate .28, dificultando ver o historico completo).
       var recencia = n > 1 ? 1 - i / (n - 1) : 1;
-      var opacity = 0.28 + 0.72 * recencia;
       var weight = 2 + 2.5 * recencia;
-      var line = L.polyline(pts, { color: 'var(--accent)', weight: weight, opacity: opacity })
+      var line = L.polyline(pts, { color: 'var(--accent)', weight: weight, opacity: .88 })
         .addTo(MLAYER);
       line.bindPopup(legPopup(f, ep.real));
       line.on('click', function () { highlightLegRow(f); });
-      line.on('mouseover', function () { line.setStyle({ weight: weight + 2 }); });
-      line.on('mouseout', function () { line.setStyle({ weight: weight }); });
-      pts.forEach(function (p) { bounds.push(p); });
 
-      if (state.labels) {
-        L.marker(mid, {
-          icon: L.divIcon({ className: '', html: '<span class="leg-label">' + f.callsign + '</span>', iconSize: null }),
-          interactive: false
-        }).addTo(MLAYER);
-      }
+      // Label do callsign no meio da perna - sempre criado (nao so
+      // quando state.labels), pra existir no DOM mesmo em modo
+      // "so ao passar o mouse" (hoverLabels()). Quando state.labels
+      // esta ligado ele fica visivel direto (sem classe hoveronly);
+      // quando desligado, comeca com opacity 0 e so aparece nesse
+      // hover/mouseout da linha - ver hoverLabels() abaixo.
+      var labelMarker = L.marker(mid, {
+        icon: L.divIcon({ className: '', html: '<span class="leg-label">' + f.callsign + '</span>', iconSize: null }),
+        interactive: false
+      }).addTo(MLAYER);
+      if (!state.labels) setLabelVisible(labelMarker, false);
+
+      line.on('mouseover', function () { line.setStyle({ weight: weight + 2 }); if (!state.labels) setLabelVisible(labelMarker, true); });
+      line.on('mouseout', function () { line.setStyle({ weight: weight }); if (!state.labels) setLabelVisible(labelMarker, false); });
+      pts.forEach(function (p) { bounds.push(p); });
     });
 
     Object.keys(airportPoints).forEach(function (icao) {
@@ -300,17 +332,25 @@
       var localNote = known2 && known2.icaoOficial === false
         ? '<span class="sub">' + tr('aeronave.airport.local', 'Código local — não é ICAO oficial') + '</span>'
         : '';
-      L.circleMarker([pt.lat, pt.lon], {
-        radius: 5 + Math.min(6, pt.visits),
-        color: '#fff', weight: 2, fillColor: '#2C7CA5', fillOpacity: .95
+      // known2.isBase vem do catalogo (AeroportoRepository::catalogoArrayFor())
+      // - as seis bases principais ganham uma bolinha maior que postos
+      // avancados/aeroportos comuns (pedido do piloto), somando-se por
+      // cima da escala por numero de pousos que ja existia.
+      var isBase = !!(known2 && known2.isBase);
+      var airportDot = L.circleMarker([pt.lat, pt.lon], {
+        radius: (isBase ? 8 : 5) + Math.min(6, pt.visits),
+        color: '#fff', weight: isBase ? 2.5 : 2, fillColor: '#2C7CA5', fillOpacity: .95
       }).addTo(MLAYER).bindPopup(
         '<div class="ac-popup"><b>' + icao + '</b>' + (known2 ? known2.name : '') +
         '<span class="sub">' + (known2 ? known2.city + ' · ' : '') + pt.visits + ' ' + visitNoun(pt.visits) + '</span>' + postoNote + localNote + '</div>'
       );
-      L.marker([pt.lat, pt.lon], {
+      var airportLabel = L.marker([pt.lat, pt.lon], {
         icon: L.divIcon({ className: '', html: '<span class="airport-label">' + icao + '</span>', iconSize: null, iconAnchor: [-8, 6] }),
         interactive: false
       }).addTo(MLAYER);
+      if (!state.labels) setLabelVisible(airportLabel, false);
+      airportDot.on('mouseover', function () { if (!state.labels) setLabelVisible(airportLabel, true); });
+      airportDot.on('mouseout', function () { if (!state.labels) setLabelVisible(airportLabel, false); });
     });
 
     if (bounds.length) MAP.fitBounds(L.latLngBounds(bounds).pad(0.18));
@@ -349,7 +389,13 @@
 
   function initMap() {
     if (!window.L) { document.getElementById('ac-map').innerHTML = '<p style="color:#5F7885;text-align:center;padding-top:140px;font-family:var(--fm);font-size:12px">' + tr('aeronave.map.unavailable', 'Mapa indisponível') + '</p>'; return; }
-    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
+    // CARTO passou a exigir API key ate pro tile gratuito - sem isso
+    // desenha uma marca d'agua "API KEY REQUIRED" por cima do mapa (ver
+    // AeronaveController::index()/README). window.KATABATIC_CARTO_API_KEY
+    // vem do env CARTO_API_KEY via Twig; encodeURIComponent('') se nao
+    // estiver configurada nao quebra a URL, so mantem a marca d'agua.
+    var CARTO_KEY = encodeURIComponent(window.KATABATIC_CARTO_API_KEY || '');
+    var TL = { light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY };
     var th = function () { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; };
     MAP = L.map('ac-map', { scrollWheelZoom: true, minZoom: 2, maxZoom: 13 });
     var base = L.tileLayer(TL[th()], { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 13, detectRetina: true }).addTo(MAP);

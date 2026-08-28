@@ -51,10 +51,12 @@ use Symfony\Component\Routing\Attribute\Route;
  *   maioria dos aeroportos passou a chegar via import em massa, não
  *   cadastro manual.
  *
- * `postoAvancadoDe` ('PAFA'/'SCCI'/vazio) continua só rótulo — não
- * libera essa pista como base de aeronave
- * (`NovaAeronaveController::BASES_VALIDAS` continua fixo), só aparece
- * como nota nos popups do mapa e na aba Bases do Portal.
+ * `postoAvancadoDe` (uma das seis bases, ou vazio) continua só rótulo —
+ * não libera essa pista como base de aeronave
+ * (`NovaAeronaveController::BASES_VALIDAS` continua uma whitelist fixa,
+ * só que agora com 6 entradas em vez de 2 — ver "Bases sazonais" no
+ * README), só aparece como nota nos popups do mapa e na aba Bases do
+ * Portal.
  *
  * **`icaoOficial` no JSON de todo endpoint aqui** (`criar()`, `buscar()`,
  * `marcarPosto()`) distingue um ICAO de verdade de um código local/FAA/
@@ -76,7 +78,13 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class AeroportoController extends AbstractController
 {
-    private const BASES_VALIDAS = ['PAFA', 'SCCI'];
+    /**
+     * Mesma lista que `AeroportoRepository::BASES`/`NovaAeronaveController::BASES_VALIDAS`/
+     * `AdesaoController::VALID_BASE_PREF` - ver docblock de lá pro porquê
+     * de 2 → 6 (bases sazonais) e pro porquê de ser repetida em vez de
+     * importada.
+     */
+    private const BASES_VALIDAS = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR'];
 
     #[Route('/aeroportos', name: 'app_aeroportos', methods: ['GET'])]
     public function index(Request $request, AeroportoRepository $aeroportos): Response
@@ -141,7 +149,7 @@ class AeroportoController extends AbstractController
             $errors[] = 'Longitude inválida — precisa estar entre -180 e 180.';
         }
         if ('' !== $postoAvancadoDe && !in_array($postoAvancadoDe, self::BASES_VALIDAS, true)) {
-            $errors[] = 'Posto avançado precisa ser de uma base válida (PAFA ou SCCI), ou deixado em branco.';
+            $errors[] = sprintf('Posto avançado precisa ser de uma base válida (%s), ou deixado em branco.', implode('/', self::BASES_VALIDAS));
         }
         $pistaHeading = null;
         if (null !== $pistaHeadingRaw && '' !== $pistaHeadingRaw) {
@@ -249,7 +257,7 @@ class AeroportoController extends AbstractController
         $postoAvancadoDe = null === $postoAvancadoDe ? null : trim((string) $postoAvancadoDe);
 
         if (null !== $postoAvancadoDe && '' !== $postoAvancadoDe && !in_array($postoAvancadoDe, self::BASES_VALIDAS, true)) {
-            return $this->json(['error' => 'Posto avançado precisa ser de uma base válida (PAFA ou SCCI), ou null pra desmarcar.'], 422);
+            return $this->json(['error' => sprintf('Posto avançado precisa ser de uma base válida (%s), ou null pra desmarcar.', implode('/', self::BASES_VALIDAS))], 422);
         }
 
         $aeroporto->setPostoAvancadoDe('' === $postoAvancadoDe ? null : $postoAvancadoDe);

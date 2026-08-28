@@ -28,109 +28,109 @@
 
   <div class="ap-error" id="ap-error" style="display:none"></div>
 
-  <div class="card">
-    <div class="card-h"><h3 data-i18n="aeroporto.new.title">Novo aeroporto</h3><span class="note" data-i18n="aeroporto.new.note">visível pra toda a frota — confira o ICAO e as coordenadas antes de salvar</span></div>
-    <div class="card-b">
-      <div class="grid3">
-        <div class="field">
-          <label data-i18n="aeroporto.icao">ICAO</label>
-          <input type="text" class="mono-input" id="f-icao" placeholder="PAFA" maxlength="8" style="text-transform:uppercase">
-        </div>
-        <div class="field" style="grid-column: span 2">
-          <label data-i18n="aeroporto.nome">Nome</label>
-          <input type="text" id="f-nome" placeholder="Fairbanks Intl.">
-        </div>
-      </div>
-      <div class="grid3">
-        <div class="field" style="grid-column: span 2">
-          <label data-i18n="aeroporto.cidade">Cidade</label>
-          <input type="text" id="f-cidade" placeholder="Fairbanks, Alasca">
-        </div>
-        <div class="field">
-          <label data-i18n="aeroporto.posto">Posto avançado de</label>
-          <div class="chips" id="posto-chips">
-            <button class="chip on" data-posto="" type="button" data-i18n="aeroporto.posto.none">Nenhuma</button>
-            <button class="chip" data-posto="PAFA" type="button">PAFA</button>
-            <button class="chip" data-posto="SCCI" type="button">SCCI</button>
+  <div class="ap-layout">
+    <div class="ap-col-form">
+      <div class="card">
+        <div class="card-h"><h3 data-i18n="aeroporto.new.title">Novo aeroporto</h3></div>
+        <div class="card-b">
+          <p class="hint" style="margin-top:0" data-i18n="aeroporto.new.note">visível pra toda a frota — confira o ICAO e as coordenadas antes de salvar</p>
+          <div class="field">
+            <label data-i18n="aeroporto.icao">ICAO</label>
+            <input type="text" class="mono-input" id="f-icao" placeholder="PAFA" maxlength="8" style="text-transform:uppercase">
+          </div>
+          <div class="field">
+            <label data-i18n="aeroporto.nome">Nome</label>
+            <input type="text" id="f-nome" placeholder="Fairbanks Intl.">
+          </div>
+          <div class="field">
+            <label data-i18n="aeroporto.cidade">Cidade</label>
+            <input type="text" id="f-cidade" placeholder="Fairbanks, Alasca">
+          </div>
+          <div class="field">
+            <label data-i18n="aeroporto.posto">Posto avançado de</label>
+            <div class="chips" id="posto-chips">
+              <button class="chip on" data-posto="" type="button" data-i18n="aeroporto.posto.none">Nenhuma</button>
+              <button class="chip" data-posto="PAFA" type="button">PAFA</button>
+              <button class="chip" data-posto="SCCI" type="button">SCCI</button>
+              <button class="chip" data-posto="SLLP" type="button">SLLP</button>
+              <button class="chip" data-posto="VNKT" type="button">VNKT</button>
+              <button class="chip" data-posto="WAJW" type="button">WAJW</button>
+              <button class="chip" data-posto="VQPR" type="button">VQPR</button>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label data-i18n="aeroporto.lat">Latitude</label>
+              <input type="number" class="mono-input" id="f-lat" step="0.0001" placeholder="64.8151">
+            </div>
+            <div class="field">
+              <label data-i18n="aeroporto.lon">Longitude</label>
+              <input type="number" class="mono-input" id="f-lon" step="0.0001" placeholder="-147.8560">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label><span data-i18n="aeroporto.heading">Heading da pista principal</span> <span style="text-transform:none;letter-spacing:0" data-i18n="common.optional">(opcional)</span></label>
+            <div class="unit-row"><input type="number" class="mono-input" id="f-heading" min="0" max="359" placeholder="90"><span class="unit">°mag</span></div>
+            <p class="hint" data-i18n="aeroporto.heading.hint">Usado pra calcular o través do relatório de voo contra a pista de verdade, em vez do heading da aeronave no toque.</p>
           </div>
         </div>
       </div>
-      <div class="grid2">
-        <div class="field">
-          <label data-i18n="aeroporto.lat">Latitude</label>
-          <input type="number" class="mono-input" id="f-lat" step="0.0001" placeholder="64.8151">
-        </div>
-        <div class="field">
-          <label data-i18n="aeroporto.lon">Longitude</label>
-          <input type="number" class="mono-input" id="f-lon" step="0.0001" placeholder="-147.8560">
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field" style="margin-bottom:0">
-          <label><span data-i18n="aeroporto.heading">Heading da pista principal</span> <span style="text-transform:none;letter-spacing:0" data-i18n="common.optional">(opcional)</span></label>
-          <div class="unit-row"><input type="number" class="mono-input" id="f-heading" min="0" max="359" placeholder="90"><span class="unit">°mag</span></div>
-          <p class="hint" data-i18n="aeroporto.heading.hint">Usado pra calcular o través do relatório de voo contra a pista de verdade, em vez do heading da aeronave no toque.</p>
-        </div>
-        <div class="field" style="margin-bottom:0"></div>
-      </div>
-    </div>
-  </div>
 
-  <div class="footer-actions">
-    <span class="hint" data-i18n="aeroporto.coords.hint">Dica: copie lat/lon do simulador ou de uma carta VFR — um valor errado desloca o aeroporto no mapa e pode confundir a resolução automática de pouso alternativo.</span>
-    <div class="right">
-      <button class="btn btn-primary" id="btn-save" disabled data-i18n="aeroporto.save">Salvar aeroporto</button>
-    </div>
-  </div>
-
-  <div class="card ap-search-card">
-    <div class="card-h">
-      <h3 data-i18n="aeroporto.search.heading">Buscar no catálogo</h3>
-      <span class="note" id="ap-total-count"></span>
-    </div>
-    <div class="card-b">
-      <div class="field" style="margin-bottom:0">
-        <input type="text" id="ap-search" autocomplete="off" placeholder="ICAO ou cidade — ex.: PANC, Anchorage…" data-i18n-attr="placeholder:aeroporto.search.placeholder">
-        <p class="hint" data-i18n="aeroporto.search.hint">Encontre qualquer aeroporto do catálogo global (importado do OurAirports) pra marcá-lo como posto avançado de uma base — a lista abaixo só mostra bases e postos avançados já marcados.</p>
-        <p class="hint" data-i18n="aeroporto.search.legendLocal">O selo <span class="tag tag-local" style="margin-left:0">Local</span> marca um código local/FAA sem ICAO oficial — pistas de bush flying nas regiões de missão (Ártico/Antártico + Cone Sul) que o OurAirports não cadastra com ICAO de verdade.</p>
+      <div class="footer-actions">
+        <span class="hint" data-i18n="aeroporto.coords.hint">Dica: copie lat/lon do simulador ou de uma carta VFR — um valor errado desloca o aeroporto no mapa e pode confundir a resolução automática de pouso alternativo.</span>
+        <button class="btn btn-primary" id="btn-save" disabled data-i18n="aeroporto.save">Salvar aeroporto</button>
       </div>
-      <div class="table-scroll" id="ap-search-results-wrap" style="display:none">
-        <table id="ap-search-table">
-          <thead>
-            <tr>
-              <th data-i18n="aeroporto.icao">ICAO</th>
-              <th data-i18n="aeroporto.nome">Nome</th>
-              <th data-i18n="aeroporto.cidade">Cidade</th>
-              <th data-i18n="aeroporto.posto">Posto avançado de</th>
-              <th class="num" data-i18n="aeroporto.heading.short">Heading</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="ap-search-body"></tbody>
-        </table>
-      </div>
-      <p class="hint" id="ap-search-empty" style="display:none" data-i18n="aeroporto.search.empty">Nenhum aeroporto encontrado.</p>
     </div>
-  </div>
 
-  <div class="card ap-list-card">
-    <div class="card-h"><h3 data-i18n="aeroporto.list.heading">Bases e postos avançados</h3><span class="note" id="ap-count"></span></div>
-    <div class="table-scroll">
-      <table id="ap-table">
-        <thead>
-          <tr>
-            <th data-i18n="aeroporto.icao">ICAO</th>
-            <th data-i18n="aeroporto.nome">Nome</th>
-            <th data-i18n="aeroporto.cidade">Cidade</th>
-            <th class="num" data-i18n="aeroporto.lat">Latitude</th>
-            <th class="num" data-i18n="aeroporto.lon">Longitude</th>
-            <th data-i18n="aeroporto.posto">Posto avançado de</th>
-            <th class="num" data-i18n="aeroporto.heading.short">Heading</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="ap-body"></tbody>
-      </table>
+    <div class="ap-col-list">
+      <div class="card ap-search-card">
+        <div class="card-h">
+          <h3 data-i18n="aeroporto.search.heading">Buscar no catálogo</h3>
+          <span class="note" id="ap-total-count"></span>
+        </div>
+        <div class="card-b">
+          <div class="field" style="margin-bottom:0">
+            <input type="text" id="ap-search" autocomplete="off" placeholder="ICAO ou cidade — ex.: PANC, Anchorage…" data-i18n-attr="placeholder:aeroporto.search.placeholder">
+            <p class="hint" data-i18n="aeroporto.search.hint">Encontre qualquer aeroporto do catálogo global (importado do OurAirports) pra marcá-lo como posto avançado de uma base — a lista abaixo só mostra bases e postos avançados já marcados.</p>
+            <p class="hint" data-i18n="aeroporto.search.legendLocal">O selo <span class="tag tag-local" style="margin-left:0">Local</span> marca um código local/FAA sem ICAO oficial — pistas de bush flying nas regiões de missão (Ártico/Antártico + Cone Sul) que o OurAirports não cadastra com ICAO de verdade.</p>
+          </div>
+          <div class="table-scroll" id="ap-search-results-wrap" style="display:none">
+            <table id="ap-search-table">
+              <thead>
+                <tr>
+                  <th data-i18n="aeroporto.icao">ICAO</th>
+                  <th data-i18n="aeroporto.nome">Nome</th>
+                  <th data-i18n="aeroporto.cidade">Cidade</th>
+                  <th class="num" data-i18n="aeroporto.heading.short">Heading</th>
+                  <th class="ap-actions-th" data-i18n="aeroporto.posto">Posto avançado de</th>
+                </tr>
+              </thead>
+              <tbody id="ap-search-body"></tbody>
+            </table>
+          </div>
+          <p class="hint" id="ap-search-empty" style="display:none" data-i18n="aeroporto.search.empty">Nenhum aeroporto encontrado.</p>
+        </div>
+      </div>
+
+      <div class="card ap-list-card">
+        <div class="card-h"><h3 data-i18n="aeroporto.list.heading">Bases e postos avançados</h3><span class="note" id="ap-count"></span></div>
+        <div class="table-scroll">
+          <table id="ap-table">
+            <thead>
+              <tr>
+                <th data-i18n="aeroporto.icao">ICAO</th>
+                <th data-i18n="aeroporto.nome">Nome</th>
+                <th data-i18n="aeroporto.cidade">Cidade</th>
+                <th class="num" data-i18n="aeroporto.lat">Latitude</th>
+                <th class="num" data-i18n="aeroporto.lon">Longitude</th>
+                <th class="num" data-i18n="aeroporto.heading.short">Heading</th>
+                <th class="ap-actions-th" data-i18n="aeroporto.posto">Posto avançado de</th>
+              </tr>
+            </thead>
+            <tbody id="ap-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -172,10 +172,6 @@
       'aeroporto.search.empty': 'No airport found.',
       'aeroporto.search.legendLocal': 'The <span class="tag tag-local" style="margin-left:0">Local</span> badge marks a local/FAA code without an official ICAO — bush-flying strips in the mission regions (Arctic/Antarctic + Southern Cone) that OurAirports doesn\'t register with a real ICAO.',
       'aeroporto.total.suffix': 'in the full catalog',
-      'aeroporto.mark.pafa': 'Mark as PAFA post',
-      'aeroporto.mark.scci': 'Mark as SCCI post',
-      'aeroporto.mark.clear': 'Clear',
-      'aeroporto.mark.saving': 'Saving…',
       'aeroporto.mark.error': 'Could not update — try again.',
       'aeroporto.badge.local': 'Local',
       'aeroporto.badge.local.title': 'Local/FAA code — not an official ICAO'

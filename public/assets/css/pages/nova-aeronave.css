@@ -28,6 +28,7 @@ input[readonly] { color: var(--text-2); background: var(--bg); cursor: default; 
 .card-b { padding: 20px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; }
+.grid4 { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 16px; }
 .field { margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -61,6 +62,6 @@ input[readonly] { color: var(--text-2); background: var(--bg); cursor: default; 
 
 @media (max-width: 900px) {
   .wrap { padding: 18px 16px 70px; }
-  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
   .photo-row { grid-template-columns: repeat(2, 1fr); }
 }

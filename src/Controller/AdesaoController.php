@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
  * Solicitação de adesão: tela pública (sem sessão) onde quem quer virar
@@ -28,7 +30,19 @@ class AdesaoController extends AbstractController
 {
     /** Mesmos valores dos chips do formulário (ver templates/adesao/index.html.twig). */
     private const VALID_EXPERIENCE = ['Iniciante', 'Intermediário', 'Experiente'];
-    private const VALID_BASE_PREF = ['PAFA', 'SCCI', 'Sem preferência'];
+
+    /**
+     * Mesma lista de bases que `AeroportoRepository::BASES`/
+     * `NovaAeronaveController::BASES_VALIDAS`/`AeroportoController::BASES_VALIDAS`
+     * (repetida, não importada — ver docblock de `AeroportoRepository::BASES`),
+     * mais 'Sem preferência' (só existe aqui, um piloto ainda não tem
+     * aeronave pra precisar de base de verdade). **Atualizado: bases
+     * sazonais** — SLLP/VNKT/WAJW/VQPR entraram como preferência
+     * selecionável, mesma decisão de `NovaAeronaveController` — ver
+     * README "Bases sazonais" (a base do Nepal é Catmandu/VNKT, não
+     * Lukla — Lukla é destino, não hub).
+     */
+    private const VALID_BASE_PREF = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR', 'Sem preferência'];
 
     #[Route('/adesao', name: 'app_adesao', methods: ['GET'])]
     public function index(): Response
@@ -42,10 +56,22 @@ class AdesaoController extends AbstractController
         EntityManagerInterface $em,
         MembershipRequestRepository $requests,
         PilotRepository $pilots,
+        CsrfTokenManagerInterface $csrf,
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
             $data = [];
+        }
+
+        // CSRF: tela pública sem sessão de piloto, então isto é a única
+        // defesa contra um site de terceiros disparando este POST sem o
+        // usuário ter aberto /adesao de verdade - token gerado por
+        // `csrf_token('adesao')` no template, devolvido por adesao.js no
+        // próprio corpo JSON (não dá pra usar cabeçalho custom com um
+        // form comum, mas isto já é um fetch com JSON, então cabe igual
+        // no payload).
+        if (!$csrf->isTokenValid(new CsrfToken('adesao', (string) ($data['_csrf_token'] ?? '')))) {
+            return $this->json(['errors' => ['Sessão expirada — recarregue a página e tente de novo.']], 419);
         }
 
         $name = trim((string) ($data['nome'] ?? ''));
