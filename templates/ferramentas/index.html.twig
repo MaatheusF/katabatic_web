@@ -1,7 +1,7 @@
 {% extends 'app_base.html.twig' %}
 
 {% block title %}Ferramentas do piloto — Katabatic{% endblock %}
-{% block meta_description %}Calculadoras de vento, unidades/QNH, peso e balanceamento, distância de decolagem/pouso, fuso horário das Bases, planeio e ponto de descida da Katabatic.{% endblock %}
+{% block meta_description %}Calculadoras de vento, unidades/QNH, peso e balanceamento, distância de decolagem/pouso, fuso horário das Bases, planeio, ponto de descida e gerador de callsign da Katabatic.{% endblock %}
 
 {% block page_stylesheets %}
 <link rel="stylesheet" href="/assets/css/pages/ferramentas.css">
@@ -262,6 +262,42 @@
       </div>
     </div>
 
+    <!-- Gerador de callsign / número de voo -->
+    <div class="card">
+      <div class="card-h"><h3 data-i18n="tools.callsign.title">Gerador de callsign / número de voo</h3></div>
+      <div class="card-b">
+        <p class="tool-note" data-i18n="tools.callsign.scope">O número vem da <b>rota</b> (origem → destino) + do <b>tipo de operação</b> — a mesma rota sempre gera o mesmo número, e o sentido contrário sai no número vizinho (par/ímpar), igual companhia aérea de verdade faz. A aeronave selecionada é só referência: não entra no cálculo.</p>
+        <div class="field">
+          <label data-i18n="tools.callsign.type">Tipo de operação</label>
+          <div class="chips" id="cs-tipo-chips">
+            <button class="chip on" data-tipo="Carga" type="button" data-i18n="common.optype.cargo">Carga</button>
+            <button class="chip" data-tipo="Pessoal" type="button" data-i18n="common.optype.personal">Pessoal</button>
+            <button class="chip" data-tipo="Pesquisa" type="button" data-i18n="common.optype.research">Pesquisa</button>
+            <button class="chip" data-tipo="Medvec" type="button" data-i18n="common.optype.medevac">Medvec</button>
+            <button class="chip" data-tipo="Reposicionamento" type="button" data-i18n="common.optype.repositioning">Reposicionamento</button>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label data-i18n="tools.callsign.origem">Origem (ICAO)</label>
+            <input type="text" class="mono-input" id="cs-origem" maxlength="4" placeholder="PAFA">
+          </div>
+          <div class="field">
+            <label data-i18n="tools.callsign.destino">Destino (ICAO)</label>
+            <input type="text" class="mono-input" id="cs-destino" maxlength="4" placeholder="PABT">
+          </div>
+          <div class="field">
+            <label><span data-i18n="tools.callsign.aircraft">Aeronave</span> <span class="opt" data-i18n="common.optional">(opcional)</span></label>
+            <select id="cs-aircraft">
+              <option value="" data-i18n="tools.callsign.aircraft.select">Selecione…</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" type="button" id="cs-swap" data-i18n="tools.callsign.swap">Inverter rota</button>
+        <div class="result" id="cs-result"></div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -320,6 +356,7 @@
       'tools.dist.type': 'Aircraft type',
       'tools.dist.type.select': 'Select…',
       'tools.dist.missing': 'No reference distance registered for <b>%s</b> yet — ask an admin to fill it in under <a href="/tipos-aeronave">Aircraft types</a>.',
+      'tools.dist.helicopter': '<b>%s</b> is registered as a helicopter — vertical takeoff/landing means ground-roll distance doesn\'t apply, so this calculator doesn\'t have anything to estimate here.',
       'tools.dist.elev': 'Runway elevation',
       'tools.dist.oat': 'Temperature (OAT)',
       'tools.dist.wind': 'Head/tailwind component',
@@ -355,12 +392,26 @@
       'tools.tod.result.time': 'Descent time',
       'tools.tod.result.rate': 'Recommended descent rate',
       'tools.glide.result.distance': 'Reachable distance',
-      'tools.zulu.result.base': 'Base'
+      'tools.zulu.result.base': 'Base',
+      'tools.callsign.title': 'Callsign / flight number generator',
+      'tools.callsign.scope': 'The number comes from the <b>route</b> (origin → destination) + the <b>operation type</b> — the same route always generates the same number, and the reverse direction gets the neighboring number (even/odd), same as real airlines do. The selected aircraft is just for reference: it does not affect the calculation.',
+      'tools.callsign.type': 'Operation type',
+      'tools.callsign.origem': 'Origin (ICAO)',
+      'tools.callsign.destino': 'Destination (ICAO)',
+      'tools.callsign.aircraft': 'Aircraft',
+      'tools.callsign.aircraft.select': 'Select…',
+      'tools.callsign.swap': 'Swap route',
+      'tools.callsign.hint.same': 'Origin and destination need to be different.',
+      'tools.callsign.result.reverse': 'reverse direction',
+      'tools.callsign.result.aircraft': 'Selected aircraft',
+      'tools.callsign.hint.ajustado': 'Number adjusted — this route\'s natural number is already used by a different route; picked the next one available.',
+      'tools.callsign.hint.esgotado': 'Every number range for this operation type is already used by other routes — reused a number anyway.'
     };
     for (var k in d) { window.KATABATIC_I18N_EN[k] = d[k]; }
   })();
   window.KATABATIC_FERRAMENTAS_AERONAVES = {{ aeronaves|json_encode|raw }};
   window.KATABATIC_FERRAMENTAS_TIPOS = {{ tiposAeronave|json_encode|raw }};
+  window.KATABATIC_FERRAMENTAS_VOOS_EXISTENTES = {{ voosExistentes|json_encode|raw }};
 </script>
 <script src="/assets/js/pages/ferramentas.js" defer></script>
 {% endblock %}

@@ -147,6 +147,30 @@ class VooRepository extends ServiceEntityRepository
     }
 
     /**
+     * Os N voos mais recentes com telemetria de verdade, de QUALQUER
+     * piloto — alimenta "Operações recentes" na home pública (ver
+     * `HomeController::recentFlights()`). Sem filtro de piloto
+     * (diferente de `findComTelemetriaForPilot()`): a home é uma
+     * vitrine da empresa, não do Logbook de ninguém. Só `valido` —
+     * um voo acidentado (`marcarAcidentado()`) continua no banco pra
+     * auditoria, mas não é isso que a home deveria exibir como
+     * "operação recente".
+     *
+     * @return list<Voo>
+     */
+    public function findRecentesComTelemetria(int $limit): array
+    {
+        return $this->createQueryBuilder('v')
+            ->andWhere('v.codigo IS NOT NULL')
+            ->andWhere('v.status = :status')
+            ->setParameter('status', Voo::STATUS_VALIDO)
+            ->orderBy('v.startedAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Contagem de voos de um piloto só — usado onde não vale a pena
      * buscar o mapa inteiro (`SolicitacoesController::aprovar()`, que já
      * tem o `Pilot` em mãos e está tratando um só de cada vez). Mesmo
@@ -162,5 +186,28 @@ class VooRepository extends ServiceEntityRepository
             ->setParameter('status', Voo::STATUS_VALIDO)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /**
+     * Todo par (callsign, origem, destino) já usado por algum voo, de
+     * qualquer piloto — alimenta o gerador de callsign/número de voo em
+     * Ferramentas (ver `FerramentasController` e `ferramentas.js`), que
+     * usa isto pra evitar sugerir um número que outra rota já usa
+     * (mesma rota reusar o mesmo número continua sendo o esperado, só
+     * rota DIFERENTE colidindo é que o gerador tenta evitar). `DISTINCT`
+     * na tripla inteira: uma rota voada 50 vezes com o mesmo callsign
+     * vira 1 linha só, não 50 — sem filtro de status/piloto de propósito
+     * (até um voo de teste ou acidentado "reserva" o número pra quem
+     * olhar essa lista).
+     *
+     * @return list<array{callsign: string, origem: string, destino: string}>
+     */
+    public function findCallsignsRotasUsados(): array
+    {
+        return $this->createQueryBuilder('v')
+            ->select('v.callsign AS callsign', 'v.origem AS origem', 'v.destino AS destino')
+            ->distinct()
+            ->getQuery()
+            ->getArrayResult();
     }
 }

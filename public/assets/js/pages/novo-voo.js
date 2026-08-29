@@ -56,7 +56,7 @@
     var n = e.target.value.replace(/\D/g, '').slice(0, 3);
     e.target.value = n;
     var first = n[0];
-    var map = { '1': 'Carga', '2': 'Pessoal', '4': 'Pesquisa', '9': 'Reposicionamento' };
+    var map = { '1': 'Carga', '2': 'Pessoal', '4': 'Pesquisa', '9': 'Reposicionamento', '5': 'Medvec' };
     if (first && map[first]) {
       document.querySelectorAll('#tipo-chips .chip').forEach(function (c) {
         c.classList.toggle('on', c.dataset.tipo === map[first]);
@@ -73,7 +73,7 @@
   /* ---------- aeronave -> mostra ficha + sugere origem ---------- */
   document.getElementById('f-aircraft').addEventListener('change', function (e) {
     var box = document.getElementById('aircraft-pick');
-    if (e.target.value === '') { box.style.display = 'none'; return; }
+    if (e.target.value === '') { box.style.display = 'none'; updateOcorrenciasHelicoptero(null); return; }
     var a = AIRCRAFT[+e.target.value];
     box.style.display = 'flex';
     box.innerHTML = '<span class="dot" style="background:' + a.dot + '"></span>' +
@@ -84,7 +84,26 @@
       origEl.value = a.pos;
       document.getElementById('orig-hint').innerHTML = L('novovoo.orighint.autofilled', 'Preenchido com a posição atual da aeronave — ajuste se decolou de outro lugar.');
     }
+    updateOcorrenciasHelicoptero(a.categoria);
   });
+
+  // Chips de ocorrencia especificos de helicoptero (Autorrotacao/LTE/
+  // Vortex ring state, ver NovoVooController::OCORRENCIA_TAGS) so
+  // aparecem quando a aeronave selecionada e categoria 'Helicoptero'
+  // (Aeronave::$tipo -> TipoAeronave::$categoria, casamento fraco por
+  // string ja resolvido no servidor em aircraftViewModel()). Trocar de
+  // aeronave pra uma que nao e helicoptero desmarca qualquer um desses
+  // tres que estivesse ligado, senao um voo de aviao poderia sair com
+  // "LTE" marcado sem o piloto ter acesso ao chip pra desmarcar de novo.
+  var OCOR_HELI_IDS = ['ocor-autorrotacao', 'ocor-lte', 'ocor-vrs'];
+  function updateOcorrenciasHelicoptero(categoria) {
+    var mostrar = categoria === 'Helicoptero';
+    OCOR_HELI_IDS.forEach(function (id) {
+      var chip = document.getElementById(id);
+      chip.style.display = mostrar ? '' : 'none';
+      if (!mostrar && chip.classList.contains('on')) chip.click();
+    });
+  }
 
   /* ---------- data/hora padrao = agora, so relevante no modo manual ---------- */
   (function () {

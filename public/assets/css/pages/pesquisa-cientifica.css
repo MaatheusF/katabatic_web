@@ -1,0 +1,167 @@
+/* Área científica — mapa da missão, narrativa, destaques e estatísticas de um voo de Pesquisa.
+   Depende de base.css + app-shell.css carregados antes (rail, bar, tokens já vêm de lá) — mas,
+   diferente das outras telas da área logada, este arquivo nunca redefinia .wrap/.card/.card-h/
+   .card-b/.hint (bug: ficava usando o .wrap genérico do site público, sem padding vertical e
+   com max-width errado, e os cards saíam sem borda/fundo/sombra — daí o layout "quebrado"). */
+
+/* base.css define um .wrap genérico pro site público (max-width: var(--wrap) + margin:0 auto,
+   sem padding vertical) — aqui é área logada, o .main já fica ao lado do rail, então o conteúdo
+   ocupa a largura inteira do .main (pedido em conversa: "os recursos usem toda a extensão da
+   tela"), só com uma margem pequena — mesmo princípio de .wrap em aeronave.css/voo.css. */
+.wrap { max-width: none; margin: 0; padding: 28px 28px 70px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+.card:last-child { margin-bottom: 0; }
+.card-h { display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+.card-h h3 { font-size: 14px; }
+.card-b { padding: 18px; }
+
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+.pc-empty .card-b { text-align: center; color: var(--text-2); padding: 32px 24px; }
+
+.pc-sintetico {
+  background: rgba(214,150,20,.1);
+  border: 1px solid rgba(214,150,20,.3);
+  color: #d69614;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.pc-mission {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.pc-mission-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pc-mission-h h2 { margin: 0; font-size: 18px; }
+.pc-mission-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--text-2); font-size: 13px; }
+
+.pc-badge { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 4px 10px; border-radius: 999px; }
+.pc-badge-calmo { background: rgba(46,160,90,.15); color: #2ea05a; }
+.pc-badge-moderado { background: rgba(214,150,20,.15); color: #d69614; }
+.pc-badge-severo { background: rgba(214,50,50,.15); color: #d63232; }
+
+.pc-map-card .card-h { flex-wrap: wrap; gap: 10px; }
+.pc-map-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin-left: auto; }
+
+/* Mesmo padrão visual do seletor PT/EN da barra superior (base.css
+   .lang) — dois botões em grupo, o ativo em destaque via aria-pressed. */
+.pc-imgmode { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.pc-imgmode button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .03em; padding: 6px 10px; border: 0; background: var(--surface); color: var(--muted); cursor: pointer; }
+.pc-imgmode button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.pc-follow, .pc-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.pc-select { font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.pc-select:disabled { opacity: .5; }
+
+#pc-map { height: 480px; background: #0B1216; }
+
+.pc-timeline {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.pc-timeline .hint { margin: 4px; }
+.pc-thumb {
+  flex: 0 0 auto;
+  width: 84px;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: var(--border);
+}
+.pc-thumb img { display: block; width: 84px; height: 84px; object-fit: cover; }
+.pc-thumb .t { display: block; font-size: 10px; text-align: center; padding: 2px 0; color: var(--text-2); font-family: var(--font-mono); }
+.pc-thumb.on { border-color: var(--accent); }
+.pc-thumb-noimg { display: flex; align-items: center; justify-content: center; height: 84px; font-size: 10px; color: var(--muted); }
+
+/* Indicadores de telemetria REAL da aeronave (relatorio.indicadoresTelemetria,
+   ver PesquisaRelatorioGerador::indicadoresTelemetria()) — chips numa
+   grade, mesmas 3 cores calmo/moderado/severo de .pc-badge-*, só que
+   como cartão em vez de pílula (tem label + valor, não cabe num badge). */
+.pc-indicadores { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 4px; }
+.pc-indicador { border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; }
+.pc-indicador-label { font-size: 11px; color: var(--text-2); line-height: 1.3; }
+.pc-indicador-valor { font-size: 16px; font-weight: 600; font-family: var(--font-mono); }
+.pc-indicador-calmo { border-left-color: #2ea05a; }
+.pc-indicador-moderado { border-left-color: #d69614; }
+.pc-indicador-severo { border-left-color: #d63232; }
+
+/* Gráficos de evolução (vento/rajada, temperatura, precipitação) a
+   partir de pesquisa.amostras — SVG desenhado à mão em JS
+   (construirCardGrafico() em pesquisa-cientifica.js), sem lib nova.
+   Pedido em conversa: "gráficos de evolução, max/mín e marcar no mapa
+   onde atingiu o máximo e o mínimo (tipo eventos)". */
+.pc-charts { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 10px; }
+.pc-chart-card { flex: 1 1 300px; min-width: 260px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.pc-chart-card h4 { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 0 0 6px; }
+.pc-chart-svg { width: 100%; height: auto; display: block; }
+.pc-chart-axis { stroke: var(--border); stroke-width: 1; }
+.pc-chart-axislabel { font-size: 9px; fill: var(--muted); font-family: var(--font-mono); }
+.pc-chart-linha { fill: none; stroke-width: 2; }
+.pc-chart-linha-extra { stroke-dasharray: 3 3; opacity: .75; }
+.pc-chart-max { fill: #e63946; stroke: #fff; stroke-width: 1.5; }
+.pc-chart-min { fill: #4fc3f7; stroke: #fff; stroke-width: 1.5; }
+.pc-chart-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pc-chart-stat { flex: 1 1 auto; font-family: var(--font-mono); font-size: 11px; text-align: left; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.pc-chart-stat b { color: var(--text); }
+.pc-chart-stat-max { border-left: 3px solid #e63946; }
+.pc-chart-stat-min { border-left: 3px solid #4fc3f7; }
+.pc-chart-stat:hover { border-color: var(--accent); }
+
+.pc-narrativa p { margin: 0 0 12px; line-height: 1.6; }
+.pc-narrativa p:last-child { margin-bottom: 0; }
+
+.pc-destaques { margin: 0; padding-left: 20px; }
+.pc-destaques li { margin-bottom: 8px; line-height: 1.5; }
+.pc-destaques li:last-child { margin-bottom: 0; }
+
+.pc-stats { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pc-stats th { text-align: left; font-weight: 500; color: var(--text-2); padding: 6px 12px 6px 0; white-space: nowrap; }
+.pc-stats td { text-align: right; font-family: var(--font-mono); padding: 6px 0; }
+.pc-stats tr + tr th, .pc-stats tr + tr td { border-top: 1px solid var(--border); }
+
+.leaflet-popup-content { font-size: 12px; }
+
+/* leaflet-velocity não traz CSS nenhum próprio carregado nesta página —
+   sem isto, a caixa de "velocidade sob o mouse" (displayValues) e a
+   legenda de cores (pc-wind-legend, montada em JS) saem sem fundo/borda,
+   texto solto direto em cima do mapa escuro. */
+.leaflet-control-velocity {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin: 0 0 8px !important;
+  color: var(--text-2);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  box-shadow: var(--shadow);
+}
+.leaflet-control-velocity strong { color: var(--text); font-weight: 600; }
+
+.pc-wind-legend {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow);
+  min-width: 150px;
+}
+.pc-wind-legend-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.pc-wind-legend-bar { height: 8px; border-radius: 4px; margin-bottom: 4px; }
+.pc-wind-legend-scale { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: var(--text-2); }
+
+@media (max-width: 640px) {
+  .wrap { padding: 18px 16px 60px; }
+  #pc-map { height: 300px; }
+  .pc-map-controls { margin-left: 0; width: 100%; justify-content: space-between; }
+}

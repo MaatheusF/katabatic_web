@@ -55,11 +55,9 @@
           <label data-i18n="novaaeronave.type">Tipo (ICAO)</label>
           <select id="f-tipo">
             <option value="" data-i18n="novaaeronave.type.select">Selecione…</option>
-            <option>DHC-6 Twin Otter 300</option>
-            <option>Cessna 208B Grand Caravan</option>
-            <option>Pilatus PC-6 Porter</option>
-            <option>DHC-2 Beaver</option>
-            <option>Beechcraft King Air 350</option>
+            {% for t in tiposCadastrados %}
+            <option>{{ t.nome }}</option>
+            {% endfor %}
             <option value="__custom" data-i18n="novaaeronave.type.other">Outro tipo…</option>
           </select>
           <input type="text" class="mono-input" id="f-tipo-custom" placeholder="Ex.: Cessna 185F Skywagon" style="display:none;margin-top:8px">

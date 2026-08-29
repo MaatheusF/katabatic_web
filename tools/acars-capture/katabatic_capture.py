@@ -67,6 +67,11 @@ Uso:
     # upload_payload.json a partir do que ja esta em disco:
     python katabatic_capture.py --rebuild voos/20260823_141500_KBT118
 
+    # voo de helicoptero - desliga o debounce de "quique" de pista, ja que
+    # hover-taxi pousa/decola varias vezes de proposito em poucos segundos
+    # (ver --categoria acima):
+    python katabatic_capture.py --record --callsign KBT512 --categoria helicoptero
+
 Encerre a gravacao com Ctrl+C. Um Ctrl+C fecha os arquivos direito, para o
 heartbeat de posicao e tenta o envio de fechamento (se configurado).
 """
@@ -480,6 +485,12 @@ def do_record(reader, args):
     warned_rate = False
     last_td = 0.0
     last_to = 0.0
+    # Helicoptero legitimamente faz varios toque/decolagem curtos (hover-
+    # taxi, pouso e decolagem em sequencia perto do solo) que NAO sao um
+    # "quique" de asa fixa - a janela de debounce abaixo so faz sentido
+    # pra aviao. Pedido em conversa: "vamos receber voos de helicoptero,
+    # precisamos preparar a plataforma" - ver --categoria/BOUNCE_WINDOW_S.
+    is_helicoptero = (args.categoria == "helicoptero")
     next_state = clock + 2.0   # grupo D so a cada 2 s, para sobrar tempo ao grupo B
     late = 0
 
@@ -533,15 +544,21 @@ def do_record(reader, args):
             if on_ground is not None:
                 if was_on_ground is False and on_ground:
                     desde = tick - max(last_td, last_to)
-                    if desde < 12.0:
+                    if is_helicoptero:
+                        # sem debounce: cada toque e um touchdown de verdade
+                        # (hover-taxi pousa/decola varias vezes em segundos,
+                        # nao e um quique de pista)
+                        rec.touchdown(self_pos)
+                    elif desde < 12.0:
                         # perto demais de um toque OU de uma decolagem: e quique
                         rec.event("bounce", {"desde_s": round(desde, 1)}, self_pos)
                     else:
                         rec.touchdown(self_pos)
                     last_td = tick
                 elif was_on_ground and not on_ground:
-                    # subida logo apos o toque e quique, nao decolagem
-                    if tick - last_td >= 12.0:
+                    # subida logo apos o toque e quique, nao decolagem (so
+                    # aplica pra aviao - ver is_helicoptero acima)
+                    if is_helicoptero or tick - last_td >= 12.0:
                         rec.event("takeoff", {"ias_kt": rnd(sample_a.get("ias_kt"))}, self_pos)
                         last_to = tick
                 was_on_ground = bool(on_ground)
@@ -775,6 +792,7 @@ def upload_capture(payload, server, token, payload_path):
 TIPO_LABELS = {
     "carga": "Carga", "pesquisa": "Pesquisa",
     "pessoal": "Pessoal", "reposicionamento": "Reposicionamento",
+    "medvec": "Medvec",
 }
 
 
@@ -970,7 +988,12 @@ def main():
     parser.add_argument("--dir", default="voos", help="pasta de saida (padrao: ./voos)")
     parser.add_argument("--pilot-cid", default="", help="CID VATSIM do piloto (backend precisa achar o Pilot por isso)")
     parser.add_argument("--tipo", default="", choices=[""] + sorted(TIPO_LABELS.keys()),
-                         help="tipo de operacao: carga, pesquisa, pessoal ou reposicionamento (vazio = nao enviar)")
+                         help="tipo de operacao: carga, pesquisa, pessoal, reposicionamento ou medvec (vazio = nao enviar)")
+    parser.add_argument("--categoria", default="aviao", choices=["aviao", "helicoptero"],
+                         help="categoria da aeronave (padrao: aviao) - so muda a deteccao de toque no "
+                              "solo/decolagem: helicoptero nao usa a janela de debounce de 'quique' de "
+                              "pista, ja que hover-taxi pousa/decola varias vezes em poucos segundos de "
+                              "proposito, sem ser um quique de asa fixa")
     parser.add_argument("--origem", default="", help="ICAO de origem planejado, ex.: PAFA")
     parser.add_argument("--destino", default="", help="ICAO de destino planejado, ex.: PABT")
     parser.add_argument("--server", default="", help="URL base do backend Symfony, ex.: http://localhost:8080")

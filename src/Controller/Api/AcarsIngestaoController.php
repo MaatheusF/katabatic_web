@@ -4,10 +4,16 @@ namespace App\Controller\Api;
 
 use App\Entity\Voo;
 use App\Event\AeronavePosicaoAtualizadaEvent;
+use App\Entity\TipoAeronave;
 use App\Repository\AeronaveRepository;
 use App\Repository\PilotRepository;
 use App\Repository\PosicaoAoVivoRepository;
+use App\Repository\TipoAeronaveRepository;
 use App\Repository\VooRepository;
+use App\Service\PesquisaAmbienteCaptador;
+use App\Service\PesquisaCapturaOrquestrador;
+use App\Service\PesquisaRelatorioGerador;
+use App\Service\PesquisaVooAggregator;
 use App\Service\TelemetriaVooBuilder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -97,7 +103,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 class AcarsIngestaoController extends AbstractController
 {
-    private const TIPOS_VALIDOS = ['Carga', 'Pesquisa', 'Pessoal', 'Reposicionamento'];
+    private const TIPOS_VALIDOS = ['Carga', 'Pesquisa', 'Pessoal', 'Reposicionamento', 'Medvec'];
 
     public function __construct(
         #[Autowire('%env(ACARS_TOKEN)%')] private readonly string $token,
@@ -127,6 +133,10 @@ class AcarsIngestaoController extends AbstractController
         $pilotCid = trim((string) ($data['pilot_cid'] ?? ''));
         $aeronaveReg = strtoupper(trim((string) ($data['aeronave_reg'] ?? '')));
         $startedAtRaw = (string) ($data['started_at'] ?? '');
+        // Opcional — campo novo, cliente antigo que não manda continua
+        // funcionando igual (só sem captura de pesquisa nesse voo). Ver
+        // docblock de `Aeronave::$emVooTipoOperacao`.
+        $tipoOperacao = (string) ($data['tipo_operacao'] ?? '');
 
         $errors = [];
         if ('' === $pilotCid) {
@@ -164,6 +174,7 @@ class AcarsIngestaoController extends AbstractController
         // "recente" (senão ficaria alguns segundos só na janela antiga de
         // `EM_VOO_MAX_HORAS` até o cliente mandar o 1º `.../voos/posicao`).
         $aeronave->setUltimoPingEm($startedAt);
+        $aeronave->setEmVooTipoOperacao(\in_array($tipoOperacao, self::TIPOS_VALIDOS, true) ? $tipoOperacao : null);
         $em->flush();
 
         return $this->json(['aeronave' => $aeronaveReg, 'status' => 'Em voo'], 200);
@@ -189,6 +200,8 @@ class AcarsIngestaoController extends AbstractController
         AeronaveRepository $aeronaves,
         PosicaoAoVivoRepository $posicoes,
         EventDispatcherInterface $eventDispatcher,
+        PesquisaAmbienteCaptador $pesquisaCaptador,
+        PesquisaCapturaOrquestrador $pesquisaCapturaOrquestrador,
     ): JsonResponse {
         $auth = $request->headers->get('Authorization', '');
         if (!str_starts_with($auth, 'Bearer ') || !hash_equals($this->token, substr($auth, 7))) {
@@ -271,6 +284,13 @@ class AcarsIngestaoController extends AbstractController
         // por polling, não por este evento.
         $eventDispatcher->dispatch(new AeronavePosicaoAtualizadaEvent($aeronave, $posicao));
 
+        // Camada de pesquisa meteorológica — melhor esforço, nunca pode
+        // falhar este heartbeat (ver docblock de PesquisaAmbienteCaptador).
+        // Roda depois do flush acima: a posição em si já está garantida
+        // mesmo que a captura de pesquisa dê problema.
+        $pesquisaCaptador->capturar($aeronave, (float) $lat, (float) $lon, $posicao->getAltFt(), $agora);
+        $pesquisaCapturaOrquestrador->capturarSeNecessario($aeronave, (float) $lat, (float) $lon, $posicao->getAltFt(), $agora);
+
         return $this->json(['aeronave' => $aeronaveReg, 'status' => 'ok'], 200);
     }
 
@@ -281,7 +301,10 @@ class AcarsIngestaoController extends AbstractController
         PilotRepository $pilots,
         AeronaveRepository $aeronaves,
         VooRepository $voos,
+        TipoAeronaveRepository $tipos,
         TelemetriaVooBuilder $builder,
+        PesquisaVooAggregator $pesquisaAggregator,
+        PesquisaRelatorioGerador $pesquisaRelatorio,
     ): JsonResponse {
         $auth = $request->headers->get('Authorization', '');
         if (!str_starts_with($auth, 'Bearer ') || !hash_equals($this->token, substr($auth, 7))) {
@@ -358,9 +381,43 @@ class AcarsIngestaoController extends AbstractController
 
         $tempoMin = max(1, (int) round($resultado['dur'] / 60));
 
-        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $resultado['dificuldade']);
+        // Categoria da aeronave (asa fixa/rotativa) congelada no voo no
+        // momento da ingestão - ver docblock de Voo::$categoriaAeronave.
+        // 'Aviao' se o tipo dessa aeronave ainda não tem TipoAeronave
+        // cadastrado (mesmo default gracioso de FerramentasController).
+        $categoriaAeronave = $tipos->findOneByNome($aeronave->getTipo())?->getCategoria() ?? TipoAeronave::CATEGORIA_AVIAO;
+
+        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $resultado['dificuldade'], $categoriaAeronave);
         $voo->setCodigo($codigo);
-        $voo->setDados($resultado['dados']);
+
+        $dados = $resultado['dados'];
+        if ('Pesquisa' === $tipoOperacao) {
+            // Congela o resumo das amostras ambiente capturadas ao vivo
+            // durante este voo (ver docblock de PesquisaVooAggregator) —
+            // `null` quando nenhuma amostra caiu na janela (sessão sem
+            // heartbeat de posição, por exemplo), nesse caso a chave
+            // simplesmente não é escrita.
+            $pesquisa = $pesquisaAggregator->agregar($aeronaveReg, $startedAt, new \DateTimeImmutable());
+            if (null !== $pesquisa) {
+                // Relatório determinístico (sem IA, decisão tomada em
+                // conversa) — congelado junto no mesmo POST de fechamento,
+                // nunca recalculado depois. Ver docblock de
+                // PesquisaRelatorioGerador.
+                $pesquisa['relatorio'] = $pesquisaRelatorio->gerar(
+                    $callsign,
+                    $aeronaveReg,
+                    $aeronave->getTipo(),
+                    $origem,
+                    $destino,
+                    $startedAt,
+                    $tempoMin,
+                    $pesquisa,
+                    \is_array($resultado['dados']['telemetria'] ?? null) ? $resultado['dados']['telemetria'] : null,
+                );
+                $dados['pesquisa'] = $pesquisa;
+            }
+        }
+        $voo->setDados($dados);
 
         if (null !== $resultado['destinoReal']) {
             $voo->setDestinoReal($resultado['destinoReal']);
@@ -378,6 +435,7 @@ class AcarsIngestaoController extends AbstractController
         $aeronave->setStatus('Disponível');
         $aeronave->setEmVooDesde(null);
         $aeronave->setUltimoPingEm(null);
+        $aeronave->setEmVooTipoOperacao(null);
 
         $em->flush();
 

@@ -4,10 +4,12 @@ namespace App\Controller;
 
 use App\Entity\Aeronave;
 use App\Entity\Pilot;
+use App\Entity\TipoAeronave;
 use App\Entity\Voo;
 use App\Entity\VooRascunho;
 use App\Repository\AeronaveRepository;
 use App\Repository\PilotRepository;
+use App\Repository\TipoAeronaveRepository;
 use App\Repository\VooRascunhoRepository;
 use App\Repository\VooRepository;
 use App\Service\TelemetriaVooBuilder;
@@ -75,18 +77,39 @@ use Symfony\Component\Routing\Attribute\Route;
 class NovoVooController extends AbstractController
 {
     /** Mesmo conjunto de `Api\AcarsIngestaoController::TIPOS_VALIDOS` — mantenha os dois em sincronia. */
-    private const TIPOS_VALIDOS = ['Carga', 'Pesquisa', 'Pessoal', 'Reposicionamento'];
+    private const TIPOS_VALIDOS = ['Carga', 'Pesquisa', 'Pessoal', 'Reposicionamento', 'Medvec'];
 
-    /** Ocorrências que o registro manual aceita, com a mesma severidade que `TelemetryDeriver` usa pras equivalentes detectadas por telemetria (pouso duro/estol/overspeed = 'bad', quique = 'warn') — mantém a cor do selo consistente entre voos manuais e automáticos no Logbook. */
+    /**
+     * Ocorrências que o registro manual aceita, com a mesma severidade que
+     * `TelemetryDeriver` usa pras equivalentes detectadas por telemetria
+     * (pouso duro/estol/overspeed = 'bad', quique = 'warn') — mantém a cor
+     * do selo consistente entre voos manuais e automáticos no Logbook.
+     *
+     * As três últimas (Autorrotação/LTE/Vortex ring state) são
+     * específicas de helicóptero — pedido em conversa, junto da categoria
+     * Avião/Helicóptero em `TipoAeronave`. `novo-voo.js` só mostra esses
+     * três chips quando a aeronave selecionada é da categoria
+     * 'Helicoptero' (ver `KATABATIC_AIRCRAFT[i].categoria` abaixo), pra
+     * não poluir o formulário de quem voa asa fixa com ocorrência que não
+     * se aplica. **Só entram por registro manual** — `TelemetryDeriver`
+     * ainda não tem heurística nenhuma pra detectar essas três a partir de
+     * telemetria (diferente das quatro de cima, que vêm de eventos reais
+     * do script ACARS); ficam de fora do "índice comparativo entre voos"
+     * junto com o resto do registro manual (ver `novovoo.warn.unverified`
+     * no template).
+     */
     private const OCORRENCIA_TAGS = [
         'Pouso duro' => 'bad',
         'Quique' => 'warn',
         'Overspeed' => 'bad',
         'Estol' => 'bad',
+        'Autorrotação' => 'bad',
+        'LTE' => 'bad',
+        'Vortex ring state' => 'bad',
     ];
 
     #[Route('/novo-voo', name: 'app_novo_voo', methods: ['GET'])]
-    public function index(Request $request, AeronaveRepository $aeronaves, PilotRepository $pilots, VooRascunhoRepository $rascunhos): Response
+    public function index(Request $request, AeronaveRepository $aeronaves, PilotRepository $pilots, VooRascunhoRepository $rascunhos, TipoAeronaveRepository $tipos): Response
     {
         $sessionPilot = $request->getSession()->get('pilot');
         if (null === $sessionPilot) {
@@ -100,11 +123,13 @@ class NovoVooController extends AbstractController
         $pilotEntity = $pilots->findOneByCid($sessionPilot['cid']);
         $rascunho = null !== $pilotEntity ? $rascunhos->findOneByPilot($pilotEntity) : null;
 
+        $categoriasPorTipo = $tipos->findCategoriasPorNome();
+
         return $this->render('novo_voo/index.html.twig', [
             'activeView' => 'logbook',
             'pilot' => $sessionPilot,
             'aircraft' => array_map(
-                fn (Aeronave $a) => $this->aircraftViewModel($a),
+                fn (Aeronave $a) => $this->aircraftViewModel($a, $categoriasPorTipo),
                 $aeronaves->findAllOrderedByBaseAndReg()
             ),
             'rascunho' => $rascunho?->getDados(),
@@ -203,7 +228,7 @@ class NovoVooController extends AbstractController
      * flag "verificado" nova.
      */
     #[Route('/novo-voo/publicar', name: 'app_novo_voo_publicar', methods: ['POST'])]
-    public function publicar(Request $request, EntityManagerInterface $em, PilotRepository $pilots, AeronaveRepository $aeronaves, VooRascunhoRepository $rascunhos): JsonResponse
+    public function publicar(Request $request, EntityManagerInterface $em, PilotRepository $pilots, AeronaveRepository $aeronaves, TipoAeronaveRepository $tipos, VooRascunhoRepository $rascunhos): JsonResponse
     {
         $sessionPilot = $request->getSession()->get('pilot');
         if (null === $sessionPilot) {
@@ -294,7 +319,11 @@ class NovoVooController extends AbstractController
 
         $callsign = 'KBT'.$callsignNum;
 
-        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $dificuldade);
+        // Categoria da aeronave (asa fixa/rotativa) congelada no voo -
+        // ver docblock de Voo::$categoriaAeronave.
+        $categoriaAeronave = $tipos->findOneByNome($aeronave->getTipo())?->getCategoria() ?? TipoAeronave::CATEGORIA_AVIAO;
+
+        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $dificuldade, $categoriaAeronave);
         $voo->setDados([
             'rota' => $origem.' → '.$destino,
             'modelo' => $aeronave->getTipo(),
@@ -401,6 +430,7 @@ class NovoVooController extends AbstractController
         EntityManagerInterface $em,
         PilotRepository $pilots,
         AeronaveRepository $aeronaves,
+        TipoAeronaveRepository $tipos,
         VooRepository $voos,
         TelemetriaVooBuilder $builder,
         VooRascunhoRepository $rascunhos,
@@ -488,7 +518,11 @@ class NovoVooController extends AbstractController
         $tempoMin = max(1, (int) round($resultado['dur'] / 60));
         $callsign = 'KBT'.$callsignNum;
 
-        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $resultado['dificuldade']);
+        // Categoria da aeronave (asa fixa/rotativa) congelada no voo -
+        // ver docblock de Voo::$categoriaAeronave.
+        $categoriaAeronave = $tipos->findOneByNome($aeronave->getTipo())?->getCategoria() ?? TipoAeronave::CATEGORIA_AVIAO;
+
+        $voo = new Voo($pilot, $callsign, $tipoOperacao, $origem, $destino, $aeronaveReg, $startedAt, $tempoMin, $resultado['dificuldade'], $categoriaAeronave);
         $voo->setCodigo('' !== $codigo ? $codigo : null);
 
         // Diferente da ingestão ACARS ao vivo (que nunca tem essa tela de
@@ -560,9 +594,18 @@ class NovoVooController extends AbstractController
     }
 
     /**
-     * @return array{reg: string, tipo: string, base: string, pos: string, status: string, dot: string}
+     * `categoria` ('Aviao'/'Helicoptero', null se o tipo ainda não tem
+     * perfil cadastrado) vem de `$categoriasPorTipo`
+     * (`TipoAeronaveRepository::findCategoriasPorNome()`, buscado uma vez
+     * só em `index()`) — `novo-voo.js` usa isso pra decidir se mostra os
+     * três chips de ocorrência específicos de helicóptero (ver
+     * `OCORRENCIA_TAGS` acima).
+     *
+     * @param array<string, string> $categoriasPorTipo
+     *
+     * @return array{reg: string, tipo: string, categoria: ?string, base: string, pos: string, status: string, dot: string}
      */
-    private function aircraftViewModel(Aeronave $a): array
+    private function aircraftViewModel(Aeronave $a, array $categoriasPorTipo): array
     {
         $dot = match ($a->getStatusTag()) {
             'warn' => 'var(--accent)',
@@ -573,6 +616,7 @@ class NovoVooController extends AbstractController
         return [
             'reg' => $a->getReg(),
             'tipo' => $a->getTipo(),
+            'categoria' => $categoriasPorTipo[$a->getTipo()] ?? null,
             'base' => $a->getBase(),
             'pos' => $a->getPosIcao(),
             'status' => $a->getStatusEfetivo(),

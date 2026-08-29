@@ -66,7 +66,7 @@ class Voo
     #[ORM\Column(length: 16)]
     private string $callsign;
 
-    /** 'Carga' / 'Pesquisa' / 'Pessoal' / 'Reposicionamento'. */
+    /** 'Carga' / 'Pesquisa' / 'Pessoal' / 'Reposicionamento' / 'Medvec'. */
     #[ORM\Column(length: 30)]
     private string $tipoOperacao;
 
@@ -88,6 +88,22 @@ class Voo
     /** Matrícula da aeronave (ver Frota — ainda mock, ver README). */
     #[ORM\Column(length: 16)]
     private string $aeronaveReg;
+
+    /**
+     * 'Aviao' ou 'Helicoptero' — congelado no momento em que o voo é
+     * criado, a partir de `TipoAeronave::$categoria` da aeronave voada
+     * (`Aeronave::$tipo` → `TipoAeronaveRepository::findOneByNome()`,
+     * 'Aviao' se o tipo ainda não tem perfil cadastrado). Pedido em
+     * conversa: "precisamos marcar o voo quando ele é feito com asa fixa
+     * e asa rotativa". Congelado, não recalculado, pelo mesmo motivo que
+     * `tipoOperacao` já é coluna de verdade: o Logbook mostra/filtra por
+     * isso, então não pode depender do cadastro do tipo continuar
+     * existindo (ou continuar com a mesma categoria) pra sempre — se o
+     * admin recategorizar um `TipoAeronave` depois, voos já voados
+     * mantêm a marca de como foram voados de verdade.
+     */
+    #[ORM\Column(length: 20)]
+    private string $categoriaAeronave;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $startedAt;
@@ -128,14 +144,20 @@ class Voo
 
     public const STATUS_VALIDO = 'valido';
     public const STATUS_ACIDENTADO = 'acidentado';
+    public const STATUS_TESTE = 'teste';
 
     /**
-     * `valido` (padrão) ou `acidentado` — marcado pelo próprio piloto
-     * quando a perna não devia ter contado (acidente no meio do
-     * trajeto, sessão corrompida, etc. — ver
-     * `VooController::marcarAcidentado()`). Substitui o hard-delete que
-     * esta tela tinha antes: o voo continua na tabela (auditoria), só
-     * fica marcado e some das contagens de horas/voos do piloto.
+     * `valido` (padrão), `acidentado` ou `teste`. `acidentado` é
+     * marcado pelo próprio piloto quando a perna não devia ter contado
+     * (acidente no meio do trajeto, sessão corrompida, etc. — ver
+     * `VooController::marcarAcidentado()`). `teste` é gerado só por
+     * `App\Command\PesquisaReprocessarCommand` (duplicata sintética de
+     * um voo real, pra validar a camada de pesquisa meteorológica sem
+     * mexer no voo original — ver docblock de lá). Os dois substituem o
+     * hard-delete que esta tela tinha antes: o voo continua na tabela
+     * (auditoria), só fica marcado e some das contagens de horas/voos
+     * do piloto (`VooRepository::countsByPilot()`/`countForPilot()`
+     * filtram só `valido`).
      */
     #[ORM\Column(length: 20)]
     private string $status = self::STATUS_VALIDO;
@@ -150,6 +172,7 @@ class Voo
         \DateTimeImmutable $startedAt,
         int $tempoMin,
         int $dificuldade,
+        string $categoriaAeronave = TipoAeronave::CATEGORIA_AVIAO,
     ) {
         $this->pilot = $pilot;
         $this->callsign = $callsign;
@@ -160,6 +183,7 @@ class Voo
         $this->startedAt = $startedAt;
         $this->tempoMin = $tempoMin;
         $this->dificuldade = $dificuldade;
+        $this->categoriaAeronave = $categoriaAeronave;
         $this->createdAt = new \DateTimeImmutable();
     }
 
@@ -193,6 +217,21 @@ class Voo
     public function getTipoOperacao(): string
     {
         return $this->tipoOperacao;
+    }
+
+    /**
+     * Normalmente `tipoOperacao` é fixado no construtor e nunca muda —
+     * este setter existe só pra corrigir, depois do fato, um voo real
+     * que foi ingerido com o tipo errado (ex.: piloto selecionou
+     * "Carga" no cliente ACARS por engano num voo que era de
+     * Pesquisa). Ver `App\Command\PesquisaCorrigirTipoCommand`, único
+     * chamador esperado — não expõe isto em nenhum controller.
+     */
+    public function setTipoOperacao(string $tipoOperacao): static
+    {
+        $this->tipoOperacao = $tipoOperacao;
+
+        return $this;
     }
 
     public function getOrigem(): string
@@ -231,6 +270,16 @@ class Voo
     public function getAeronaveReg(): string
     {
         return $this->aeronaveReg;
+    }
+
+    public function getCategoriaAeronave(): string
+    {
+        return $this->categoriaAeronave;
+    }
+
+    public function isHelicoptero(): bool
+    {
+        return TipoAeronave::CATEGORIA_HELICOPTERO === $this->categoriaAeronave;
     }
 
     public function getStartedAt(): \DateTimeImmutable
@@ -388,6 +437,27 @@ class Voo
         return $this;
     }
 
+    /**
+     * Dados da camada de pesquisa meteorológica (amostras ambiente,
+     * capturas de mapa/vento e o relatório automático) — só existe pra
+     * voos `tipoOperacao === 'Pesquisa'` cuja sessão ACARS mandou ao
+     * menos um heartbeat de posição durante o voo. Congelado uma única
+     * vez no fechamento (`AcarsIngestaoController::ingerir()`, ver
+     * `App\Service\PesquisaVooAggregator`/`PesquisaRelatorioGerador`) —
+     * nunca recalculado depois.
+     *
+     * @return array{amostras: list<array<string, mixed>>, resumo: array<string, mixed>, capturas: list<array<string, mixed>>, relatorio: array<string, mixed>}|null
+     */
+    public function getPesquisa(): ?array
+    {
+        return $this->dados['pesquisa'] ?? null;
+    }
+
+    public function hasPesquisa(): bool
+    {
+        return null !== $this->getPesquisa();
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -411,6 +481,22 @@ class Voo
     public function marcarAcidentado(): static
     {
         $this->status = self::STATUS_ACIDENTADO;
+
+        return $this;
+    }
+
+    public function isTeste(): bool
+    {
+        return self::STATUS_TESTE === $this->status;
+    }
+
+    /**
+     * Marca este voo como uma duplicata de teste — ver docblock de
+     * `$status` e `App\Command\PesquisaReprocessarCommand`.
+     */
+    public function marcarComoTeste(): static
+    {
+        $this->status = self::STATUS_TESTE;
 
         return $this;
     }

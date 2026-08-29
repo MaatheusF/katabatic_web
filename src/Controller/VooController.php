@@ -167,6 +167,11 @@ class VooController extends AbstractController
                 $dados = $voo->getDados();
                 $telemetria['tipo_operacao'] = $voo->getTipoOperacao();
                 $telemetria['aeronave_reg'] = $voo->getAeronaveReg();
+                // Ver App\Entity\Voo::$categoriaAeronave - pedido em
+                // conversa: "marcar o voo quando ele é feito com asa fixa
+                // e asa rotativa". voo.js mostra um selo "Helicóptero"
+                // no cabeçalho quando é o caso.
+                $telemetria['categoria_aeronave'] = $voo->getCategoriaAeronave();
                 $telemetria['modelo'] = $dados['modelo'] ?? null;
                 $telemetria['metar'] = $dados['metar'] ?? null;
                 $telemetria['metar_pouso'] = $dados['metarPouso'] ?? null;

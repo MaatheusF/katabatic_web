@@ -91,6 +91,12 @@
           <button class="chip" data-ocor="Quique" type="button" data-i18n="novovoo.occurrence.bounce">Quique</button>
           <button class="chip" data-ocor="Overspeed" type="button">Overspeed</button>
           <button class="chip" data-ocor="Estol" type="button" data-i18n="novovoo.occurrence.stall">Estol</button>
+          <!-- So aparecem (via novo-voo.js) quando a aeronave selecionada e
+               categoria Helicoptero (TipoAeronave::$categoria) - escondidos
+               por padrao pra nao poluir o formulario de asa fixa. -->
+          <button class="chip" id="ocor-autorrotacao" data-ocor="Autorrotação" type="button" style="display:none" data-i18n="novovoo.occurrence.autorotation">Autorrotação</button>
+          <button class="chip" id="ocor-lte" data-ocor="LTE" type="button" style="display:none">LTE</button>
+          <button class="chip" id="ocor-vrs" data-ocor="Vortex ring state" type="button" style="display:none">Vortex ring state</button>
         </div>
       </div>
       <div class="field" style="margin-bottom:0">
@@ -136,6 +142,7 @@
           <button class="chip" data-tipo="Pessoal" type="button" data-i18n="common.optype.personal">Pessoal</button>
           <button class="chip" data-tipo="Pesquisa" type="button" data-i18n="common.optype.research">Pesquisa</button>
           <button class="chip" data-tipo="Reposicionamento" type="button" data-i18n="common.optype.repositioning">Reposicionamento</button>
+          <button class="chip" data-tipo="Medvec" type="button" data-i18n="common.optype.medevac">Medvec</button>
         </div>
       </div>
 
@@ -260,6 +267,7 @@
       'novovoo.occurrence.hardlanding': 'Hard landing',
       'novovoo.occurrence.bounce': 'Bounce',
       'novovoo.occurrence.stall': 'Stall',
+      'novovoo.occurrence.autorotation': 'Autorotation',
       'novovoo.diffestimate': 'Estimated difficulty',
       'novovoo.identification.title': 'Identification',
       'novovoo.callsign.hint': 'Numeric range suggests the type: <b>1xx</b> cargo · <b>2xx</b> personal · <b>4xx</b> research · <b>9xx</b> repositioning',

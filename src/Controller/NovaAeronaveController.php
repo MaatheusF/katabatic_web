@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Aeronave;
 use App\Repository\AeronaveRepository;
+use App\Repository\TipoAeronaveRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,6 +23,18 @@ use Symfony\Component\Routing\Attribute\Route;
  * Fotos continuam só maquete visual (os slots nunca tiveram um
  * `<input type="file">` por trás, mesmo no mockup original) — fora do
  * escopo desta fatia, ver README "Lacunas conhecidas".
+ *
+ * **Atualizado: `<select>` de tipo agora lista os tipos já cadastrados.**
+ * Antes o `<select id="f-tipo">` do template tinha só 5 opções fixas no
+ * HTML, sem relação nenhuma com `TipoAeronave` (o cadastro de perfil de
+ * performance em `/tipos-aeronave`) — pedido em conversa: "no cadastro
+ * de aeronaves, não é possível selecionar um tipo já cadastrado?".
+ * `index()` agora passa `tiposCadastrados` (`TipoAeronaveRepository::
+ * findAllOrderedByNome()`) pro template, que usa esses nomes como opções
+ * do `<select>` — mesmo casamento por string exata já usado no resto do
+ * app. "Outro tipo…" continua ali pra cadastrar uma aeronave de um tipo
+ * que ainda não tem perfil (ver docblock de `TipoAeronave`); `submit()`
+ * não valida contra `TipoAeronave` de propósito, pelo mesmo motivo.
  */
 class NovaAeronaveController extends AbstractController
 {
@@ -44,7 +57,7 @@ class NovaAeronaveController extends AbstractController
     private const BASES_VALIDAS = ['PAFA', 'SCCI', 'SLLP', 'VNKT', 'WAJW', 'VQPR'];
 
     #[Route('/nova-aeronave', name: 'app_nova_aeronave', methods: ['GET'])]
-    public function index(Request $request): Response
+    public function index(Request $request, TipoAeronaveRepository $tipos): Response
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
@@ -54,6 +67,17 @@ class NovaAeronaveController extends AbstractController
         return $this->render('nova_aeronave/index.html.twig', [
             'activeView' => 'frota',
             'pilot' => $pilot,
+            // Tipos já cadastrados em `/tipos-aeronave` (perfil de
+            // performance) — o <select> de tipo aqui oferece esses nomes
+            // primeiro (mesmo casamento por string exata que
+            // `TipoAeronave::$nome`↔`Aeronave::$tipo` já usa em todo o
+            // resto do app) pra reduzir o risco de digitar um nome
+            // ligeiramente diferente do perfil existente e a aeronave
+            // nova cair sem categoria/perfil de performance associado.
+            // "Outro tipo…" continua existindo pra cadastrar uma
+            // aeronave de um tipo que ainda não tem perfil — ver
+            // docblock de `TipoAeronave` sobre isso ser esperado.
+            'tiposCadastrados' => $tipos->findAllOrderedByNome(),
         ]);
     }
 

@@ -43,12 +43,30 @@ use Doctrine\ORM\Mapping as ORM;
  * performance completa por altitude/temperatura (distância ajustada usa
  * regra de bolso sobre a distância de referência, não interpolação de
  * gráfico do POH) — ver `FerramentasController`.
+ *
+ * **`categoria` ('Aviao'/'Helicoptero').** Pedido em conversa ("precisamos
+ * preparar a plataforma pra receber voos de helicóptero também") — só
+ * decide como a calculadora de distância de decolagem/pouso ajustada se
+ * comporta (`decolagemDistanciaFt`/`pousoDistanciaFt` são conceito de
+ * ground roll/balanced field, não se aplicam a um pouso/decolagem vertical
+ * — ver `FerramentasController`/`ferramentas.js`) e rotula o tipo na
+ * frota/Ferramentas. Peso e balanceamento continua igual pra qualquer
+ * categoria (peso total vs. MTOW não depende de asa fixa vs. rotativa).
+ * `CATEGORIA_AVIAO` é o valor de todo tipo já cadastrado antes desta
+ * migração (default da coluna) — ninguém precisa recategorizar a frota
+ * existente.
  */
 #[ORM\Entity(repositoryClass: TipoAeronaveRepository::class)]
 #[ORM\Table(name: 'tipo_aeronave')]
 #[ORM\UniqueConstraint(name: 'uniq_tipo_aeronave_nome', columns: ['nome'])]
 class TipoAeronave
 {
+    public const CATEGORIA_AVIAO = 'Aviao';
+    public const CATEGORIA_HELICOPTERO = 'Helicoptero';
+
+    /** @var list<string> */
+    public const CATEGORIAS_VALIDAS = [self::CATEGORIA_AVIAO, self::CATEGORIA_HELICOPTERO];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -57,6 +75,10 @@ class TipoAeronave
     /** Precisa bater exatamente com `Aeronave::$tipo` — ver docblock da classe. */
     #[ORM\Column(length: 60)]
     private string $nome;
+
+    /** 'Aviao' ou 'Helicoptero' — ver docblock da classe. */
+    #[ORM\Column(length: 20)]
+    private string $categoria = self::CATEGORIA_AVIAO;
 
     /** Peso vazio (basic empty weight), em libras. */
     #[ORM\Column(nullable: true)]
@@ -114,6 +136,23 @@ class TipoAeronave
         $this->nome = $nome;
 
         return $this;
+    }
+
+    public function getCategoria(): string
+    {
+        return $this->categoria;
+    }
+
+    public function setCategoria(string $categoria): static
+    {
+        $this->categoria = $categoria;
+
+        return $this;
+    }
+
+    public function isHelicoptero(): bool
+    {
+        return self::CATEGORIA_HELICOPTERO === $this->categoria;
     }
 
     public function getPesoVazioLb(): ?int

@@ -131,6 +131,26 @@ class Aeronave
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $ultimoPingEm = null;
 
+    /**
+     * `tipoOperacao` da sessão ACARS em andamento — sidecar de mesma
+     * natureza que `emVooDesde`/`ultimoPingEm` acima, mas alimentando a
+     * camada de pesquisa meteorológica, não o status "Em voo". `POST
+     * .../voos/iniciar` grava aqui quando o payload manda `tipo_operacao`
+     * (campo opcional — cliente antigo que não manda continua
+     * funcionando igual, só sem captura de pesquisa); `null` sempre que
+     * `status` não é `'Em voo'`.
+     *
+     * É o que permite `.../voos/posicao` (chamado várias vezes durante o
+     * voo, muito antes do `Voo` existir de verdade — só nasce no
+     * fechamento) decidir se este heartbeat pertence a um voo de
+     * Pesquisa e deve disparar `PesquisaAmbienteCaptador`. Ver docblock
+     * de `App\Entity\PesquisaAmostra` pro porquê das amostras serem
+     * casadas com o `Voo` por matrícula+janela de tempo em vez de FK
+     * direta (o `Voo` não existe ainda no momento da captura).
+     */
+    #[ORM\Column(length: 30, nullable: true)]
+    private ?string $emVooTipoOperacao = null;
+
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
@@ -222,6 +242,28 @@ class Aeronave
         $this->ultimoPingEm = $ultimoPingEm;
 
         return $this;
+    }
+
+    public function getEmVooTipoOperacao(): ?string
+    {
+        return $this->emVooTipoOperacao;
+    }
+
+    public function setEmVooTipoOperacao(?string $emVooTipoOperacao): static
+    {
+        $this->emVooTipoOperacao = $emVooTipoOperacao;
+
+        return $this;
+    }
+
+    /**
+     * true quando a sessão ACARS em andamento nesta aeronave é um voo
+     * de Pesquisa — é o guard que `AcarsIngestaoController::posicao()`
+     * usa antes de chamar `PesquisaAmbienteCaptador`.
+     */
+    public function isEmVooDePesquisa(): bool
+    {
+        return 'Pesquisa' === $this->emVooTipoOperacao;
     }
 
     /**

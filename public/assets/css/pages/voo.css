@@ -60,6 +60,11 @@
 .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
 .tag-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 .tag-warn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.tag-ice { color: var(--ice); border-color: color-mix(in srgb, var(--ice) 40%, transparent); }
+
+/* ---------- link p/ área científica (voos de Pesquisa) ---------- */
+#pesquisa-link { display: inline-block; margin-top: 8px; text-decoration: none; }
+#pesquisa-link:hover { border-color: var(--ice); background: color-mix(in srgb, var(--ice) 10%, transparent); }
 
 /* ---------- cabecalho do voo ---------- */
 .hero { display: flex; align-items: flex-start; gap: 24px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap; }

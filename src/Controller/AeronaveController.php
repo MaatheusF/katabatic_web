@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Voo;
 use App\Repository\AeronaveRepository;
+use App\Repository\TipoAeronaveRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -65,6 +66,7 @@ class AeronaveController extends AbstractController
         string $reg,
         AeronaveRepository $aeronaves,
         VooRepository $voos,
+        TipoAeronaveRepository $tipos,
         #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey,
     ): Response {
         $pilot = $request->getSession()->get('pilot');
@@ -83,6 +85,10 @@ class AeronaveController extends AbstractController
             'aircraft' => [
                 'reg' => $aircraft->getReg(),
                 'tipo' => $aircraft->getTipo(),
+                // Casamento fraco por string com TipoAeronave::$nome, mesmo
+                // padrao de PortalController::fleetViewModel() - null se o
+                // tipo ainda nao tem perfil cadastrado em /tipos-aeronave.
+                'categoria' => $tipos->findOneByNome($aircraft->getTipo())?->getCategoria(),
                 'base' => $aircraft->getBase(),
                 'status' => $aircraft->getStatusEfetivo(),
                 'statusTag' => $aircraft->getStatusTag(),

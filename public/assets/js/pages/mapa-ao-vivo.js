@@ -110,16 +110,28 @@
 
   /* ---------- markup dos marcadores ---------- */
   var PLANE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L18 20L12 16L6 20Z"/></svg>';
+  // Ícone alternativo pra aeronaves de asa rotativa (`categoria ===
+  // 'Helicoptero'`, vindo de TipoAeronaveRepository::findCategoriasPorNome()
+  // via MapaAoVivoController::liveFlights()/parkedAircraft()) - retângulo
+  // no topo é o disco do rotor principal, a elipse é a fuselagem, a haste
+  // fina descendo é a cauda e o retângulo pequeno na base é o rotor de
+  // cauda. Mantém a mesma orientação "nariz pra cima" do PLANE_SVG (0° =
+  // topo) pra rotacionar do mesmo jeito em placeMarker().
+  var HELI_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5.2" width="18" height="1.6" rx="0.8"/><ellipse cx="12" cy="11" rx="2.8" ry="4.5"/><rect x="11.1" y="15" width="1.8" height="6.5" rx="0.9"/><rect x="9.3" y="20.3" width="5.4" height="1.4" rx="0.7"/></svg>';
+
+  function iconSvgFor(categoria) {
+    return 'Helicoptero' === categoria ? HELI_SVG : PLANE_SVG;
+  }
 
   function flyingMarkerHtml(fa) {
     return '<div class="mv-marker">' +
-      '<span class="mv-plane flying">' + PLANE_SVG + '</span>' +
+      '<span class="mv-plane flying">' + iconSvgFor(fa.categoria) + '</span>' +
       '<span class="mv-tag">' + fa.callsign + '</span>' +
       '</div>';
   }
   function parkedMarkerHtml(pa) {
     return '<div class="mv-marker">' +
-      '<span class="mv-plane parked">' + PLANE_SVG + '</span>' +
+      '<span class="mv-plane parked">' + iconSvgFor(pa.categoria) + '</span>' +
       '<span class="mv-tag parked">' + pa.reg + '</span>' +
       '</div>';
   }
