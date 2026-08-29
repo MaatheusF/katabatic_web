@@ -62,9 +62,29 @@
     // depois desta correcao - ver VooController::telemetria()). Voos
     // gravados antes da correcao nao tem 'modelo' no dados[] deles, dai
     // o filtro Boolean(x) abaixo pra nao deixar '·' sobrando.
-    var tipoOpLabel = { Carga: tr('common.optype.cargo', 'Carga'), Pessoal: tr('common.optype.personal', 'Pessoal'), Pesquisa: tr('common.optype.research', 'Pesquisa'), Reposicionamento: tr('common.optype.repositioning', 'Reposicionamento') };
-    var meta2 = [F.modelo, F.aeronave_reg, F.tipo_operacao ? (tipoOpLabel[F.tipo_operacao] || F.tipo_operacao) : null].filter(Boolean).join(' · ');
+    var tipoOpLabel = { Carga: tr('common.optype.cargo', 'Carga'), Pessoal: tr('common.optype.personal', 'Pessoal'), Pesquisa: tr('common.optype.research', 'Pesquisa'), Reposicionamento: tr('common.optype.repositioning', 'Reposicionamento'), Medvec: tr('common.optype.medevac', 'Medvec') };
+    // categoria_aeronave (ver App\Entity\Voo::$categoriaAeronave/
+    // VooController::telemetria()) so entra na linha quando e helicoptero -
+    // avia e a esmagadora maioria da frota, marcar so a excecao evita
+    // "· Avião" repetido em todo voo (mesmo padrao do selo de frota em
+    // portal.js/aeronave). Pedido em conversa: "marcar o voo quando ele e
+    // feito com asa fixa e asa rotativa".
+    var categoriaAeronaveLabel = 'Helicoptero' === F.categoria_aeronave ? tr('common.category.helicopter', 'Helicóptero') : null;
+    var meta2 = [F.modelo, F.aeronave_reg, F.tipo_operacao ? (tipoOpLabel[F.tipo_operacao] || F.tipo_operacao) : null, categoriaAeronaveLabel].filter(Boolean).join(' · ');
     document.getElementById('h-meta2').textContent = meta2;
+
+    // Link pra área científica — só voos de Pesquisa têm uma (ver
+    // App\Controller\PesquisaCientificaController); F.id é o `codigo`
+    // do voo (nome da pasta de gravação ACARS).
+    var pesquisaLink = document.getElementById('pesquisa-link');
+    if (pesquisaLink) {
+      if ('Pesquisa' === F.tipo_operacao && F.id) {
+        pesquisaLink.href = '/voo/' + encodeURIComponent(F.id) + '/pesquisa';
+        pesquisaLink.style.display = '';
+      } else {
+        pesquisaLink.style.display = 'none';
+      }
+    }
     var s = document.getElementById('score');
     s.textContent = F.score;
     var c = F.score >= 75 ? 'var(--danger)' : (F.score >= 50 ? 'var(--accent)' : 'var(--ice)');

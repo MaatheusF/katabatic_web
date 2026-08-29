@@ -16,18 +16,30 @@
 .hero-cta { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
 
 /* ---------- quadro de bases ---------- */
-.board { background: var(--surface); border-bottom: 1px solid var(--border); }
-.board-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
-.board-cell { padding: 20px 24px; border-right: 1px solid var(--border); }
-.board-cell:last-child { border-right: 0; }
+/* Truque de divisorias do .figures (fundo cinza atras, celulas brancas
+   por cima cobrindo tudo exceto 1px de gap) - mas aqui quem carrega o
+   fundo cinza e o `.board` de fora, nao o `.board-grid`: `.board-grid`
+   tambem e um `.wrap` (max-width + padding lateral de 24px, ver
+   base.css), entao pintar o cinza NELE cobriria o branco do `.board`
+   bem naquela faixa de padding, deixando a tira cinza feia rente as
+   bordas da tela que o usuario reportou. Com o fundo no `.board` (sem
+   padding, ocupa a tela toda) e `.board-grid` transparente, o cinza do
+   `.board` aparece por igual no gap entre celulas E no padding lateral -
+   consistente, sem faixa estranha. */
+.board { background: var(--border); border-bottom: 1px solid var(--border); }
+.board-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
+.board-cell { background: var(--surface); padding: 20px 24px; }
 .board-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .board-icao { font-family: var(--font-mono); font-size: 17px; }
 .board-name { font-size: 13px; color: var(--text-2); }
 .board-time { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.board-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.board-metrics div span { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.board-metrics div b { font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
-.board-metrics div b.warn { color: var(--accent); }
+/* Era um mini-grid de 4 caixinhas (label em cima, valor embaixo) - ficava
+   pesado/quebrado deslocado num board de 3 colunas. Vira uma unica linha
+   mono no formato de grupo METAR (vento · temp · visibilidade · teto,
+   ordem fixa, sem rotulo - publico daqui e piloto, le isso de cara). */
+.board-metar { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.board-metar.warn { color: var(--accent); }
+.board-metar-empty { color: var(--muted); font-style: italic; }
 
 /* ---------- mapa ---------- */
 .map-wrap { background: var(--shot-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); position: relative; }
@@ -35,6 +47,19 @@
 .map-tabs { display: flex; gap: 6px; }
 .map-tabs button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 7px 13px; border-radius: 5px; border: 1px solid var(--shot-line); background: transparent; color: #7F98A5; cursor: pointer; }
 .map-tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* 6 bases nao cabem como botoes ao lado do Radar/Modelo sem apertar o
+   .map-bar - dropdown unico, mesmo raciocinio do seletor de base em
+   /aeroportos. */
+.map-pane-select {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 7px 30px 7px 13px; border-radius: 5px; border: 1px solid var(--shot-line);
+  background-color: transparent; color: #7F98A5; cursor: pointer;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' stroke='%237F98A5' stroke-width='1.3' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.map-pane-select:hover, .map-pane-select:focus { border-color: var(--accent); color: #fff; outline: none; }
+.map-pane-select option { background: #121A1F; color: #DFE8EC; }
 .map-live { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8FB6C6; }
 .map-live i { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; animation: pulse 2.4s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
@@ -65,7 +90,6 @@
 .mk-ac svg { width: 22px; height: 22px; color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); }
 .map-foot { display: flex; gap: 22px; padding: 11px 16px; border-top: 1px solid var(--shot-line); font-family: var(--font-mono); font-size: 11px; color: #5F7885; flex-wrap: wrap; }
 .map-foot b { color: #8FB6C6; font-weight: 400; }
-.map-note { margin-top: 12px; font-size: 13px; color: var(--muted); }
 
 /* ---------- empresa ---------- */
 .about { display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: start; }
@@ -99,14 +123,14 @@
 .chip em { font-style: normal; color: var(--muted); }
 
 /* ---------- frota ---------- */
-.fleet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.plane { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.section-alt .plane { background: var(--surface-2); }
-.plane .shot-frame { border: 0; border-radius: 0; border-bottom: 1px solid var(--border); }
-.plane-body { padding: 16px 18px; }
-.plane-reg { font-family: var(--font-mono); font-size: 16px; }
-.plane-type { font-size: 14px; color: var(--text-2); margin-top: 2px; }
-.plane-foot { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+/* Era um grid de cartao por MATRICULA (13 cartoes, foto+texto) - vira uma
+   lista por TIPO (enxuga a home: um tipo de aeronave, não uma aeronave
+   por vez - ver HomeController::fleetTypes()). */
+.fleet-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.fleet-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; padding: 18px 2px; border-bottom: 1px solid var(--border); }
+.fleet-type-name { font-size: 17px; }
+.fleet-type-meta { display: flex; gap: 20px; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.fleet-type-meta span:first-child { color: var(--text-2); }
 
 /* ---------- voos ---------- */
 .flights { display: flex; flex-direction: column; gap: 10px; }
@@ -125,6 +149,7 @@
 .lvl-low i { background: var(--ice); } .lvl-low .diff-val { color: var(--ice); }
 .lvl-mid i { background: var(--accent); } .lvl-mid .diff-val { color: var(--accent); }
 .lvl-high i { background: var(--danger); } .lvl-high .diff-val { color: var(--danger); }
+.empty-note { padding: 22px 20px; border: 1px dashed var(--border); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .more { margin-top: 24px; }
 
 /* ---------- tripulacao ---------- */
@@ -139,14 +164,12 @@
 @media (max-width: 900px) {
   .about, .base, .crew { grid-template-columns: 1fr; gap: 36px; }
   .base-rev .base-text { order: 0; }
-  .fleet { grid-template-columns: repeat(2, 1fr); }
   .flight { grid-template-columns: 1fr auto; }
   .flight-meta { display: none; }
-  .board-grid { grid-template-columns: 1fr; }
-  .board-cell { border-right: 0; border-bottom: 1px solid var(--border); }
+  .board-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
   .hero-inner { padding: 72px 0 52px; }
-  .fleet { grid-template-columns: 1fr; }
-  .board-metrics { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .board-grid { grid-template-columns: 1fr; }
+  .fleet-list li { flex-direction: column; align-items: flex-start; gap: 6px; }
 }

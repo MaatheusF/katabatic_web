@@ -6,6 +6,7 @@ use App\Entity\Aeronave;
 use App\Repository\AeronaveRepository;
 use App\Repository\AeroportoRepository;
 use App\Repository\PosicaoAoVivoRepository;
+use App\Repository\TipoAeronaveRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -68,6 +69,14 @@ use Symfony\Component\Routing\Attribute\Route;
  * `window.KATABATIC_CARTO_API_KEY`, que `mapa-ao-vivo.js` agora anexa
  * na URL do tile (`?key=...`). Mesma correção em `VooController::index()`
  * pro mapa do relatório de voo, que usa o mesmo provedor.
+ *
+ * **Atualizado: ícone de helicóptero no marcador.** `liveFlights()`/
+ * `parkedAircraft()` agora incluem `categoria` (`TipoAeronaveRepository::
+ * findCategoriasPorNome()`, casamento fraco por `Aeronave::$tipo`) —
+ * `mapa-ao-vivo.js` usa isso pra desenhar o ícone certo (avião vs.
+ * helicóptero) no marcador. Pedido em conversa: "para aeronaves do tipo
+ * helicóptero, no mapa da frota ou mapa ao vivo, precisamos exibir o
+ * ícone de um helicóptero e não um aviãozinho".
  */
 class MapaAoVivoController extends AbstractController
 {
@@ -77,6 +86,7 @@ class MapaAoVivoController extends AbstractController
         AeronaveRepository $aeronaves,
         VooRepository $voos,
         PosicaoAoVivoRepository $posicoes,
+        TipoAeronaveRepository $tipos,
         #[Autowire('%env(CARTO_API_KEY)%')] string $cartoApiKey,
     ): Response {
         $pilot = $request->getSession()->get('pilot');
@@ -84,11 +94,13 @@ class MapaAoVivoController extends AbstractController
             return $this->redirectToRoute('app_login');
         }
 
+        $categoriasPorTipo = $tipos->findCategoriasPorNome();
+
         return $this->render('mapa_ao_vivo/index.html.twig', [
             'activeView' => 'mapaVivo',
             'pilot' => $pilot,
-            'liveFlights' => $this->liveFlights($aeronaves, $voos, $posicoes),
-            'parkedAircraft' => $this->parkedAircraft($aeronaves),
+            'liveFlights' => $this->liveFlights($aeronaves, $voos, $posicoes, $categoriasPorTipo),
+            'parkedAircraft' => $this->parkedAircraft($aeronaves, $categoriasPorTipo),
             'airportsUrl' => $this->generateUrl('app_mapa_ao_vivo_aeroportos'),
             'flightsUrl' => '/assets/data/flights.json',
             'posicoesUrl' => '/mapa-ao-vivo/posicoes',
@@ -104,14 +116,14 @@ class MapaAoVivoController extends AbstractController
      * tela — só o Mapa ao vivo precisa desta garantia extra.
      */
     #[Route('/mapa-ao-vivo/aeroportos', name: 'app_mapa_ao_vivo_aeroportos', methods: ['GET'])]
-    public function aeroportos(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, AeroportoRepository $aeroportos): JsonResponse
+    public function aeroportos(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, AeroportoRepository $aeroportos, TipoAeronaveRepository $tipos): JsonResponse
     {
         if (null === $request->getSession()->get('pilot')) {
             return $this->json([], 401);
         }
 
         return $this->json($aeroportos->findCatalogoReferenciaArrayComExtras(
-            $this->icaosEmUso($aeronaves, $voos, $posicoes)
+            $this->icaosEmUso($aeronaves, $voos, $posicoes, $tipos->findCategoriasPorNome())
         ));
     }
 
@@ -122,16 +134,20 @@ class MapaAoVivoController extends AbstractController
      * `aeroportos()` acima sempre tenha coordenada pra desenhar,
      * mesmo quando esse ICAO não é base nem posto avançado.
      *
+     * @param array<string, string> $categoriasPorTipo repassado só pra
+     *                                                  satisfazer a assinatura de `liveFlights()` — esta função não usa
+     *                                                  `categoria` pra nada, só ICAOs de origem/destino.
+     *
      * @return list<string>
      */
-    private function icaosEmUso(AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes): array
+    private function icaosEmUso(AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, array $categoriasPorTipo): array
     {
         $icaos = [];
         foreach ($aeronaves->findAllNotEmVoo() as $a) {
             $icaos[] = $a->getPosIcao();
             $icaos[] = $a->getBase();
         }
-        foreach ($this->liveFlights($aeronaves, $voos, $posicoes) as $f) {
+        foreach ($this->liveFlights($aeronaves, $voos, $posicoes, $categoriasPorTipo) as $f) {
             $icaos[] = $f['origem'];
             $icaos[] = $f['destino'];
         }
@@ -147,14 +163,14 @@ class MapaAoVivoController extends AbstractController
      * pra `mapa-ao-vivo.js` reaproveitar o parsing.
      */
     #[Route('/mapa-ao-vivo/posicoes', name: 'app_mapa_ao_vivo_posicoes', methods: ['GET'])]
-    public function posicoes(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes): JsonResponse
+    public function posicoes(Request $request, AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, TipoAeronaveRepository $tipos): JsonResponse
     {
         $pilot = $request->getSession()->get('pilot');
         if (null === $pilot) {
             return $this->json(['error' => 'Sessão expirada.'], 401);
         }
 
-        return $this->json($this->liveFlights($aeronaves, $voos, $posicoes));
+        return $this->json($this->liveFlights($aeronaves, $voos, $posicoes, $tipos->findCategoriasPorNome()));
     }
 
     /**
@@ -165,9 +181,19 @@ class MapaAoVivoController extends AbstractController
      * lista se tiver algum voo com telemetria gravada pra repetir em
      * loop — ver docblock da classe.
      *
-     * @return list<array{reg: string, modelo: string, callsign: string, tipo: string, origem: string, destino: string, tempoMin: int, flightId: string|null, live: bool, lat?: float, lon?: float, altFt?: int|null, hdgTrue?: float|null, gsKt?: int|null, iasKt?: int|null, onGround?: bool|null, atualizadaEm?: string}>
+     * `categoria` ('Aviao'/'Helicoptero', null se o tipo ainda não tem
+     * perfil cadastrado) vem de `$categoriasPorTipo`
+     * (`TipoAeronaveRepository::findCategoriasPorNome()`, buscado uma vez
+     * só pelo chamador) — `mapa-ao-vivo.js` usa isso pra escolher o ícone
+     * certo no marcador (avião vs. helicóptero). Pedido em conversa:
+     * "para aeronaves do tipo helicóptero, no mapa da frota ou mapa ao
+     * vivo, precisamos exibir o ícone de um helicóptero".
+     *
+     * @param array<string, string> $categoriasPorTipo
+     *
+     * @return list<array{reg: string, modelo: string, categoria: ?string, callsign: string, tipo: string, origem: string, destino: string, tempoMin: int, flightId: string|null, live: bool, lat?: float, lon?: float, altFt?: int|null, hdgTrue?: float|null, gsKt?: int|null, iasKt?: int|null, onGround?: bool|null, atualizadaEm?: string}>
      */
-    private function liveFlights(AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes): array
+    private function liveFlights(AeronaveRepository $aeronaves, VooRepository $voos, PosicaoAoVivoRepository $posicoes, array $categoriasPorTipo): array
     {
         $emVoo = $aeronaves->findAllEmVoo();
         $posicoesPorReg = $posicoes->findByAeronaves($emVoo);
@@ -175,6 +201,7 @@ class MapaAoVivoController extends AbstractController
         $out = [];
         foreach ($emVoo as $a) {
             $ping = $posicoesPorReg[$a->getReg()] ?? null;
+            $categoria = $categoriasPorTipo[$a->getTipo()] ?? null;
 
             if (null !== $ping) {
                 // Posição real: não depende de haver um Voo com
@@ -188,6 +215,7 @@ class MapaAoVivoController extends AbstractController
                 $out[] = [
                     'reg' => $a->getReg(),
                     'modelo' => $a->getTipo(),
+                    'categoria' => $categoria,
                     'callsign' => $voo?->getCallsign() ?? $a->getReg(),
                     'tipo' => $voo?->getTipoOperacao() ?? '',
                     'origem' => $voo?->getOrigem() ?? $a->getBase(),
@@ -216,6 +244,7 @@ class MapaAoVivoController extends AbstractController
             $out[] = [
                 'reg' => $a->getReg(),
                 'modelo' => $a->getTipo(),
+                'categoria' => $categoria,
                 'callsign' => $voo->getCallsign(),
                 'tipo' => $voo->getTipoOperacao(),
                 'origem' => $voo->getOrigem(),
@@ -230,14 +259,20 @@ class MapaAoVivoController extends AbstractController
     }
 
     /**
-     * @return list<array{reg: string, modelo: string, base: string, pos: string, status: string, statusTag: string}>
+     * `categoria` — ver docblock de `liveFlights()` acima, mesma origem
+     * (`$categoriasPorTipo`).
+     *
+     * @param array<string, string> $categoriasPorTipo
+     *
+     * @return list<array{reg: string, modelo: string, categoria: ?string, base: string, pos: string, status: string, statusTag: string}>
      */
-    private function parkedAircraft(AeronaveRepository $aeronaves): array
+    private function parkedAircraft(AeronaveRepository $aeronaves, array $categoriasPorTipo): array
     {
         return array_map(
             fn (Aeronave $a) => [
                 'reg' => $a->getReg(),
                 'modelo' => $a->getTipo(),
+                'categoria' => $categoriasPorTipo[$a->getTipo()] ?? null,
                 'base' => $a->getBase(),
                 'pos' => $a->getPosIcao(),
                 'status' => $a->getStatusEfetivo(),

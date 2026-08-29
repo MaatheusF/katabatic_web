@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Entity\TipoAeronave;
 use App\Entity\Voo;
 use App\Repository\PilotRepository;
 use App\Repository\VooRepository;
@@ -98,6 +99,10 @@ class ImportarVoosLegadosCommand extends Command
                 new \DateTimeImmutable($row['telemetria']['start']),
                 $row['tempoMin'],
                 $row['dif'],
+                // Seed histórico anterior ao conceito de categoria de
+                // aeronave - toda a frota mock era avião (ver docblock
+                // de Voo::$categoriaAeronave).
+                TipoAeronave::CATEGORIA_AVIAO,
             );
             $voo->setCodigo($row['codigo']);
             $voo->setDados([
@@ -136,6 +141,10 @@ class ImportarVoosLegadosCommand extends Command
                 $startedAt,
                 $row['tempoMin'],
                 $row['dif'],
+                // Seed histórico anterior ao conceito de categoria de
+                // aeronave - toda a frota mock era avião (ver docblock
+                // de Voo::$categoriaAeronave).
+                TipoAeronave::CATEGORIA_AVIAO,
             );
             $voo->setDados([
                 'rota' => $row['rota'],

@@ -28,6 +28,11 @@ use Symfony\Component\Routing\Attribute\Route;
  * digitação — o casamento com `Aeronave::$tipo` é por valor exato de
  * string, sem FK (ver docblock da entidade) — mas também aceita "outro
  * tipo" digitado à mão, mesmo padrão de `NovaAeronaveController`.
+ *
+ * **Categoria (Avião/Helicóptero).** Pedido em conversa, pra preparar a
+ * plataforma pra receber voos de helicóptero — ver docblock de
+ * `TipoAeronave::$categoria`. Todo tipo cadastrado antes disso já nasceu
+ * "Avião" via default de coluna (migração), sem precisar de ação do admin.
  */
 class TipoAeronaveController extends AbstractController
 {
@@ -163,18 +168,23 @@ class TipoAeronaveController extends AbstractController
      * um número não-negativo (peso/distância/consumo negativo não faz
      * sentido físico).
      *
-     * @return array{0: array{nome: string, pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string}, 1: list<string>}
+     * @return array{0: array{nome: string, categoria: string, pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string}, 1: list<string>}
      */
     private function validar(array $data): array
     {
         $nome = trim((string) ($data['nome'] ?? ''));
         $observacoes = trim((string) ($data['observacoes'] ?? ''));
+        $categoria = trim((string) ($data['categoria'] ?? TipoAeronave::CATEGORIA_AVIAO));
 
         $errors = [];
         if ('' === $nome) {
             $errors[] = 'Informe o nome do tipo.';
         } elseif (mb_strlen($nome) > 60) {
             $errors[] = 'Nome do tipo muito longo (máximo 60 caracteres).';
+        }
+        if (!\in_array($categoria, TipoAeronave::CATEGORIAS_VALIDAS, true)) {
+            $errors[] = 'Categoria inválida — selecione Avião ou Helicóptero.';
+            $categoria = TipoAeronave::CATEGORIA_AVIAO;
         }
 
         $numericos = [
@@ -202,6 +212,7 @@ class TipoAeronaveController extends AbstractController
 
         return [[
             'nome' => $nome,
+            'categoria' => $categoria,
             'pesoVazioLb' => $valores['pesoVazioLb'],
             'pesoMaxDecolagemLb' => $valores['pesoMaxDecolagemLb'],
             'combustivelMaxGal' => $valores['combustivelMaxGal'],
@@ -213,10 +224,11 @@ class TipoAeronaveController extends AbstractController
     }
 
     /**
-     * @param array{pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string} $campos
+     * @param array{categoria: string, pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string} $campos
      */
     private function aplicarCampos(TipoAeronave $tipo, array $campos): void
     {
+        $tipo->setCategoria($campos['categoria']);
         $tipo->setPesoVazioLb($campos['pesoVazioLb']);
         $tipo->setPesoMaxDecolagemLb($campos['pesoMaxDecolagemLb']);
         $tipo->setCombustivelMaxGal($campos['combustivelMaxGal']);
@@ -227,13 +239,14 @@ class TipoAeronaveController extends AbstractController
     }
 
     /**
-     * @return array{id: int, nome: string, pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string}
+     * @return array{id: int, nome: string, categoria: string, pesoVazioLb: ?int, pesoMaxDecolagemLb: ?int, combustivelMaxGal: ?int, consumoGph: ?float, decolagemDistanciaFt: ?int, pousoDistanciaFt: ?int, observacoes: ?string}
      */
     private function viewModel(TipoAeronave $t): array
     {
         return [
             'id' => $t->getId(),
             'nome' => $t->getNome(),
+            'categoria' => $t->getCategoria(),
             'pesoVazioLb' => $t->getPesoVazioLb(),
             'pesoMaxDecolagemLb' => $t->getPesoMaxDecolagemLb(),
             'combustivelMaxGal' => $t->getCombustivelMaxGal(),

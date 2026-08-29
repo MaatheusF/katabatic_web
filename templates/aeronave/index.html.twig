@@ -36,7 +36,7 @@
   <div class="hero">
     <div>
       <div class="rt mono">{{ aircraft.reg }}</div>
-      <p class="meta">{{ aircraft.tipo }}</p>
+      <p class="meta">{{ aircraft.tipo }}{% if aircraft.categoria == 'Helicoptero' %} <span class="tag" data-i18n="common.category.helicopter">Helicóptero</span>{% endif %}</p>
       <p class="meta"><span data-i18n="aeronave.base.prefix">Base</span> {{ aircraft.base }} · {{ aircraft.horas }} <span data-i18n="aeronave.base.suffix">h totais na frota</span></p>
     </div>
     <span class="tag tag-{{ aircraft.statusTag }}" style="margin-left:auto" data-i18n="{{ aircraft.status == 'Em voo' ? 'common.status.inflight' : (aircraft.status == 'Disponível' ? 'common.status.available' : (aircraft.status == 'Fora de base' ? 'common.status.awayfrombase' : '')) }}">{{ aircraft.status }}</span>
@@ -68,6 +68,7 @@
       <button class="chip" data-tipo="Pessoal" type="button" data-i18n="common.optype.personal">Pessoal</button>
       <button class="chip" data-tipo="Pesquisa" type="button" data-i18n="common.optype.research">Pesquisa</button>
       <button class="chip" data-tipo="Reposicionamento" type="button" data-i18n="common.optype.repositioning">Reposicionamento</button>
+      <button class="chip" data-tipo="Medvec" type="button" data-i18n="common.optype.medevac">Medvec</button>
     </div>
     <label class="labeltoggle">
       <input type="checkbox" id="ac-show-acidentadas" checked>

@@ -37,6 +37,7 @@
     <button class="chip" data-tipo="Pessoal" data-i18n="common.optype.personal">Pessoal</button>
     <button class="chip" data-tipo="Pesquisa" data-i18n="common.optype.research">Pesquisa</button>
     <button class="chip" data-tipo="Reposicionamento" data-i18n="common.optype.repositioning">Reposicionamento</button>
+    <button class="chip" data-tipo="Medvec" data-i18n="common.optype.medevac">Medvec</button>
     <select id="periodo" class="lbsel">
       <option value="0" data-i18n="common.period.all">Todo o período</option>
       <option value="7" data-i18n="common.period.7d">Últimos 7 dias</option>
@@ -142,7 +143,7 @@
 
 <!-- ================= BASES ================= -->
 <section class="view" id="v-bases">
-  <p class="wx-note" data-i18n="portal.bases.wx.caption">Clima é dado real (não mock), via Open-Meteo — mesma fonte do Mapa ao vivo. "Nuvens baixas" é cobertura de nuvem baixa em % (não existe altura de teto na API), então substitui o "Teto" que antes era só um número inventado.</p>
+  <p class="wx-note" data-i18n="portal.bases.wx.caption">Clima ao vivo via Open-Meteo, mesma fonte do Mapa ao vivo. "Nuvens baixas" mostra a cobertura de nuvem baixa em % — a métrica mais próxima de teto que a API oferece.</p>
   <div class="bases">
     {% for base in bases %}
     <article class="base">
@@ -154,12 +155,14 @@
         <div><span data-i18n="portal.bases.vis">Visib.</span><b id="base-vis-{{ base.icao }}">—</b></div>
         <div><span data-i18n="portal.bases.lowcloud">Nuvens baixas</span><b id="base-cloud-{{ base.icao }}">—</b></div>
       </div>
+      {% if base.stations|length > 0 %}
       <span class="stn-label"><span data-i18n="portal.bases.stations">Estações avançadas</span> · {{ base.stations|length }}</span>
       <div class="stns">
         {% for station in base.stations %}
         <div class="stn"><span class="dot" id="stn-dot-{{ base.icao }}-{{ station.icao }}" style="background:var(--muted)"></span><b>{{ station.icao }}</b><span>{{ station.name }}</span><span class="dist">{{ station.dist }}</span></div>
         {% endfor %}
       </div>
+      {% endif %}
     </article>
     {% endfor %}
   </div>
@@ -167,7 +170,7 @@
 
 <!-- ================= POUSOS ================= -->
 <section class="view" id="v-pousos">
-  <p class="intro" data-i18n="pousos.intro">Todo toque com telemetria registrada, entre todos os voos com ACARS gravado — não só o mais recente. Sem filtro nesta primeira versão; clique numa linha pra abrir o relatório completo daquele voo.</p>
+  <p class="intro" data-i18n="pousos.intro">Todos os pousos com telemetria registrada, de qualquer voo com ACARS gravado. Clique numa linha para abrir o relatório completo do voo.</p>
   <div class="card">
     <div class="table-scroll">
       <table>
@@ -213,7 +216,7 @@
 
 <!-- ================= CONDIÇÕES EXTREMAS ================= -->
 <section class="view" id="v-condicoes">
-  <p class="intro" data-i18n="condicoes.intro">Eventos marcados como atenção ou excedência em qualquer voo com telemetria — gelo, toque duro, overspeed, estol, taxa de simulação alterada e afins. Mesmo critério que já classifica cada evento dentro do relatório individual, só que somado entre todos os voos.</p>
+  <p class="intro" data-i18n="condicoes.intro">Eventos de atenção ou excedência em qualquer voo com telemetria — gelo, toque duro, overspeed, estol, taxa de simulação alterada e outros. Clique numa linha para ver o relatório completo do voo.</p>
   <div class="card">
     <div class="table-scroll">
       <table>
@@ -301,7 +304,7 @@
       'portal.bases.vis': 'Vis.',
       'portal.bases.lowcloud': 'Low clouds',
       'portal.bases.stations': 'Outlying stations',
-      'portal.bases.wx.caption': 'Weather is real data (not mock), via Open-Meteo — the same source the Live map uses. "Low clouds" is low-altitude cloud cover in % (the API has no ceiling-height variable), replacing the old "Ceiling" figure, which was just a made-up number.',
+      'portal.bases.wx.caption': 'Live weather via Open-Meteo, the same source the Live map uses. "Low clouds" shows low-altitude cloud cover in % — the closest thing to a ceiling reading the API offers.',
       'portal.base.pafa.tag': 'KBT North',
       'portal.base.scci.tag': 'KBT South',
       'portal.base.sllp.tag': 'KBT Andes',
@@ -327,7 +330,7 @@
       'portal.word.flight': 'flight',
       'portal.word.flights': 'flights',
       'portal.word.difficulty': 'difficulty',
-      'pousos.intro': 'Every touchdown with telemetry recorded, across all flights with ACARS captured — not just the latest one. No filters in this first version; click a row to open that flight\'s full report.',
+      'pousos.intro': 'Every landing with telemetry recorded, from any flight with ACARS captured. Click a row to open that flight\'s full report.',
       'pousos.th.vs': 'Touchdown VS',
       'pousos.th.pitch': 'Pitch',
       'pousos.th.bank': 'Bank',
@@ -338,7 +341,7 @@
       'pousos.class.normal': 'Normal',
       'pousos.class.suave': 'Smooth',
       'pousos.empty': 'No landings with telemetry recorded yet.',
-      'condicoes.intro': 'Events flagged as attention or exceedance in any flight with telemetry — icing, hard landing, overspeed, stall, altered simulation rate and similar. Same criteria that already classifies each event inside the individual report, just summed across all flights.',
+      'condicoes.intro': 'Attention or exceedance events in any flight with telemetry — icing, hard landing, overspeed, stall, altered simulation rate and others. Click a row to see that flight\'s full report.',
       'condicoes.th.event': 'Event',
       'condicoes.th.detail': 'Detail',
       'condicoes.th.severity': 'Severity',

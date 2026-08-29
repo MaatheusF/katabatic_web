@@ -46,8 +46,11 @@
           <input type="text" class="mono-input" id="f-nome-custom" placeholder="Ex.: Cessna 185F Skywagon" style="display:none;margin-top:8px">
         </div>
         <div class="field">
-          <label data-i18n="tipoaeronave.combustivel">Combustível máx.</label>
-          <div class="unit-row"><input type="number" class="mono-input" id="f-combustivel" step="1" min="0" placeholder="335"><span class="unit">gal</span></div>
+          <label data-i18n="tipoaeronave.categoria">Categoria</label>
+          <div class="chips" id="f-categoria-chips">
+            <button class="chip on" data-categoria="Aviao" type="button" data-i18n="common.category.airplane">Avião</button>
+            <button class="chip" data-categoria="Helicoptero" type="button" data-i18n="common.category.helicopter">Helicóptero</button>
+          </div>
         </div>
       </div>
 
@@ -60,6 +63,14 @@
           <label data-i18n="tipoaeronave.mtow">Peso máx. de decolagem (MTOW)</label>
           <div class="unit-row"><input type="number" class="mono-input" id="f-mtow" step="1" min="0" placeholder="8807"><span class="unit">lb</span></div>
         </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label data-i18n="tipoaeronave.combustivel">Combustível máx.</label>
+          <div class="unit-row"><input type="number" class="mono-input" id="f-combustivel" step="1" min="0" placeholder="335"><span class="unit">gal</span></div>
+        </div>
+        <div class="field" style="margin-bottom:0"></div>
       </div>
 
       <div class="grid2">
@@ -82,6 +93,7 @@
           <p class="hint" data-i18n="tipoaeronave.pouso.hint">Nível do mar, ISA, sem vento, peso de pouso típico.</p>
         </div>
       </div>
+      <p class="hint" id="f-categoria-helicoptero-hint" style="display:none" data-i18n="tipoaeronave.categoria.helicoptero.hint">Helicóptero decola/pousa na vertical — distância de decolagem/pouso não se aplica; deixe em branco. A calculadora de Ferramentas já mostra "não aplicável" pra esta categoria em vez de pedir esses dois campos.</p>
 
       <div class="field" style="margin-bottom:0">
         <label data-i18n="tipoaeronave.obs">Observações</label>
@@ -104,6 +116,7 @@
         <thead>
           <tr>
             <th data-i18n="tipoaeronave.nome">Tipo</th>
+            <th data-i18n="tipoaeronave.categoria">Categoria</th>
             <th class="num" data-i18n="tipoaeronave.pesovazio.short">Vazio</th>
             <th class="num" data-i18n="tipoaeronave.mtow.short">MTOW</th>
             <th class="num" data-i18n="tipoaeronave.combustivel.short">Combustível</th>
@@ -132,6 +145,8 @@
       'tipoaeronave.nome': 'Type',
       'tipoaeronave.nome.select': 'Select…',
       'tipoaeronave.nome.other': 'Other type…',
+      'tipoaeronave.categoria': 'Category',
+      'tipoaeronave.categoria.helicoptero.hint': 'A helicopter takes off/lands vertically — takeoff/landing distance doesn\'t apply; leave it blank. The Pilot tools calculator already shows "not applicable" for this category instead of asking for those two fields.',
       'tipoaeronave.pesovazio': 'Empty weight',
       'tipoaeronave.pesovazio.short': 'Empty',
       'tipoaeronave.mtow': 'Max takeoff weight (MTOW)',

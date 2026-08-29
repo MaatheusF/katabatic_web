@@ -8,6 +8,7 @@ use App\Entity\Voo;
 use App\Repository\AeronaveRepository;
 use App\Repository\AeroportoRepository;
 use App\Repository\PilotRepository;
+use App\Repository\TipoAeronaveRepository;
 use App\Repository\VooRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -70,7 +71,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class PortalController extends AbstractController
 {
     #[Route('/portal', name: 'app_portal', methods: ['GET'])]
-    public function index(Request $request, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves, AeroportoRepository $aeroportos): Response
+    public function index(Request $request, PilotRepository $pilots, VooRepository $voos, AeronaveRepository $aeronaves, AeroportoRepository $aeroportos, TipoAeronaveRepository $tipos): Response
     {
         $sessionPilot = $request->getSession()->get('pilot');
         if (null === $sessionPilot) {
@@ -80,8 +81,9 @@ class PortalController extends AbstractController
         $pilotEntity = $pilots->findOneByCid($sessionPilot['cid']);
         $voosDoPiloto = null !== $pilotEntity ? $voos->findAllForPilot($pilotEntity) : [];
         $logbook = array_map(fn (Voo $v) => $this->logbookViewModel($v), $voosDoPiloto);
+        $categoriasPorTipo = $tipos->findCategoriasPorNome();
         $fleet = array_map(
-            fn (Aeronave $a) => $this->fleetViewModel($a, $voos),
+            fn (Aeronave $a) => $this->fleetViewModel($a, $voos, $categoriasPorTipo),
             $aeronaves->findAllOrderedByBaseAndReg()
         );
         $bases = $this->bases($aeroportos);
@@ -242,6 +244,7 @@ class PortalController extends AbstractController
             'hora' => $v->getStartedAt()->format('H:i').'Z',
             'callsign' => $v->getCallsign(),
             'tipo' => $v->getTipoOperacao(),
+            'categoriaAeronave' => $v->getCategoriaAeronave(),
             'origem' => $v->getOrigem(),
             'destino' => $v->getDestino(),
             'rota' => $dados['rota'],
@@ -327,15 +330,27 @@ class PortalController extends AbstractController
      * verdade; string vazia/`null` faz o card/linha simplesmente omitir
      * o campo (`portal.js`), sem placeholder tipo "—".
      *
+     * `categoria` ('Aviao'/'Helicoptero', null se o tipo ainda não tem
+     * perfil cadastrado em `/tipos-aeronave`) vem de `$categoriasPorTipo`
+     * (`TipoAeronaveRepository::findCategoriasPorNome()`, buscado uma vez
+     * só em `index()`) — mesmo casamento fraco por string de
+     * `Aeronave::$tipo` que o resto do app já usa, ver docblock de
+     * `TipoAeronave`. `portal.js` só mostra um selo quando é
+     * 'Helicoptero' — frota é majoritariamente avião, então rotular só a
+     * exceção evita poluir a lista inteira com "Avião" repetido.
+     *
+     * @param array<string, string> $categoriasPorTipo
+     *
      * @return array<string, mixed>
      */
-    private function fleetViewModel(Aeronave $a, VooRepository $voos): array
+    private function fleetViewModel(Aeronave $a, VooRepository $voos, array $categoriasPorTipo): array
     {
         $ultimoVoo = $voos->findAllByAeronaveReg($a->getReg())[0] ?? null;
 
         return [
             'reg' => $a->getReg(),
             'tipo' => $a->getTipo(),
+            'categoria' => $categoriasPorTipo[$a->getTipo()] ?? null,
             'status' => $a->getStatusEfetivo(),
             'statusTag' => $a->getStatusTag(),
             'base' => $a->getBase(),

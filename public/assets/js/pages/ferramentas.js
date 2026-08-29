@@ -24,6 +24,17 @@
       campo de L/D em TipoAeronave ainda), idem tool 1/2.
    7. Ponto ideal de descida (TOD) — idem, regra de bolso trigonometrica
       a partir de altitude a perder + velocidade no solo + taxa/angulo.
+   8. Gerador de callsign/numero de voo — pedido em conversa: numero
+      determinado pela ROTA (origem->destino) + digito do tipo de
+      operacao (mesmo mapa 1/2/4/5/9 que novo-voo.js ja sugere pelo 1o
+      digito do callsign), NAO pela aeronave - decisao tomada em
+      conversa depois de confirmar que companhias aereas de verdade
+      amarram numero de voo a rota, nao a aeronave especifica (o mesmo
+      aviao voa varios numeros por dia). Mesma rota sempre gera o mesmo
+      numero (hash determinístico do par origem/destino, ver
+      hashRota()); o sentido contrario sai no numero vizinho (par/
+      impar), imitando a convencao real de ida/volta. Aeronave
+      selecionada e so contexto no resultado, nunca entra na conta.
 
    Time de qualquer tipo/aeronave sem TipoAeronave cadastrado (ou com os
    campos relevantes em branco) mostra um aviso e desabilita a
@@ -269,7 +280,13 @@
       fieldsEl.style.display = '';
       densityFieldEl.style.display = '';
       refEl.style.display = '';
-      refEl.innerHTML = tr('tools.wb.ref', 'Peso vazio <b>%1$s lb</b> · MTOW <b>%2$s lb</b>').replace('%1$s', fmt(tipo.pesoVazioLb)).replace('%2$s', fmt(tipo.pesoMaxDecolagemLb));
+      // Peso e balanceamento vale igual pra aviao/helicoptero (peso total
+      // vs. MTOW nao muda com asa fixa vs. rotativa) - so rotula a
+      // categoria aqui como contexto extra, nao afeta a conta.
+      var categoriaTag = tipo.categoria === 'Helicoptero'
+        ? ' <span class="tag">' + tr('common.category.helicopter', 'Helicóptero') + '</span>'
+        : '';
+      refEl.innerHTML = tr('tools.wb.ref', 'Peso vazio <b>%1$s lb</b> · MTOW <b>%2$s lb</b>').replace('%1$s', fmt(tipo.pesoVazioLb)).replace('%2$s', fmt(tipo.pesoMaxDecolagemLb)) + categoriaTag;
       calc();
     }
 
@@ -325,6 +342,20 @@
         return;
       }
       var tipo = tipoByNome(typeEl.value);
+
+      // Helicoptero: pouso/decolagem vertical, o conceito de "distancia de
+      // ground roll" nem existe - mostra "nao aplicavel" em vez do aviso
+      // de dado faltando (mesmo sem nenhum numero cadastrado, nao faz
+      // sentido pedir pro admin preencher algo que fisicamente nao se
+      // aplica). Ver TipoAeronave::$categoria/FerramentasController.
+      if (tipo && tipo.categoria === 'Helicoptero') {
+        fieldsEl.style.display = 'none';
+        missingEl.style.display = '';
+        missingEl.innerHTML = tr('tools.dist.helicopter', '<b>%s</b> está cadastrado como helicóptero — pouso/decolagem vertical não usa distância de ground roll, então esta calculadora não tem o que estimar aqui.').replace('%s', typeEl.value);
+        resultEl.innerHTML = '';
+        return;
+      }
+
       var temDados = tipo && (tipo.decolagemDistanciaFt !== null || tipo.pousoDistanciaFt !== null);
       if (!temDados) {
         fieldsEl.style.display = 'none';
@@ -549,6 +580,181 @@
     }
 
     [altEl, gsEl, rateEl, angleEl].forEach(function (el) { el.addEventListener('input', calc); });
+    document.addEventListener('katabatic:langchange', calc);
+  })();
+
+  /* ==================== 8. Gerador de callsign / número de voo ==================== */
+  (function () {
+    var tipoChips = document.querySelectorAll('#cs-tipo-chips .chip');
+    var origemEl = document.getElementById('cs-origem');
+    var destinoEl = document.getElementById('cs-destino');
+    var aircraftEl = document.getElementById('cs-aircraft');
+    var swapBtn = document.getElementById('cs-swap');
+    var resultEl = document.getElementById('cs-result');
+
+    // Mesmo mapa dígito->tipo que novo-voo.js usa pra sugerir o tipo a
+    // partir do 1º dígito do callsign (ver docblock do arquivo).
+    var TIPO_DIGITO = { Carga: '1', Pessoal: '2', Pesquisa: '4', Medvec: '5', Reposicionamento: '9' };
+    var tipoAtual = 'Carga';
+
+    // callsign (maiúsculo) -> lista de rotas {origem,destino} que já
+    // usaram ele de verdade (ver VooRepository::findCallsignsRotasUsados()
+    // / FerramentasController) - usado só pra EVITAR sugerir um número
+    // que já pertence a uma rota DIFERENTE (a mesma rota reusar seu
+    // próprio número não é colisão, é o comportamento esperado).
+    var VOOS_EXISTENTES = window.KATABATIC_FERRAMENTAS_VOOS_EXISTENTES || [];
+    var CALLSIGN_ROTAS = {};
+    VOOS_EXISTENTES.forEach(function (v) {
+      var cs = (v.callsign || '').toUpperCase();
+      if (!cs) return;
+      (CALLSIGN_ROTAS[cs] = CALLSIGN_ROTAS[cs] || []).push({
+        origem: (v.origem || '').toUpperCase(),
+        destino: (v.destino || '').toUpperCase(),
+      });
+    });
+
+    // Livre pra esta rota quando o callsign nunca foi usado, OU quando
+    // toda vez que foi usado, foi exatamente com esta mesma origem/
+    // destino (reuso esperado da mesma linha) - qualquer ocorrência com
+    // origem/destino diferente conta como ocupado por outra rota.
+    function callsignLivreParaRota(callsign, origem, destino) {
+      var rotas = CALLSIGN_ROTAS[callsign];
+      if (!rotas) return true;
+      return rotas.every(function (r) { return r.origem === origem && r.destino === destino; });
+    }
+
+    AERONAVES.forEach(function (a) {
+      var opt = document.createElement('option');
+      opt.value = a.reg;
+      opt.textContent = a.reg + ' — ' + a.tipo;
+      aircraftEl.appendChild(opt);
+    });
+
+    tipoChips.forEach(function (c) {
+      c.addEventListener('click', function () {
+        tipoChips.forEach(function (x) { x.classList.remove('on'); });
+        c.classList.add('on');
+        tipoAtual = c.dataset.tipo;
+        calc();
+      });
+    });
+
+    function normalizarIcao(el) {
+      el.value = el.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    }
+
+    // Hash simples e determinístico do par origem/destino (ordenado
+    // alfabeticamente, pra não depender de qual lado é "origem" na
+    // hora de casar ida/volta no mesmo par) - não precisa ser
+    // criptográfico, só estável e bem distribuído.
+    //
+    // 4999 faixas (×2 pra sobrar o vizinho ímpar da volta = 9998
+    // números, 4 dígitos) por tipo de operação - NÃO é matematicamente
+    // livre de colisão (rotas diferentes podem cair na mesma faixa por
+    // acaso; pelo paradoxo do aniversário isso só fica ~50% provável
+    // depois de umas 83 rotas distintas do MESMO tipo, e só é garantido
+    // depois de 4999), mas na prática, combinado com a checagem contra
+    // o banco em `acharFaixaLivre()`, colisão real vira um evento raro.
+    // Não trava nada se colidir mesmo assim - `Voo::$callsign` não é
+    // único no banco (só `codigo`, o ID de sessão do ACARS, é - ver
+    // `Entity\Voo`), então na pior das hipóteses duas rotas diferentes
+    // mostram o mesmo número, sem quebrar nada, só uma inconsistência
+    // de imersão. Faixa de 3 dígitos (499) trocada por essa depois de
+    // pedido em conversa ("o simbrief aceita até 9 caracteres além do
+    // KBT, não seria melhor já ampliar?") - sufixo final (dígito do
+    // tipo + número) fica com 5 caracteres, ainda longe do limite de 9.
+    function hashRota(a, b) {
+      var par = [a, b].slice().sort();
+      var chave = par[0] + '|' + par[1];
+      var h = 0;
+      for (var i = 0; i < chave.length; i++) {
+        h = (h * 31 + chave.charCodeAt(i)) >>> 0;
+      }
+      return (h % 4999) + 1; // 1..4999
+    }
+
+    function numeroTxt(n) {
+      var s = String(n);
+      while (s.length < 4) { s = '0' + s; }
+      return s;
+    }
+
+    // Monta o par ida/volta pra uma FAIXA específica (1..4999) - a base
+    // é sempre PAR, o lado alfabeticamente menor do par origem/destino
+    // usa a base, o outro lado usa o ímpar vizinho.
+    function callsignsDaFaixa(slot, origem, destino, digito) {
+      var par = [origem, destino].slice().sort();
+      var base = slot * 2;
+      var numeroIda = origem === par[0] ? base : base + 1;
+      var numeroVolta = origem === par[0] ? base + 1 : base;
+      return {
+        ida: 'KBT' + digito + numeroTxt(numeroIda),
+        volta: 'KBT' + digito + numeroTxt(numeroVolta),
+      };
+    }
+
+    // Começa na faixa natural (hash da rota) e, se ela já pertencer a
+    // outra rota, vai tentando a próxima (com wrap) até achar uma livre
+    // pros dois sentidos - nunca trava: se as 4999 faixas do tipo
+    // estiverem todas ocupadas por rotas diferentes (extremamente
+    // improvável), devolve a faixa natural mesmo assim. Pedido em
+    // conversa: "não precisa travar, mas priorizar sempre números não
+    // utilizados".
+    function acharFaixaLivre(origem, destino, digito) {
+      var slotNatural = hashRota(origem, destino);
+      for (var tentativa = 0; tentativa < 4999; tentativa++) {
+        var slot = ((slotNatural - 1 + tentativa) % 4999) + 1;
+        var cs = callsignsDaFaixa(slot, origem, destino, digito);
+        if (callsignLivreParaRota(cs.ida, origem, destino) && callsignLivreParaRota(cs.volta, destino, origem)) {
+          return { ida: cs.ida, volta: cs.volta, ajustado: tentativa > 0, esgotado: false };
+        }
+      }
+      var csNatural = callsignsDaFaixa(slotNatural, origem, destino, digito);
+      return { ida: csNatural.ida, volta: csNatural.volta, ajustado: false, esgotado: true };
+    }
+
+    function calc() {
+      var origem = origemEl.value;
+      var destino = destinoEl.value;
+      if (4 !== origem.length || 4 !== destino.length) {
+        resultEl.innerHTML = '';
+        return;
+      }
+      if (origem === destino) {
+        resultEl.innerHTML = '<p class="hint">' + tr('tools.callsign.hint.same', 'Origem e destino precisam ser diferentes.') + '</p>';
+        return;
+      }
+
+      var digito = TIPO_DIGITO[tipoAtual];
+      var achado = acharFaixaLivre(origem, destino, digito);
+
+      var html = '<div class="result-line"><span class="result-label">' + origem + ' → ' + destino + '</span><span class="result-value result-value-lg">' + achado.ida + '</span></div>';
+      html += '<div class="result-line"><span class="result-label">' + destino + ' → ' + origem + ' (' + tr('tools.callsign.result.reverse', 'sentido contrário') + ')</span><span class="result-value">' + achado.volta + '</span></div>';
+
+      if (achado.esgotado) {
+        html += '<p class="hint">' + tr('tools.callsign.hint.esgotado', 'Todas as faixas de número pra esse tipo de operação já estão em uso por outras rotas — número reaproveitado mesmo assim.') + '</p>';
+      } else if (achado.ajustado) {
+        html += '<p class="hint">' + tr('tools.callsign.hint.ajustado', 'Número ajustado — o número natural dessa rota já está em uso por outra rota; escolhido o próximo disponível.') + '</p>';
+      }
+
+      var aeronave = AERONAVES.filter(function (a) { return a.reg === aircraftEl.value; })[0];
+      if (aeronave) {
+        html += '<p class="hint">' + tr('tools.callsign.result.aircraft', 'Aeronave selecionada') + ': <b>' + aeronave.reg + '</b> — ' + aeronave.tipo + '</p>';
+      }
+
+      resultEl.innerHTML = html;
+    }
+
+    swapBtn.addEventListener('click', function () {
+      var tmp = origemEl.value;
+      origemEl.value = destinoEl.value;
+      destinoEl.value = tmp;
+      calc();
+    });
+
+    origemEl.addEventListener('input', function () { normalizarIcao(origemEl); calc(); });
+    destinoEl.addEventListener('input', function () { normalizarIcao(destinoEl); calc(); });
+    aircraftEl.addEventListener('change', calc);
     document.addEventListener('katabatic:langchange', calc);
   })();
 })();

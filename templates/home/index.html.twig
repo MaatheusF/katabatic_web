@@ -48,7 +48,7 @@
   <div class="wrap hero-inner">
     <span class="badge" data-i18n="hero.badge">Companhia aérea virtual · MSFS 2024 · VATSIM</span>
     <h1>Katabatic</h1>
-    <p class="hero-lead" data-i18n="hero.lead">Operamos carga e passageiros entre pistas de cascalho, gelo e vento — do interior do Alasca à Patagônia austral. E voamos para dentro das tempestades que todo mundo desvia.</p>
+    <p class="hero-lead" data-i18n="hero.lead">Operamos carga e passageiros entre pistas de cascalho, gelo e vento — do interior do Alasca ao Himalaia, passando pelos Andes, a Patagônia e as terras altas da Papua. E voamos para dentro das tempestades que todo mundo desvia.</p>
     <div class="hero-cta">
       <a class="btn btn-primary btn-lg" href="#empresa" data-i18n="hero.cta1">Conheça a operação</a>
       <a class="btn btn-ghost btn-lg" href="#tripulacao" data-i18n="hero.cta2">Voar conosco</a>
@@ -65,12 +65,11 @@
         <span class="board-name" data-i18n="{{ cell.nameKey }}">{{ cell.nameFallback }}</span>
         <span class="board-time">{{ cell.time }}</span>
       </div>
-      <div class="board-metrics">
-        <div><span data-i18n="board.wind">Vento</span><b{% if cell.windWarn %} class="warn"{% endif %}>{{ cell.wind }}</b></div>
-        <div><span data-i18n="board.temp">Temp</span><b>{{ cell.temp }}</b></div>
-        <div><span data-i18n="board.vis">Visib.</span><b{% if cell.visWarn %} class="warn"{% endif %}>{{ cell.vis }}</b></div>
-        <div><span data-i18n="board.ceil">Teto</span><b>{{ cell.ceil }}</b></div>
-      </div>
+      {% if cell.metar %}
+      <div class="board-metar{% if cell.metarGusty %} warn{% endif %}" data-i18n-attr="title:board.metarHint" title="METAR mais recente">{{ cell.metar }}</div>
+      {% else %}
+      <div class="board-metar board-metar-empty" data-i18n="board.metarUnavailable">METAR indisponível</div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
@@ -81,18 +80,24 @@
     <div class="head">
       <p class="eyebrow" data-i18n="map.eyebrow">Rede</p>
       <h2 class="h2" data-i18n="map.title">Onde estamos agora</h2>
-      <p data-i18n="map.lead">Duas malhas independentes, a 13 000 km uma da outra. As aeronaves aparecem aqui enquanto o ACARS transmite.</p>
+      <p data-i18n="map.lead">Seis bases espalhadas pelo planeta. As aeronaves aparecem aqui enquanto o ACARS transmite.</p>
     </div>
 
     <div class="map-wrap">
       <div class="map-bar">
         <div class="map-tabs">
-          <button type="button" data-pane="north" aria-pressed="true">KBT Norte</button>
-          <button type="button" data-pane="south" aria-pressed="false">KBT Sul</button>
+          <select id="map-pane" class="map-pane-select">
+            <option value="pafa">KBT PAFA · Fairbanks</option>
+            <option value="scci">KBT SCCI · Punta Arenas</option>
+            <option value="sllp">KBT SLLP · La Paz</option>
+            <option value="vnkt">KBT VNKT · Catmandu</option>
+            <option value="wajw">KBT WAJW · Wamena</option>
+            <option value="vqpr">KBT VQPR · Paro</option>
+          </select>
           <button type="button" id="radar-btn" aria-pressed="false" data-i18n="map.radar">Radar</button>
           <button type="button" id="owm-btn" aria-pressed="false" data-i18n="map.model">Modelo</button>
         </div>
-        <span class="map-live"><i></i><span data-i18n="map.live">2 em voo</span></span>
+        <span class="map-live"><i></i><span id="map-live-count">···</span></span>
       </div>
 
       <div class="map-canvas" id="map"></div>
@@ -114,12 +119,10 @@
       </div>
 
       <div class="map-foot">
-        <span><b>KBT118</b> PAFA &rarr; PABT · 42 min</span>
-        <span><b>KBT412</b> SCCI &rarr; SCNT · 18 min</span>
+        <span id="map-foot-flight"></span>
         <span id="radar-stamp"></span>
       </div>
     </div>
-    <p class="map-note" data-i18n="map.note">Mapa base OpenStreetMap via CARTO. Radar (RainViewer) depende de estações em solo — funciona bem no Alasca, quase não existe na Patagônia. Modelo (OpenWeather) cobre o globo inteiro, inclusive onde não há radar. O histórico detalhado por voo vem de um pipeline próprio.</p>
   </div>
 </section>
 
@@ -129,7 +132,7 @@
       <p class="eyebrow" data-i18n="about.eyebrow">A empresa</p>
       <h2 class="h2" data-i18n="about.title">Fundada para ir onde a linha aérea não vai</h2>
       <p data-i18n="about.p1">A Katabatic nasceu em 2026 de uma ideia simples: <strong>quase toda companhia virtual voa entre capitais.</strong> Nós fazemos o contrário — pista curta, cascalho, neve compactada, vento de encosta e teto baixo.</p>
-      <p data-i18n="about.p2">Operamos duas frentes em hemisférios opostos. Quando o inverno aperta no Alasca, a temporada dura começa na Patagônia, e a frota se reposiciona. A empresa nunca sai da estação difícil.</p>
+      <p data-i18n="about.p2">Operamos seis bases nos extremos do planeta — do interior do Alasca ao Himalaia, passando pelos Andes, a Patagônia e as terras altas da Papua. PAFA e SCCI, as duas originais, ainda se revezam com o inverno de cada hemisfério e reposicionam parte da frota entre elas; as quatro mais novas operam o ano inteiro na própria estação difícil, sem pausa pra trocar de hemisfério.</p>
       <p data-i18n="about.p3">Além do transporte, mantemos uma linha de <strong>voos de pesquisa meteorológica</strong>: pernas planejadas para atravessar sistemas convectivos com instrumentação registrando o que a aeronave sofreu — turbulência, gelo, rajada e visibilidade, segundo a segundo.</p>
       <div class="note">
         <b data-i18n="about.noteTitle">Para quem está chegando agora</b>
@@ -153,64 +156,49 @@
   <div class="wrap">
     <div class="head">
       <p class="eyebrow" data-i18n="bases.eyebrow">Bases</p>
-      <h2 class="h2" data-i18n="bases.title">Duas pontas do continente</h2>
-      <p data-i18n="bases.lead">Cada base tem sua frota registrada localmente, seu tipo de missão e sua estação difícil. Entre elas, 13 000 km e um voo de reposicionamento por temporada.</p>
+      <h2 class="h2" data-i18n="bases.title">Seis bases nos extremos do planeta</h2>
+      <p data-i18n="bases.lead">Cada base tem sua frota registrada localmente, seu tipo de missão e sua estação difícil — algumas trocam de hemisfério a cada temporada, outras operam o ano inteiro na própria dificuldade.</p>
     </div>
 
-    <article class="base">
+    {% for base in bases %}
+    {# DOM sempre na mesma ordem (texto, depois foto) - a inversão visual
+       nas linhas ímpares é só CSS (`.base-rev .base-text{order:2}`, ver
+       home.css), que também já reseta pra ordem de leitura normal no
+       mobile (`order:0` dentro do media query) - inverter o DOM aqui
+       quebraria esse reset e faria linhas ímpares lerem foto-antes-do-
+       texto no celular. #}
+    <article class="base{% if loop.index0 is odd %} base-rev{% endif %}">
       <div class="base-text">
-        <span class="base-tag" data-i18n="bases.north.tag">KBT Norte · matrícula N</span>
-        <h3 data-i18n="bases.north.title">Fairbanks — interior e Ártico</h3>
-        <p data-i18n="bases.north.body">Porta de entrada do Ártico. Daqui saem os voos de suprimento para campos sem estrada e as pernas de pesquisa acima do Círculo Polar. O interior soma o que a costa não tem: passes de montanha, aproximação em vale e frio que degrada desempenho antes de qualquer outra coisa.</p>
+        <span class="base-tag" data-i18n="{{ base.tagKey }}">{{ base.tagFallback }}</span>
+        <h3 data-i18n="{{ base.titleKey }}">{{ base.titleFallback }}</h3>
+        <p data-i18n="{{ base.bodyKey }}">{{ base.bodyFallback }}</p>
         <ul class="base-list">
-          <li><span data-i18n="bases.field">Aeródromo</span><b>{{ bases.north.field }}</b></li>
-          <li><span data-i18n="bases.dest">Destinos regulares</span><b>{{ bases.north.destinations }}</b></li>
-          <li><span data-i18n="bases.leg">Perna média</span><b>{{ bases.north.avgLeg }}</b></li>
-          <li><span data-i18n="bases.based">Aeronaves baseadas</span><b>{{ bases.north.basedAircraft }}</b></li>
+          <li><span data-i18n="bases.field">Aeródromo</span><b>{{ base.field }}</b></li>
+          <li><span data-i18n="bases.dest">Destinos regulares</span><b>{{ base.destinations }}</b></li>
+          <li><span data-i18n="bases.leg">Perna média</span><b>{{ base.avgLeg }}</b></li>
+          <li><span data-i18n="bases.based">Aeronaves baseadas</span><b>{{ base.basedAircraft }}</b></li>
         </ul>
         <div class="stations">
           <span class="stations-label" data-i18n="bases.stations">Estações avançadas</span>
           <div class="chips">
-            {% for station in bases.north.stations %}
+            {% for station in base.stations %}
             <span class="chip">{{ station.icao }} <em>{{ station.name }}</em></span>
             {% endfor %}
           </div>
         </div>
       </div>
       <figure class="shot">
+        {% if base.photo %}
         <div class="shot-frame r-wide">
-          <img src="/assets/img/home/base-norte.jpg" alt="Caravan N208KB numa pista de cascalho em Bettles, Alasca, com montanhas nevadas ao fundo">
+          <img src="{{ base.photo }}" alt="{{ base.photoAlt }}">
         </div>
-        <figcaption data-i18n="cap.north">N208KB em Bettles</figcaption>
+        {% if base.capKey %}<figcaption data-i18n="{{ base.capKey }}">{{ base.capFallback }}</figcaption>{% endif %}
+        {% else %}
+        <div class="shot-frame r-wide" data-hint="{{ base.icao }} · sem foto ainda"></div>
+        {% endif %}
       </figure>
     </article>
-
-    <article class="base base-rev">
-      <figure class="shot">
-        <div class="shot-frame r-wide">
-          <img src="/assets/img/home/base-sul.jpg" alt="Twin Otter CC-KBA em final para SCNT, sobrevoando um fiorde patagônico — legenda já embutida na foto">
-        </div>
-      </figure>
-      <div class="base-text">
-        <span class="base-tag" data-i18n="bases.south.tag">KBT Sul · matrícula CC</span>
-        <h3 data-i18n="bases.south.title">Punta Arenas — Magalhães e Patagônia</h3>
-        <p data-i18n="bases.south.body">Apoio a estações de pesquisa, travessia de fiordes e transporte de pessoal técnico. É aqui que o vento catabático que dá nome à empresa aparece de verdade: rajadas descendo da cordilheira que mudam a aproximação nos últimos 500 pés.</p>
-        <ul class="base-list">
-          <li><span data-i18n="bases.field">Aeródromo</span><b>{{ bases.south.field }}</b></li>
-          <li><span data-i18n="bases.dest">Destinos regulares</span><b>{{ bases.south.destinations }}</b></li>
-          <li><span data-i18n="bases.leg">Perna média</span><b>{{ bases.south.avgLeg }}</b></li>
-          <li><span data-i18n="bases.based">Aeronaves baseadas</span><b>{{ bases.south.basedAircraft }}</b></li>
-        </ul>
-        <div class="stations">
-          <span class="stations-label" data-i18n="bases.stations">Estações avançadas</span>
-          <div class="chips">
-            {% for station in bases.south.stations %}
-            <span class="chip">{{ station.icao }} <em>{{ station.name }}</em></span>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </article>
+    {% endfor %}
   </div>
 </section>
 
@@ -218,21 +206,21 @@
   <div class="wrap">
     <div class="head">
       <p class="eyebrow" data-i18n="fleet.eyebrow">Frota</p>
-      <h2 class="h2" data-i18n="fleet.title">Seis aeronaves, duas bandeiras</h2>
-      <p data-i18n="fleet.lead">Registro chileno no sul, norte-americano no norte. Tudo turboélice, tudo capaz de sair de pista curta e não pavimentada.</p>
+      <h2 class="h2" data-i18n="fleet.title">Uma frota, seis bandeiras</h2>
+      <p data-i18n="fleet.lead">Os tipos que voamos de verdade — um registro de matrícula por base (N americano, CC chileno, CP boliviano, 9N nepalês, PK indonésio, A5 butanês), mas todo mundo turboélice e capaz de sair de pista curta e não pavimentada.</p>
     </div>
-    <div class="fleet">
-      {% for plane in fleet %}
-      <article class="plane">
-        <div class="shot-frame r-square" data-hint="{{ plane.reg }} · 1:1"></div>
-        <div class="plane-body">
-          <div class="plane-reg">{{ plane.reg }}</div>
-          <div class="plane-type">{{ plane.type }}</div>
-          <div class="plane-foot"><span>{{ plane.base }}</span><span>{{ plane.hours }} h</span></div>
-        </div>
-      </article>
+    <ul class="fleet-list">
+      {% for t in fleet %}
+      <li>
+        <span class="fleet-type-name">{{ t.tipo }}</span>
+        <span class="fleet-type-meta">
+          <span>{{ t.count }} {{ t.count == 1 ? 'aeronave' : 'aeronaves' }}</span>
+          <span>{{ t.bases|join(', ') }}</span>
+          <span>{{ t.horas }} h</span>
+        </span>
+      </li>
       {% endfor %}
-    </div>
+    </ul>
   </div>
 </section>
 
@@ -251,6 +239,8 @@
         <div class="flight-meta">{{ flight.reg }} · {{ flight.type }}<br>{{ flight.date }} · {{ flight.duration }}</div>
         <div class="flight-diff lvl-{{ flight.level }}"><div class="diff-bar"><i style="width:{{ flight.diff }}%"></i></div><div class="diff-val">{{ flight.diff }}</div></div>
       </a>
+      {% else %}
+      <p class="empty-note" data-i18n="ops.empty">Nenhum voo com telemetria gravada ainda — assim que o primeiro ACARS fechar, ele aparece aqui.</p>
       {% endfor %}
     </div>
     <div class="more"><a class="btn" href="{{ path('app_portal') }}" data-i18n="ops.more">Ver o registro completo</a></div>
@@ -302,5 +292,9 @@
 {% endblock %}
 
 {% block javascripts %}
+<script>
+  window.KATABATIC_HOME_POSICOES_URL = {{ posicoesUrl|json_encode|raw }};
+  window.KATABATIC_CARTO_API_KEY = {{ cartoApiKey|json_encode|raw }};
+</script>
 <script src="/assets/js/pages/home.js" defer></script>
 {% endblock %}

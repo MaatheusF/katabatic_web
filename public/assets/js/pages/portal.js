@@ -180,7 +180,7 @@ function lbRow(f) {
     '<td class="mono">' + dd + '<span class="sub">' + f.hora + '</span></td>' +
     '<td class="mono">' + f.callsign + '<span class="sub">' + f.tipo + '</span></td>' +
     '<td><div class="route">' + f.origem + ' <i></i> ' + f.destino + '</div><span class="sub">' + f.rota + '</span></td>' +
-    '<td class="mono">' + f.aeronave + '<span class="sub">' + f.modelo + '</span></td>' +
+    '<td class="mono">' + f.aeronave + categoriaBadge(f.categoriaAeronave) + '<span class="sub">' + f.modelo + '</span></td>' +
     '<td class="num mono">' + f.tempo + '</td>' +
     '<td><span class="tag tag-' + f.condTag + '">' + f.cond + '</span></td>' +
     '<td>' + ocorHtml + '</td>' +
@@ -454,6 +454,19 @@ var fleetBase = 'Todas';
 var STATUS_KEYS = { 'Em voo': 'common.status.inflight', 'Disponível': 'common.status.available', 'Fora de base': 'common.status.awayfrombase' };
 function statusLabel(p) { return L(STATUS_KEYS[p.status] || '', p.status); }
 
+// Selo "Helicoptero" - usado tanto pela Frota (categoria do TIPO, ver
+// PortalController::fleetViewModel()/TipoAeronaveRepository::
+// findCategoriasPorNome(), casamento fraco por Aeronave::$tipo, null se o
+// tipo ainda nao tem perfil cadastrado) quanto pelo Logbook (categoria
+// congelada no PROPRIO VOO, ver logbookViewModel()/Voo::$categoriaAeronave -
+// pedido em conversa: "marcar o voo quando ele e feito com asa fixa e asa
+// rotativa"). So rotula a excecao (helicoptero) nos dois casos - frota e
+// logbook sao majoritariamente aviao, selo repetido em toda linha so
+// polui.
+function categoriaBadge(categoria) {
+  return 'Helicoptero' === categoria ? ' <span class="tag">' + L('common.category.helicopter', 'Helicóptero') + '</span>' : '';
+}
+
 function fleetGridCard(p) {
   var hist = '<a class="plane-hist" href="/aeronave/' + encodeURIComponent(p.reg) + '">' + L('portal.fleet.viewhistory', 'Ver histórico no mapa ›') + '</a>';
   // Observações é opcional (Aeronave::$observacoes, nullable) - só
@@ -464,7 +477,7 @@ function fleetGridCard(p) {
     '<div class="plane-shot"><span>' + L('portal.fleet.photoplaceholder', 'Foto · 16:10') + '</span></div>' +
     '<div class="plane-body">' +
     '<div class="plane-head"><b>' + p.reg + '</b><span class="tag tag-' + p.statusTag + '">' + statusLabel(p) + '</span></div>' +
-    '<div class="plane-type">' + p.tipo + '</div>' +
+    '<div class="plane-type">' + p.tipo + categoriaBadge(p.categoria) + '</div>' +
     '<div class="plane-rows">' +
     '<div><span>' + L('portal.th.base', 'Base') + '</span><b>' + p.base + '</b></div>' +
     '<div><span>' + L('portal.fleet.currentpos', 'Posição atual') + '</span><b>' + p.pos + '</b></div>' +
@@ -482,7 +495,7 @@ function fleetListRow(p) {
   // via CSS (.fleet-obs-cell, max-width + ellipsis) e guarda o texto
   // inteiro no title pra aparecer no hover, em vez de estourar a tabela.
   var obsCell = p.observacoes ? '<td class="fleet-obs-cell" title="' + p.observacoes.replace(/"/g, '&quot;') + '">' + p.observacoes + '</td>' : '<td class="fleet-obs-cell muted">—</td>';
-  return '<tr><td class="mono">' + p.reg + '</td><td>' + p.tipo + '</td>' +
+  return '<tr><td class="mono">' + p.reg + '</td><td>' + p.tipo + categoriaBadge(p.categoria) + '</td>' +
     '<td><span class="tag tag-' + p.statusTag + '">' + statusLabel(p) + '</span></td>' +
     '<td class="mono">' + p.base + '</td><td class="mono">' + p.pos + '</td>' +
     '<td class="num mono">' + p.horas + '</td><td class="mono">' + p.ultimo + '</td>' +

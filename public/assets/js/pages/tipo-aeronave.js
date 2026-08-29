@@ -30,10 +30,17 @@
     return typeof casas === 'number' ? v.toFixed(casas) : String(v);
   }
 
+  function categoriaLabel(categoria) {
+    return 'Helicoptero' === categoria
+      ? tr('common.category.helicopter', 'Helicóptero')
+      : tr('common.category.airplane', 'Avião');
+  }
+
   /* ---------- lista ---------- */
   function tipoRow(t) {
     return '<tr>' +
       '<td>' + t.nome + '</td>' +
+      '<td><span class="tag">' + categoriaLabel(t.categoria) + '</span></td>' +
       '<td class="num mono">' + fmtNum(t.pesoVazioLb) + '</td>' +
       '<td class="num mono">' + fmtNum(t.pesoMaxDecolagemLb) + '</td>' +
       '<td class="num mono">' + fmtNum(t.combustivelMaxGal) + '</td>' +
@@ -70,6 +77,28 @@
     var sel = nomeSelect.value;
     return sel === '__custom' ? nomeCustom.value.trim() : sel;
   }
+
+  /* ---------- form: campo Categoria (chips Aviao/Helicoptero) ---------- */
+  var categoriaChips = document.querySelectorAll('#f-categoria-chips .chip');
+  var categoriaHint = document.getElementById('f-categoria-helicoptero-hint');
+
+  function currentCategoria() {
+    var on = document.querySelector('#f-categoria-chips .chip.on');
+    return on ? on.dataset.categoria : 'Aviao';
+  }
+
+  function setCategoriaField(categoria) {
+    categoriaChips.forEach(function (c) {
+      c.classList.toggle('on', c.dataset.categoria === categoria);
+    });
+    categoriaHint.style.display = 'Helicoptero' === categoria ? '' : 'none';
+  }
+
+  categoriaChips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      setCategoriaField(c.dataset.categoria);
+    });
+  });
 
   function setNomeField(nome) {
     var opt = null;
@@ -116,6 +145,7 @@
     nomeSelect.value = '';
     nomeCustom.style.display = 'none';
     nomeCustom.value = '';
+    setCategoriaField('Aviao');
     numericIds.forEach(function (id) { document.getElementById(id).value = ''; });
     document.getElementById('f-obs').value = '';
     formTitle.textContent = tr('tipoaeronave.new.title', 'Novo tipo');
@@ -127,6 +157,7 @@
   function startEdit(t) {
     editingId = t.id;
     setNomeField(t.nome);
+    setCategoriaField(t.categoria);
     document.getElementById('f-pesovazio').value = t.pesoVazioLb === null ? '' : t.pesoVazioLb;
     document.getElementById('f-mtow').value = t.pesoMaxDecolagemLb === null ? '' : t.pesoMaxDecolagemLb;
     document.getElementById('f-combustivel').value = t.combustivelMaxGal === null ? '' : t.combustivelMaxGal;
@@ -159,6 +190,7 @@
 
     var payload = {
       nome: currentNome(),
+      categoria: currentCategoria(),
       pesoVazioLb: document.getElementById('f-pesovazio').value.trim(),
       pesoMaxDecolagemLb: document.getElementById('f-mtow').value.trim(),
       combustivelMaxGal: document.getElementById('f-combustivel').value.trim(),

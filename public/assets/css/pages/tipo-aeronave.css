@@ -38,6 +38,17 @@ textarea { resize: vertical; font-family: var(--font-body); }
 .field:last-child { margin-bottom: 0; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
+/* Chips (campo Categoria: Aviao/Helicoptero) - faltava aqui, mesma regra
+   que ferramentas.css/novo-voo.css/nova-aeronave.css/aeroporto.css ja
+   usam pros chips delas. */
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Selo de categoria na lista (coluna "Categoria") - mesma regra que
+   aeronave.css/portal.css ja usam pro selo de status da frota. */
+.tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+
 /* Campo numero + unidade fixa ao lado (lb/gal/ft/gal-h) - deixa claro
    que unidade o admin precisa usar sem repetir isso no label inteiro. */
 .unit-row { display: flex; align-items: stretch; gap: 0; }

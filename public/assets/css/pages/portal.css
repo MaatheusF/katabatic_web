@@ -179,8 +179,19 @@ td.num, th.num { text-align: right; }
 
 /* ---------- bases ---------- */
 .wx-note { margin: 0 0 16px; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.bases { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.base { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+/* Colunas CSS em vez de grid de 2 colunas (reportado em conversa,
+   mesma causa já corrigida em ferramentas.css): eram só 2 bases
+   (PAFA/SCCI) do mesmo tamanho quando isto virou grid; agora são 6, e
+   cada uma tem uma lista de "estações avançadas" de tamanho bem
+   diferente (algumas têm várias, outras nenhuma - ver `{% if %}` no
+   template) - com `display: grid` a LINHA toda cresce até o card mais
+   alto dela, deixando vão grande embaixo dos cards mais curtos.
+   `columns` empilha os cards numa coluna até ela encher e só então
+   passa pra próxima, sem depender de pares de mesma altura lado a
+   lado. `break-inside: avoid` no `.base` evita cortar um card no meio
+   entre as duas colunas. */
+.bases { columns: 2; column-gap: 18px; }
+.base { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 18px; }
 .base-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
 .base-head b { font-family: var(--font-mono); font-size: 20px; }
 .base-head span { font-size: 13px; color: var(--text-2); }
@@ -199,7 +210,7 @@ td.num, th.num { text-align: right; }
 
 @media (max-width: 900px) {
   .summary, .metrics { grid-template-columns: repeat(2, 1fr); }
-  .bases { grid-template-columns: 1fr; }
+  .bases { columns: 1; }
   .lb-stats-tiles { grid-template-columns: repeat(2, 1fr); }
   .lb-stats-top { grid-template-columns: 1fr; }
   .lb-detail-grid { grid-template-columns: repeat(2, 1fr); }
