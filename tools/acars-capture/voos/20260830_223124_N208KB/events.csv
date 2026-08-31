@@ -1,0 +1,10 @@
+t,type,lat,lon,alt_ft,data
+2026-08-30T22:31:24.454Z,session_start,,,,"{""ident"": {""aircraft_title"": ""Black Square Caravan Professional Super Cargomaster C-GLHA"", ""aircraft_icao"": ""C208"", ""tail_number"": ""N208KB"", ""flight_number"": ""N208KB"", ""airline"": ""N208KB"", ""weight_lb"": 7010.036, ""fuel_lb"": 600.036, ""aircraft_icao_raw"": ""ATCCOM.AC_MODEL C208.0.text""}, ""callsign"": ""N208KB""}"
+2026-08-30T22:34:34.606Z,takeoff,65.147695,-149.369462,514.9,"{""ias_kt"": 82.955}"
+2026-08-30T22:57:36.102Z,state_flaps,64.798526,-147.878877,740.8,"{""de"": 0.0, ""para"": 3.0}"
+2026-08-30T22:58:07.521Z,state_stall_warning,64.807383,-147.862499,459.6,"{""de"": 0.0, ""para"": 1.0}"
+2026-08-30T22:58:14.861Z,touchdown,64.809032,-147.859407,434.7,"{""td_vs_fpm"": 31.759, ""td_pitch"": -7.953, ""td_bank"": 0.9, ""td_hdg"": 23.433, ""td_lat"": 64.809, ""td_lon"": -147.859}"
+2026-08-30T22:58:15.284Z,state_stall_warning,64.809032,-147.859407,434.7,"{""de"": 1.0, ""para"": 0.0}"
+2026-08-30T23:00:03.171Z,state_parking_brake,64.812792,-147.848293,434.3,"{""de"": 0.0, ""para"": 1.0}"
+2026-08-30T23:00:07.926Z,state_eng1,64.812792,-147.848293,434.3,"{""de"": 1.0, ""para"": 0.0}"
+2026-08-30T23:02:01.664Z,session_end,,,,{}

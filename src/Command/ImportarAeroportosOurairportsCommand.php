@@ -85,6 +85,28 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * flying, então a pista sem ICAO ainda é operacionalmente relevante.
  * Toda linha assim entra com `Aeroporto::$icaoOficial = false`.
  *
+ * **Atualizado: Bolívia/Nepal/Indonésia/Butão/Índia entraram na
+ * lista.** Bug relatado em conversa: "alguns aeroportos do oriente
+ * não estão importados, como VEPU por exemplo" - VEPU (Purnea,
+ * Bihar, Índia) não tem `icao_code` na base da OurAirports, só
+ * `gps_code`, e a Índia nunca esteve em `self::PAISES_MISSAO`, então
+ * a linha caía direto em "sem identificador utilizável"
+ * (`pulasSemIdentificador`), mesmo já existindo pista real ali. A
+ * lista original cobria só o tema "geladas/fim de mundo" (PAFA/SCCI)
+ * - ficou desatualizada quando as quatro bases sazonais novas
+ * (SLLP/VNKT/WAJW/VQPR, ver docblock de `ImportarBasesSazonaisCommand`)
+ * entraram na rede, cada uma no meio de bush flying de verdade nesses
+ * países: Bolívia (SLLP), Nepal (VNKT — cujos postos avançados de
+ * altitude ficam perto da fronteira indiana, e o próprio posto
+ * **VQGP** de VQPR já é "na fronteira com a Índia", ver
+ * `ImportarBasesSazonaisCommand`), Indonésia/Papua (WAJW) e Butão
+ * (VQPR). `self::PAISES_MISSAO` agora inclui `BO`/`NP`/`ID`/`BT`/`IN`
+ * pelo mesmo motivo que CL/AR/CA/RU já estavam lá — essas pistas sem
+ * ICAO oficial continuam operacionalmente relevantes nessas regiões.
+ * Rodar o comando de novo é seguro (idempotente, ver docblock abaixo)
+ * e vai trazer essas pistas que antes eram puladas, sem duplicar nada
+ * que já estava no catálogo.
+ *
  * **Nunca sobrescreve nada, e nunca duplica um código.** Um código que
  * já existe (seja dos 11 legados, seja cadastrado à mão em
  * `/aeroportos`, seja de outra linha do próprio CSV) é pulado inteiro —
@@ -130,8 +152,14 @@ class ImportarAeroportosOurairportsCommand extends Command
      * e Rússia inteiros, Groenlândia e Svalbard (completando "polo
      * norte"). Alasca (parte dos EUA, não um país) é tratado à parte via
      * `iso_region` — ver `dentroDeRegiaoDeMissao()`.
+     *
+     * **Bolívia/Nepal/Indonésia/Butão/Índia** entraram depois, junto com
+     * as quatro bases sazonais novas (SLLP/VNKT/WAJW/VQPR) — ver docblock
+     * da classe ("Atualizado: Bolívia/Nepal/Indonésia/Butão/Índia
+     * entraram na lista") pro bug relatado (VEPU, Índia) que expôs a
+     * lista desatualizada.
      */
-    private const PAISES_MISSAO = ['CL', 'AR', 'AQ', 'FK', 'GS', 'CA', 'RU', 'GL', 'SJ'];
+    private const PAISES_MISSAO = ['CL', 'AR', 'AQ', 'FK', 'GS', 'CA', 'RU', 'GL', 'SJ', 'BO', 'NP', 'ID', 'BT', 'IN'];
 
     /** Prefixo de `iso_region` que identifica o Alasca dentro dos EUA (ex.: 'US-AK'). */
     private const PREFIXO_REGIAO_ALASCA = 'US-AK';

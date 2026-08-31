@@ -1,0 +1,21 @@
+{
+  "callsign": "N208KB",
+  "ident": {
+    "aircraft_title": "Black Square Caravan Professional Super Cargomaster C-GLHA",
+    "aircraft_icao": "C208",
+    "tail_number": "N208KB",
+    "flight_number": "N208KB",
+    "airline": "N208KB",
+    "weight_lb": 8372.0,
+    "fuel_lb": 1162.0,
+    "aircraft_icao_raw": "ATCCOM.AC_MODEL C208.0.text"
+  },
+  "started_at": "2026-08-30T15:18:32Z",
+  "ended_at": "2026-08-30T15:57:00.301Z",
+  "duration_s": 2307,
+  "samples": 2305,
+  "events": 17,
+  "unavailable_vars": [],
+  "late_ticks": 0,
+  "schema": "1.0-csv"
+}
