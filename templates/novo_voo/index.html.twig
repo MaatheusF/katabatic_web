@@ -164,6 +164,17 @@
     </div>
   </div>
 
+  {#
+    Atualizado: origem/destino aceitam até 8 caracteres (maxlength),
+    não mais 4 - pedido em conversa ("precisamos pensar uma forma de
+    voar para aeroportos que não tem código ICAO"). Origem/destino aqui
+    já eram texto livre no backend (NovoVooController::publicar(), só
+    exige "até 8 caracteres cada"), mas o HTML travava em 4 - um código
+    local/FAA de bush flying (regiões de missão, ver
+    ImportarAeroportosOurairportsCommand) pode passar de 4 caracteres,
+    e o campo nem deixava digitar, mesmo o servidor aceitando. Mesmo
+    limite que o cadastro admin de aeroporto (/aeroportos) já usa.
+  #}
   <!-- Rota -->
   <div class="card">
     <div class="card-h"><span class="n">3</span><h3 data-i18n="common.route">Rota</h3><span class="note" data-i18n="novovoo.route.note">a maioria dos destinos é livre — preencha o que foi voado</span></div>
@@ -171,12 +182,12 @@
       <div class="grid2">
         <div class="field">
           <label data-i18n="novovoo.orig">Origem (ICAO)</label>
-          <input type="text" class="mono-input" id="f-orig" placeholder="PAFA" maxlength="4" style="text-transform:uppercase">
+          <input type="text" class="mono-input" id="f-orig" placeholder="PAFA" maxlength="8" style="text-transform:uppercase">
           <p class="hint" id="orig-hint"></p>
         </div>
         <div class="field">
           <label data-i18n="novovoo.dest">Destino (ICAO)</label>
-          <input type="text" class="mono-input" id="f-dest" placeholder="PABT" maxlength="4" style="text-transform:uppercase">
+          <input type="text" class="mono-input" id="f-dest" placeholder="PABT" maxlength="8" style="text-transform:uppercase">
         </div>
       </div>
       <div class="field" style="margin-bottom:0">

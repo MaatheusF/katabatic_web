@@ -663,10 +663,30 @@ def do_record(reader, args):
 
 
 def _post_json(url, token, body_dict):
-    """POST generico com Bearer, usado pelos dois endpoints do ACARS.
+    """POST generico com Bearer, usado pelos tres endpoints do ACARS.
 
     Sem gzip, sem fila, sem retry automatico (simplificacoes documentadas
     no README) - quem chama decide o que fazer se der errado.
+
+    **Tolera "extra data" depois do JSON** (raw_decode, nao loads) - bug
+    relatado em conversa: um POST em .../voos/iniciar que marcou a
+    aeronave "Em voo" certinho no servidor (efeito colateral aplicado,
+    confirmado pelo JSON de sucesso batendo byte a byte) ainda assim
+    derrubava a gravacao INTEIRA no cliente com
+    "json.decoder.JSONDecodeError: Extra data" - alguma coisa (aviso/
+    deprecation do PHP vazando pro corpo da resposta, mais provavel
+    rodando com o servidor embutido do PHP em vez de um webserver de
+    verdade - nao e bug deste script nem do endpoint em si) veio colada
+    depois do `}` de fechamento, tudo na mesma linha. `json.loads()` e
+    tudo-ou-nada: um unico byte a mais no fim já estoura, e nenhum dos
+    tres chamadores (anunciar_inicio/PositionPinger/upload_capture)
+    tratava esse erro - so tratavam HTTPError/URLError, apesar do
+    docstring de cada um deles dizer explicitamente que uma falha aqui
+    NUNCA deveria abortar a gravacao. `JSONDecoder().raw_decode()` pega
+    só o primeiro objeto JSON valido do começo da string e ignora
+    qualquer coisa depois - a gravacao segue, e quem chama ainda ve a
+    resposta de verdade do servidor (nao só "deu errado, sem saber o
+    quê").
     """
     body = json.dumps(body_dict, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=body, method="POST", headers={
@@ -674,7 +694,19 @@ def _post_json(url, token, body_dict):
         "Authorization": "Bearer %s" % token,
     })
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
+        status = resp.status
+        texto = resp.read().decode("utf-8", "replace") or "{}"
+    try:
+        resposta, fim = json.JSONDecoder().raw_decode(texto)
+    except ValueError:
+        # nem o comeco da resposta e JSON valido - deixa json.loads()
+        # estourar do jeito de sempre (mensagem de erro padrao do Python,
+        # mais clara que inventar um valor vazio escondendo o problema).
+        return status, json.loads(texto)
+    sobra = texto[fim:].strip()
+    if sobra:
+        print("  [aviso] resposta do servidor tinha dado extra depois do JSON (ignorado): %r" % sobra[:200])
+    return status, resposta
 
 
 def anunciar_inicio(server, token, payload):
@@ -694,6 +726,15 @@ def anunciar_inicio(server, token, payload):
         print("Segue gravando normalmente - so o Mapa ao vivo nao vai mostrar 'Em voo' em tempo real.")
     except urllib.error.URLError as exc:
         print("Nao conectou no servidor pra avisar o inicio: %s" % exc.reason)
+        print("Segue gravando normalmente - so o Mapa ao vivo nao vai mostrar 'Em voo' em tempo real.")
+    except ValueError as exc:
+        # Resposta nem o raw_decode() de _post_json() deu conta (ex.:
+        # servidor devolveu uma pagina de erro HTML em vez de JSON) - bug
+        # relatado em conversa (JSONDecodeError derrubando a gravacao
+        # inteira por causa de um POST de cortesia): mesma filosofia dos
+        # excepts acima, so que pra quando a resposta nao e JSON de jeito
+        # nenhum, nao so "tinha lixo depois do JSON valido".
+        print("Resposta do servidor nao deu pra entender (%s)." % exc)
         print("Segue gravando normalmente - so o Mapa ao vivo nao vai mostrar 'Em voo' em tempo real.")
 
 
@@ -764,6 +805,14 @@ class PositionPinger:
                 if msg != self._last_error:
                     print("\n  [posicao] nao conectou pro heartbeat (%s) - tentando de novo em %.0fs." % (msg, self.interval))
                     self._last_error = msg
+            except ValueError as exc:
+                # Ver _post_json()/anunciar_inicio() - resposta que nem
+                # raw_decode() aceitou. Mesmo dedup de mensagem que os
+                # excepts acima, pra nao poluir o console a cada ping.
+                msg = "resposta invalida (%s)" % exc
+                if msg != self._last_error:
+                    print("\n  [posicao] servidor respondeu algo que nao deu pra entender (%s) - tentando de novo em %.0fs." % (msg, self.interval))
+                    self._last_error = msg
 
 
 def upload_capture(payload, server, token, payload_path):
@@ -785,6 +834,10 @@ def upload_capture(payload, server, token, payload_path):
     except urllib.error.URLError as exc:
         print("Nao conectou no servidor: %s" % exc.reason)
         print("Payload continua em: %s (reenvie quando o servidor estiver de pe)." % payload_path)
+    except ValueError as exc:
+        # Ver _post_json() - resposta que nem raw_decode() aceitou.
+        print("Resposta do servidor nao deu pra entender (%s)." % exc)
+        print("Payload continua em: %s (confira se o voo foi mesmo publicado antes de reenviar)." % payload_path)
 
 
 # --------------------------------------------------------------------------

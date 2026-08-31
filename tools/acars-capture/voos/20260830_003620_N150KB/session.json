@@ -1,0 +1,21 @@
+{
+  "callsign": "N150KB",
+  "ident": {
+    "aircraft_title": "Airbus H145 Philippine Coast Guard HEMS",
+    "aircraft_icao": "H145",
+    "tail_number": "N150KB",
+    "flight_number": "N150KB",
+    "airline": "N150KB",
+    "weight_lb": 5567.272,
+    "fuel_lb": 877.242,
+    "aircraft_icao_raw": "H145"
+  },
+  "started_at": "2026-08-30T00:36:20Z",
+  "ended_at": "2026-08-30T01:21:05.825Z",
+  "duration_s": 2685,
+  "samples": 2676,
+  "events": 12,
+  "unavailable_vars": [],
+  "late_ticks": 2,
+  "schema": "1.0-csv"
+}

@@ -1,0 +1,2 @@
+t,type,lat,lon,alt_ft,data
+2026-08-30T22:26:26.154Z,session_start,,,,"{""ident"": {""aircraft_title"": ""Black Square Caravan Professional Super Cargomaster C-GLHA"", ""aircraft_icao"": ""C208"", ""tail_number"": ""N208KB"", ""flight_number"": ""N208KB"", ""airline"": ""N208KB"", ""weight_lb"": 7020.225, ""fuel_lb"": 610.225, ""aircraft_icao_raw"": ""ATCCOM.AC_MODEL C208.0.text""}, ""callsign"": ""N208KB""}"

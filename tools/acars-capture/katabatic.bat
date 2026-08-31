@@ -9,6 +9,13 @@ REM   katabatic.bat setup
 REM   katabatic.bat probe
 REM   katabatic.bat KBT118
 REM   katabatic.bat KBT118 PAFA PABT carga
+REM   katabatic.bat KBT512 VEPU VNRB reposicionamento helicoptero
+REM     (5o argumento opcional - categoria da aeronave: aviao ^(padrao,
+REM     pode omitir^) ou helicoptero. So muda a deteccao de toque no
+REM     solo/decolagem no script Python - ver --categoria em
+REM     katabatic_capture.py. NAO existia neste atalho antes; ordem fixa
+REM     e sempre CALLSIGN ORIGEM DESTINO TIPO [CATEGORIA], nunca
+REM     CALLSIGN CATEGORIA ORIGEM DESTINO TIPO)
 REM   katabatic.bat rebuild PASTA
 REM     (gravacao que caiu sem Ctrl+C - queda de energia, crash - e por
 REM     isso nunca gerou upload_payload.json; reconstroi a partir dos CSVs
@@ -32,6 +39,7 @@ set "ARG1=%~1"
 set "ARG2=%~2"
 set "ARG3=%~3"
 set "ARG4=%~4"
+set "ARG5=%~5"
 
 REM Tolera "--rebuild"/"--probe"/"--setup" (com traços) alem da forma
 REM sem traços, ja que e um erro de digitacao facil de cometer.
@@ -162,6 +170,8 @@ if "%ARG1%"=="" (
     echo   katabatic.bat probe
     echo   katabatic.bat KBT118
     echo   katabatic.bat KBT118 PAFA PABT carga
+    echo   katabatic.bat KBT512 VEPU VNRB reposicionamento helicoptero
+    echo     ^(5o argumento opcional - categoria: aviao/helicoptero^)
     echo   katabatic.bat rebuild PASTA
     echo.
     echo Envio ao servidor:
@@ -177,11 +187,23 @@ REM ===============================================================
 REM DEBUG
 REM ===============================================================
 
+REM Categoria (5o argumento) e opcional - vazio deixa o script Python cair
+REM no padrao dele (aviao). So monta --categoria quando foi informado, pra
+REM nao mandar "--categoria """ (vazio) e o argparse reclamar de escolha
+REM invalida.
+set "CATARG="
+set "CATDISPLAY=aviao (padrao)"
+if not "%ARG5%"=="" (
+    set "CATARG=--categoria %ARG5%"
+    set "CATDISPLAY=%ARG5%"
+)
+
 echo.
 echo Callsign : %ARG1%
 echo Origem   : %ARG2%
 echo Destino  : %ARG3%
 echo Tipo     : %ARG4%
+echo Categoria: %CATDISPLAY%
 echo Server   : %KATABATIC_SERVER%
 echo Pilot CID: %KATABATIC_PILOT_CID%
 echo.
@@ -196,6 +218,7 @@ REM ===============================================================
     --origem "%ARG2%" ^
     --destino "%ARG3%" ^
     --tipo "%ARG4%" ^
+    %CATARG% ^
     --server "%KATABATIC_SERVER%" ^
     --token "%KATABATIC_ACARS_TOKEN%" ^
     --pilot-cid "%KATABATIC_PILOT_CID%" ^
